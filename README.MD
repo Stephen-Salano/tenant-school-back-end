@@ -888,7 +888,7 @@ This project is proprietary software. Unauthorized copying, distribution, or mod
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) for version history and release notes.
+See [CHANGELOG.md](CHANGELOG.MD) for version history and release notes.
 
 ---
 
