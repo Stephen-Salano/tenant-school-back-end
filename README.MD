@@ -739,7 +739,7 @@ class StudentControllerIntegrationTest {
 
 ## Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.MD) for detailed guidelines.
 
 ### Quick Start for Contributors
 
