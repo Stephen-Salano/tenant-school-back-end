@@ -1,4 +1,4 @@
-package io.psyllabus.platform.tenant.service;
+package io.psyllabus.platform.school.service;
 
 public class SchoolServiceImpl implements SchoolService{
 }

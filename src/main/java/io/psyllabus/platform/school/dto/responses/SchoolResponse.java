@@ -1,4 +1,4 @@
-package io.psyllabus.platform.tenant.dto.responses;
+package io.psyllabus.platform.school.dto.responses;
 
 /**
  * GET /api/schools

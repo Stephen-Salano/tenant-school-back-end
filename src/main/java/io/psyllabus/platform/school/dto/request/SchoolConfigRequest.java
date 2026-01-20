@@ -1,4 +1,4 @@
-package io.psyllabus.platform.tenant.dto.request;
+package io.psyllabus.platform.school.dto.request;
 
 /**
  * DTO for updating school settings (e.g., term dates, grading preferences, notification settings)
