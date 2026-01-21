@@ -31,6 +31,32 @@
 		<sentry.version>8.27.0</sentry.version>
 	</properties>
 	<dependencies>
+
+		<!-- Added Dependencies -->
+
+		<!-- JJWT library, used to create and consume JSON Web Tokens  -->
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-api</artifactId>
+			<version>0.13.0</version>
+			<scope>compile</scope>
+		</dependency>
+		<!-- JJWT impl: The implementation model for JJWT -->
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-impl</artifactId>
+			<version>0.13.0</version>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt-jackson</artifactId>
+			<version>0.13.0</version>
+			<scope>runtime</scope>
+		</dependency>
+
+		<!-- Added Dependencies -->
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
