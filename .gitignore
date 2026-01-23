@@ -36,8 +36,6 @@ build/
 .env
 .env.*
 *.env
-application-*.yml
-application-*.yaml
 
 ### Logs ###
 logs/

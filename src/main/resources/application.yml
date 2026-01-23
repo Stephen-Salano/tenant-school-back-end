@@ -1,3 +1,133 @@
 spring:
   application:
     name: Psyllabus Platform API
+  #JPA Common Settings
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+  # Performance Tuning
+  task:
+    execution:
+      pool:
+        core-size: 8
+        max-size: 16
+        queue-capacity: 100
+    scheduling:
+      pool:
+        size: 4
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000 # 1 hour
+      cache-null-values: false
+  # Email
+  mail:
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enabled: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+
+#JWT Configuration
+jwt:
+  security:
+    include-minimal-claims: true
+    validate-issuer: true
+    validate-environment: true
+    #add key validation
+    min-key-length: 32
+
+#application-specific properties
+app:
+  verification-token:
+    expiration-minutes: 15 # token expires after 15 minutes
+    token-length: 32 # length of the random bytes used for token generation
+
+#Server
+server:
+  port: 8080
+  error:
+    include-binding-errors: never
+    include-exception: false
+    include-stacktrace: never
+  compression:
+    enabled: true
+    mime-types: application/json, application/xml, text/html, text/xml, text/plain
+
+#Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus
+  endpoint:
+    health:
+      livenessstate:
+        enabled: true
+      redinessstate:
+        enabled: true
+      show-details: when_authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: ${spring.profiles.active}
+      version: ${info.app.version}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+
+  tracing:
+    sampling:
+      probability: 1.0 # 100% in dev, 0.1 in prod
+
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+        step: 1m
+
+info:
+  app:
+    name: ${spring.application.name}
+    version: ${project.version:0.0.1-SNAPSHOT}
+    description: A multi-tenant school management platform
+    multi-tenancy:
+      enabled: true
+      tenant-header-name: X-Tenant-ID
+      default-isolation-strategy: SCHEMA
+    audit:
+      enabled: true
+      async: true
+      batch-size: 50
+  author:
+    name: "Stephen Salano"
+    #External service Configuration
+    external-services:
+#      openai:
+#        base-url: https://api.openai.com/v1
+#        api-key: ${OPENAI_API_KEY}
+#        timeout: 30000
+#        max-retries: 3
+#
+#      sendgrid:
+#        api-key: ${SENDGRID_API_KEY}
+#        from-email: ${SENDGRID_FROM_EMAIL}
+#        timeout: 10000
+#
+#      mpesa:
+#        consumer-key: ${MPESA_CONSUMER_KEY}
+#        consumer-secret: ${MPESA_CONSUMER_SECRET}
+#        environment: ${MPESA_ENVIRONMENT:sandbox}
+#        timeout: 60000

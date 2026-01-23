@@ -1,0 +1,20 @@
+spring:
+  # PostgreSQL for staging
+  datasource:
+    url: ${DATABASE_URL}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USERNAME}
+    password: ${BD_PASSWORD}
+  h2:
+    console:
+      enabled: false # we disable h2 for staging
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+logging:
+  level:
+    io.psyllabus: INFO
+    org.springframework.security: INFO
+#Moderating logging in staging
