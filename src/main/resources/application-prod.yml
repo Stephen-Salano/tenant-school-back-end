@@ -1,0 +1,46 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate # we never auto correct in production
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        use_sql_comments: false
+        generate_statistics: false
+  datasource:
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 5000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 30000
+
+# JWT Production Settings
+jwt:
+  secret-key: ${JWT_SECRET_KEY}
+  signing-key: ${JWT_SIGNING_KEY}
+  access-token-expiration: 3600000 # 1 hour (shorter for production)
+  refresh-token-expiration: 604800000 # 7 days
+
+#Server production Settings
+server:
+  port: 8080
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: 100 # Reduce - since we're using PGBouncer
+      min-spare: 10
+    connection-timeout: 10000
+    max-connections: 500
+    accept-count: 50
+
+management:
+  server:
+    port: 9090
+    address: 127.0.0.1 #localhost
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus

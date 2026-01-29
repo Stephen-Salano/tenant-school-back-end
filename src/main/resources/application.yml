@@ -1,6 +1,7 @@
 spring:
   application:
     name: Psyllabus Platform API
+    frontend-url: ${FRONTEND_URL}
   #JPA Common Settings
   jpa:
     show-sql: false
