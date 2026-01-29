@@ -1,4 +1,4 @@
 package io.psyllabus.platform.common.dto;
 
-public record ValiationErrorResponse() {
+public record ValidationErrorResponse() {
 }
