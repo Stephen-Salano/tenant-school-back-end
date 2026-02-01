@@ -63,6 +63,10 @@ The School Management System is a modern, scalable platform designed specificall
 - **Stakeholder Dashboards**: Separate interfaces for institutions, teachers, and parents
 - **AI-Powered Insights**: OpenAI-powered assistants for personalized recommendations
 
+### Architecture
+![System Architecture Context Diagram](docs/architecture/system_architecture_context.png)
+![Subdomain Driven Multi-Tenant Architecture](docs/architecture/Subdomain%20driven%20multi-tenant%20architecture.drawio.svg)
+
 ### Target Users
 - **School Administrators**: Manage students, staff, academic structure, and analytics
 - **Teachers**: Track attendance, enter grades, view class performance
@@ -739,7 +743,7 @@ class StudentControllerIntegrationTest {
 
 ## Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.MD) for detailed guidelines.
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ### Quick Start for Contributors
 
