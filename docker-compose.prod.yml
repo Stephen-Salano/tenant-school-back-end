@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  redis-prod:
+    image: redis:latest
+    container_name: redis-prod
+    command:
+      - redis-server --requirepass ${PROD_REDIS_PASS}
+    networks:
+      - my-app-network
+networks:
+  my-app-network:
+    driver: bridge

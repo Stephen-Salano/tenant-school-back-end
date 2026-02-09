@@ -13,6 +13,10 @@ spring:
     hibernate:
       ddl-auto: validate
     show-sql: false
+  data:
+    redis:
+      host: ${REDIS_STAGING_CONTAINER_NAME}
+      password: ${STAGING_REDIS_PASS}
 logging:
   level:
     io.psyllabus: INFO
