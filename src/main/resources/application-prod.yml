@@ -16,6 +16,10 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
       leak-detection-threshold: 30000
+  data:
+    redis:
+      host: ${REDIS_PROD_CONTAINER_NAME}
+      password: ${PROD_REDIS_PASS}
 
 # JWT Production Settings
 jwt:

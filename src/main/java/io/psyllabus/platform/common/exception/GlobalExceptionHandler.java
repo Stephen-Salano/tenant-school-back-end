@@ -16,7 +16,7 @@ import java.util.Map;
 
 /**
  * Shared between multiple controllers
- * @RestControllerAdvice :REST controller methods return value should be rendered into the response body
+ * @RestControllerAdvice: REST controller methods return value should be rendered into the response body
  */
 
 @RestControllerAdvice
