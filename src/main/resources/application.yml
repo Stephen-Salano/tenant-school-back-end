@@ -42,6 +42,15 @@ spring:
       port: ${REDIS_PORT}
       password: ${REDIS_PASSWORD}
 
+# Tenant Configuration
+tenant:
+  domain:
+    base: ${TENANT_BASE_DOMAIN:ourcompany.com} # Default base domain
+    separator: "." # Separator for subdomains
+  resolution:
+    header-name: X-Tenant-ID # Fallback or for testing
+    query-param: tenant # Fallback or for testing
+
 #JWT Configuration
 jwt:
   security:

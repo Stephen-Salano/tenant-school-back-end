@@ -17,6 +17,12 @@ spring:
     redis:
       host: ${REDIS_STAGING_CONTAINER_NAME}
       password: ${STAGING_REDIS_PASS}
+
+tenant:
+  domain:
+    base: staging.ourcompany.com
+    separator: "."
+
 logging:
   level:
     io.psyllabus: INFO

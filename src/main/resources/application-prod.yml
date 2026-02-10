@@ -21,6 +21,11 @@ spring:
       host: ${REDIS_PROD_CONTAINER_NAME}
       password: ${PROD_REDIS_PASS}
 
+tenant:
+  domain:
+    base: ourcompany.com
+    separator: "."
+
 # JWT Production Settings
 jwt:
   secret-key: ${JWT_SECRET_KEY}
