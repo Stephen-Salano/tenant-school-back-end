@@ -6,7 +6,6 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.psyllabus.platform.auth.entities.User;
 import io.psyllabus.platform.school.entities.School;
-import io.psyllabus.platform.subscription.entity.Subscription;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +20,7 @@ import java.util.*;
 
 /**
  * Implementation of JwtService using JJWT library.
- * Generates JWT tokens with full multi-tenancy and subscription claims.
+ * Generates minimal JWT tokens for identity only.
  */
 @Service
 @Slf4j
@@ -48,17 +47,12 @@ public class JwtServiceImpl implements JwtService {
 
     private static final String CLAIM_TENANT_ID = "tenant_id";
     private static final String CLAIM_USER_ID = "user_id";
-    private static final String CLAIM_USER_TYPE = "user_type";
-    private static final String CLAIM_SUBSCRIPTION_PLAN = "subscription_plan";
-    private static final String CLAIM_FEATURES = "features";
-    private static final String CLAIM_BRANCH_ID = "branch_id";
-    private static final String CLAIM_ACCESS_SCOPE = "access_scope";
     private static final String ENVIRONMENT_CLAIM = "env";
     private static final String TOKEN_TYPE_CLAIM = "typ";
 
 
     @Override
-    public String generateToken(User user, School school, Subscription subscription, String type) {
+    public String generateToken(User user, School school, String type) {
         Instant now = Instant.now();
 
         // If token_type = "access" => use access_token_ttl else use refresh_token_ttl
@@ -71,18 +65,9 @@ public class JwtServiceImpl implements JwtService {
         claims.put(ENVIRONMENT_CLAIM, getCurrentEnvironment());
         claims.put("aud", Collections.singleton(audience));
         
-        
-        // Business claims for multi-tenancy and feature gating
+        // Minimal Business claims
         claims.put(CLAIM_USER_ID, user.getId().toString());
         claims.put(CLAIM_TENANT_ID, school.getId().toString());
-        claims.put(CLAIM_USER_TYPE, user.getUserType().name());
-        claims.put(CLAIM_ACCESS_SCOPE, user.getAccessScope().name());
-        claims.put(CLAIM_SUBSCRIPTION_PLAN, subscription.getPlanType().name());
-        claims.put(CLAIM_FEATURES, subscription.getFeatures());
-
-        if (user.getBranchId() != null){
-            claims.put(CLAIM_BRANCH_ID, user.getBranchId().toString());
-        }
 
         String token = Jwts.builder()
                 .claims(claims)
@@ -98,15 +83,15 @@ public class JwtServiceImpl implements JwtService {
     }
 
     @Override
-    public String generateAccessToken(User user, School school, Subscription subscription) {
+    public String generateAccessToken(User user, School school) {
         log.debug("Generating access token for user: {}", user.getUsername());
-        return generateToken(user, school, subscription, "access");
+        return generateToken(user, school, "access");
     }
 
     @Override
-    public String generateRefreshToken(User user, School school, Subscription subscription) {
+    public String generateRefreshToken(User user, School school) {
         log.debug("Generating refresh token for user: {}", user.getUsername());
-        return generateToken(user, school, subscription, "refresh");
+        return generateToken(user, school, "refresh");
     }
 
     @Override

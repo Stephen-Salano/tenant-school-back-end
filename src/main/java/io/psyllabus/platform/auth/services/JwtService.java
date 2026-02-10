@@ -3,47 +3,42 @@ package io.psyllabus.platform.auth.services;
 import io.jsonwebtoken.Claims;
 import io.psyllabus.platform.auth.entities.User;
 import io.psyllabus.platform.school.entities.School;
-import io.psyllabus.platform.subscription.entity.Subscription;
 
 import java.util.UUID;
 
 /**
  * Service for JWT token generation and validation.
- * oken structure: tenant_id, user_id, user_type, subscription_plan, features[],
- *                   branch_id, access_scope, env, typ, aud, iss
+ * Token structure: tenant_id, user_id, env, typ, aud, iss
  *
  */
 public interface JwtService {
 
     /**
-     * Generate JWT token with full multi-tenancy claims.
+     * Generate JWT token with minimal claims.
      *
      * @param user the authenticated user
      * @param school the user's school (tenant)
-     * @param subscription the school's active subscription
      * @param type token type: "access" or "refresh"
      * @return signed JWT token string
      */
-    String generateToken(User user, School school, Subscription subscription, String type);
+    String generateToken(User user, School school, String type);
 
     /**
-     * Generate refresh token
+     * Generate access token
      * @param user the authenticated user
      * @param school the user's school
-     * @param subscription the school's active subscription
      * @return Signed access token
      */
-    String generateAccessToken(User user, School school, Subscription subscription);
+    String generateAccessToken(User user, School school);
 
     /**
      * Generate the refresh token (wrapper for generateToken with type="refresh")
      *
      * @param user the authenticated user
      * @param school the user's school (tenant)
-     * @param subscription the school's active subscription
      * @return signed refresh token
      */
-    String generateRefreshToken(User user, School school, Subscription subscription);
+    String generateRefreshToken(User user, School school);
 
     /**
      * Validate JWT token (signature, expiration, issuer, audience)
@@ -113,4 +108,10 @@ public interface JwtService {
      * @return Metadata string or "invalid_token" if parsing fails
      */
     String getTokenMetadata(String token);
+    
+    /**
+     * Get configured access token expiration time in milliseconds
+     * @return expiration time
+     */
+    long getAccessTokenExpiration();
 }

@@ -39,7 +39,7 @@ public class PasswordServiceImpl implements PasswordService {
         log.debug("Verifying Password");
         boolean matches = passwordEncoder.matches(rawPassword, hashedPassword);
         log.debug("Password verification result: {}", matches);
-        return true;
+        return matches;
     }
 
     @Override
@@ -58,9 +58,6 @@ public class PasswordServiceImpl implements PasswordService {
             return false;
         }
 
-        if (password.chars().noneMatch(Character::isDigit)){
-            return false;
-        }
-        return true;
+        return password.chars().anyMatch(Character::isDigit);
     }
 }

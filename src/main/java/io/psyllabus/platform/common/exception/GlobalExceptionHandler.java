@@ -26,48 +26,54 @@ public class GlobalExceptionHandler  {
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleResourceNotFound(ResourceNotFoundException ex){
         log.warn("Resource not found: {}", ex.getMessage());
+        ErrorResponse errorDetails = ErrorResponse.of(ex.getMessage(), "RESOURCE_NOT_FOUND");
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error(ex.getMessage()));
+                .body(ApiResponse.error(ex.getMessage(), errorDetails));
     }
 
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ApiResponse<Void>> handleUnauthorized(UnauthorizedException ex){
         log.warn("Unauthorized access: {}", ex.getMessage());
+        ErrorResponse errorDetails = ErrorResponse.of(ex.getMessage(), "UNAUTHORIZED");
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error(ex.getMessage()));
+                .body(ApiResponse.error(ex.getMessage(), errorDetails));
     }
 
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ApiResponse<Void>> handleInvalidCredentials(InvalidCredentialsException ex){
         log.warn("Invalid credentials: {}", ex.getMessage());
+        ErrorResponse errorDetails = ErrorResponse.of(ex.getMessage(), "INVALID_CREDENTIALS");
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error(ex.getMessage()));
+                .body(ApiResponse.error(ex.getMessage(), errorDetails));
     }
 
     @ExceptionHandler(TenantNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleTenantNotFound(TenantNotFoundException ex){
         log.error("Tenant not found: {}", ex.getMessage());
+        ErrorResponse errorDetails = ErrorResponse.of(ex.getMessage(), "TENANT_NOT_FOUND");
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error(ex.getMessage()));
+                .body(ApiResponse.error(ex.getMessage(), errorDetails));
     }
 
     @ExceptionHandler(SubscriptionException.class)
     public ResponseEntity<ApiResponse<Void>> handleSubscriptionError(SubscriptionException ex){
         log.warn("Subscription error: {}", ex.getMessage());
+        ErrorResponse errorDetails = ErrorResponse.of(ex.getMessage(), "SUBSCRIPTION_ERROR");
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error(ex.getMessage()));
+                .body(ApiResponse.error(ex.getMessage(), errorDetails));
     }
 
     @ExceptionHandler(DuplicateResourceException.class)
     public ResponseEntity<ApiResponse<Void>> handleDuplicateResource(DuplicateResourceException ex){
+        ErrorResponse errorDetails = ErrorResponse.of(ex.getMessage(), "DUPLICATE_RESOURCE");
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error(ex.getMessage()));
+                .body(ApiResponse.error(ex.getMessage(), errorDetails));
 
     }
 
@@ -110,14 +116,11 @@ public class GlobalExceptionHandler  {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex){
+    public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex){
         log.error("Unexpected error", ex);
+        ErrorResponse errorDetails = ErrorResponse.of("An unexpected error occurred", "INTERNAL_ERROR");
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ErrorResponse.of("An unexpected error occurred", "INTERNAL_ERROR"));
+                .body(ApiResponse.error("An unexpected error occurred", errorDetails));
     }
-
-
-
-
 }

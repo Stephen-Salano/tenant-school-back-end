@@ -19,9 +19,9 @@ public interface AuthService {
      * Flow:
      * 1. Find user by username/email within tenant
      * 2. Verify password using PasswordService
-     * 3. Load School and Subscription for tenant
-     * 4. Generate JWT using JwtService
-     * 5. Return LoginResponse with token + user info
+     * 3. Load School (Tenant)
+     * 4. Generate Minimal JWT using JwtService
+     * 5. Return LoginResponse with token + minimal user info
      *
      * @param request login credentials (username/email + password)
      * @return LoginResponse containing JWT token and user details
