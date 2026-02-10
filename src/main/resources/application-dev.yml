@@ -17,6 +17,12 @@ spring:
     redis:
       host: localhost
       port: 6379
+
+tenant:
+  domain:
+    base: localhost # or psyllabus.local if using hosts file
+    separator: "."
+
 logging:
   level:
     io.psyllabus: DEBUG

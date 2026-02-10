@@ -23,6 +23,14 @@ public interface SchoolRepository extends JpaRepository<School, UUID> {
     Optional<School> findBySubdomainPrefix(String subdomainPrefix);
 
     /**
+     * Find school by custom domain
+     * Used for tenant resolution from a vanity URL (e.g., portal.school.com)
+     * @param customDomain the custom domain
+     * @return
+     */
+    Optional<School> findByCustomDomain(String customDomain);
+
+    /**
      * Check if the subdomain prefix already exists
      * Used for validation during school registration
      * @param subdomainPrefix the subdomain prefix to check
