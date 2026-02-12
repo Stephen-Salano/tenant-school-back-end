@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -42,7 +43,7 @@ import java.util.UUID;
  */
 
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE) // This just means it runs first
+@Order(Ordered.HIGHEST_PRECEDENCE + 1) // Run after RequestIdFilter
 @RequiredArgsConstructor
 @Slf4j
 public class TenantFilter extends OncePerRequestFilter {
@@ -57,6 +58,7 @@ public class TenantFilter extends OncePerRequestFilter {
     private String TENANT_HEADER_NAME;
 
     private static final String SUBDOMAIN_SEPARATOR = ".";
+    private static final String MDC_TENANT_ID = "tenantId";
 
 
     @Override
@@ -104,6 +106,7 @@ public class TenantFilter extends OncePerRequestFilter {
 
             // 3. Set Context
             TenantContext.setCurrentTenant(tenantId);
+            MDC.put(MDC_TENANT_ID, tenantId.toString());
             log.info("Tenant Context set: tenant_id={}", tenantId);
 
             filterChain.doFilter(request, response);
@@ -114,6 +117,7 @@ public class TenantFilter extends OncePerRequestFilter {
             response.sendError(HttpServletResponse.SC_NOT_FOUND, e.getMessage());
         } finally {
             TenantContext.clear();
+            MDC.remove(MDC_TENANT_ID);
             log.debug("Tenant context cleared");
         }
     }
@@ -129,6 +133,7 @@ public class TenantFilter extends OncePerRequestFilter {
         }
 
         TenantContext.setCurrentTenant(tenantId);
+        MDC.put(MDC_TENANT_ID, tenantId.toString());
         log.info("Tenant Context set via Header: tenant_id={}", tenantId);
     }
 

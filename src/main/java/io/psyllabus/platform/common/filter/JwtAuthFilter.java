@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.core.annotation.Order;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -52,6 +53,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
+    private static final String MDC_USER_ID = "userId";
     
     @Override
     protected void doFilterInternal(
@@ -137,15 +139,23 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             // Set authentication in SecurityContext
             SecurityContextHolder.getContext().setAuthentication(authentication);
             
+            // Set MDC for logging
+            MDC.put(MDC_USER_ID, user.getId().toString());
+            
             log.info("User authenticated: {} (tenant: {})", username, tenantId);
             
         } catch (Exception e) {
             log.error("JWT authentication error: {}", e.getMessage(), e);
             SecurityContextHolder.clearContext();
         }
-        
+
         // Continue filter chain
-        filterChain.doFilter(request, response);
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            // Clear userId from MDC after request processing is complete
+            MDC.remove(MDC_USER_ID);
+        }
     }
     
     @Override

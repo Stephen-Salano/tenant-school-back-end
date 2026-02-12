@@ -1,7 +1,7 @@
 spring:
   application:
     name: Psyllabus Platform API
-    frontend-url: ${FRONTEND_URL}
+    frontend-url: ${FRONTEND_URL//localhost:3000}
   #JPA Common Settings
   jpa:
     show-sql: false
@@ -126,16 +126,8 @@ info:
     name: "Stephen Salano"
     #External service Configuration
     external-services:
-#      openai:
-#        base-url: https://api.openai.com/v1
-#        api-key: ${OPENAI_API_KEY}
-#        timeout: 30000
-#        max-retries: 3
-#
-#      sendgrid:
-#        api-key: ${SENDGRID_API_KEY}
-#        from-email: ${SENDGRID_FROM_EMAIL}
-#        timeout: 10000
+
+
 #
 #      mpesa:
 #        consumer-key: ${MPESA_CONSUMER_KEY}

@@ -6,8 +6,10 @@ import io.psyllabus.platform.auth.dto.responses.LoginResponse;
 import io.psyllabus.platform.auth.dto.responses.UserResponse;
 import io.psyllabus.platform.auth.entities.User;
 import io.psyllabus.platform.auth.repository.UserRepository;
+import io.psyllabus.platform.common.exception.DuplicateResourceException;
 import io.psyllabus.platform.common.exception.TenantNotFoundException;
 import io.psyllabus.platform.common.exception.UnauthorizedException;
+import io.psyllabus.platform.common.exception.ValidationException;
 import io.psyllabus.platform.common.util.TenantContext;
 import io.psyllabus.platform.school.entities.School;
 import io.psyllabus.platform.school.repository.SchoolRepository;
@@ -82,11 +84,61 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public UserResponse register(RegisterRequest request) {
-        return null;
+
+        log.info("Registration attempt for: {}", request.username());
+
+        UUID tenantId = TenantContext.getCurrentTenantId();
+        if (tenantId == null) {
+            throw new TenantNotFoundException("Tenant context not set");
+        }
+
+        // Validate uniqueness
+        if (userRepository.existsByUsernameAndTenantId(request.username(), tenantId)) {
+            throw new DuplicateResourceException("Username already exists");
+        }
+
+        if (userRepository.existsByEmailAndTenantId(request.email(), tenantId)) {
+            throw new DuplicateResourceException("Email already exists");
+        }
+
+        // Validate password strength
+        if (!passwordService.isPasswordStrong(request.password())) {
+            throw new ValidationException("Password does not meet strength requirements");
+        }
+
+        // Hash password
+        String hashedPassword = passwordService.hashPassword(request.password());
+
+        // Create user
+        User user = User.builder()
+                .tenantId(tenantId)
+                .branchId(request.branchId())
+                .username(request.username())
+                .email(request.email())
+                .hashedPassword(hashedPassword)
+                .firstName(request.firstName())
+                .lastName(request.lastName())
+                .phone(request.phone())
+                .userType(request.userType())
+                .accessScope(request.accessScope())
+                .build();
+
+        user = userRepository.save(user);
+
+        log.info("User registered successfully: {}", user.getUsername());
+
+        return new UserResponse(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getUserType()
+        );
     }
 
     @Override
     public boolean userExists(String username, UUID tenantId) {
-        return false;
+        return userRepository.findByIdentifierAndTenantId(username, tenantId).isPresent();
     }
 }

@@ -32,4 +32,6 @@ public class AuthController {
         ClaimsResponse response = claimsService.getFullClaims(user.getId());
         return ResponseEntity.ok(ApiResponse.success(response, "Claims fetched successfully"));
     }
+
+
 }
