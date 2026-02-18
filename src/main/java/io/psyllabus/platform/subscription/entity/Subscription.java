@@ -46,11 +46,11 @@ public class Subscription extends Auditable {
     @Column(name = "end_date")
     private LocalDateTime endDate;
 
-    @Column(name = "max_students")
-    private Integer maxStudents;
-
-    @Column(name = "max_branches")
-    private Integer maxBranches;
+//    @Column(name = "max_students")
+//    private Integer maxStudents;
+//
+//    @Column(name = "max_branches")
+//    private Integer maxBranches;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "features", columnDefinition = "jsonb")

@@ -31,6 +31,7 @@ import java.util.UUID;
 @Builder
 public class User extends Auditable implements UserDetails {
 
+    // TODO: What is the difference between this and a student / staff / parent (we should keep only account details)
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;

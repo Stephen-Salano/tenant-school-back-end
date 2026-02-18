@@ -134,7 +134,6 @@
 		</dependency>
 
 		<dependency>
-			<!-- todo possible vulnerability look into it -->
 			<groupId>net.logstash.logback</groupId>
 			<artifactId>logstash-logback-encoder</artifactId>
 			<version>9.0</version>

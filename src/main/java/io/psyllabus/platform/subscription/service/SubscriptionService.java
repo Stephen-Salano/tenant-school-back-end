@@ -1,5 +1,7 @@
 package io.psyllabus.platform.subscription.service;
 
+import io.psyllabus.platform.subscription.dto.request.SubscriptionCreateRequest;
+import io.psyllabus.platform.subscription.dto.response.SubscriptionResponse;
 import io.psyllabus.platform.subscription.entity.Subscription;
 
 import java.util.UUID;
@@ -14,4 +16,21 @@ public interface SubscriptionService {
      * @return the active subscription, or null if none found
      */
     Subscription getActiveSubscription(UUID tenantId);
+
+    /**
+     * Create a new subscription manually (dev/admin use).
+     * Deactivates any existing active subscriptions.
+     *
+     * @param request subscription creation details
+     * @return created subscription details
+     */
+    SubscriptionResponse createSubscription(SubscriptionCreateRequest request);
+
+    /**
+     * Cancel an active subscription.
+     * Evicts cache entry for the tenant.
+     *
+     * @param tenantId the tenant UUID
+     */
+    void cancelSubscription(UUID tenantId);
 }
