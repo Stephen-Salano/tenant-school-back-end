@@ -28,6 +28,11 @@ logging:
     io.psyllabus: DEBUG
     org.springframework.security: DEBUG
     org.hibernate.sql: DEBUG
+    #This silences the "Using docker compose file ..." and "Services running..." mesages
+    org.springframework.boot.docker.compose: WARN
+    #This silences the specific lifecycle management that prints image/container status
+    org.springframework.boot.docker.compose.lifecycle: WARN
+
 
 jwt:
   secret-key: ${JWT_SECRET_KEY}

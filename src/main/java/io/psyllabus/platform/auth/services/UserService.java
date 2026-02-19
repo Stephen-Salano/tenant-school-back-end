@@ -1,4 +1,4 @@
 package io.psyllabus.platform.auth.services;
 
-public class UserService {
+public interface UserService {
 }

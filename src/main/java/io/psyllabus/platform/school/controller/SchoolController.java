@@ -1,4 +1,2 @@
 package io.psyllabus.platform.school.controller;
-
-public class SchoolController {
-}
+public class SchoolController {}

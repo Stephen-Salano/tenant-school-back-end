@@ -1,7 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml" />
 
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <appender name="PRETTY_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <charset>utf8</charset>
+        </encoder>
+    </appender>
+
+    <appender name="LOGSTASH_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
             <includeMdcKeyName>traceId</includeMdcKeyName>
             <includeMdcKeyName>userId</includeMdcKeyName>
@@ -14,34 +22,23 @@
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <fileNamePattern>logs/psyllabus.%d{yyyy-MM-dd}.log</fileNamePattern>
             <maxHistory>30</maxHistory>
-            <totalSizeCap>1GB</totalSizeCap>
         </rollingPolicy>
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
             <includeMdcKeyName>traceId</includeMdcKeyName>
-            <includeMdcKeyName>userId</includeMdcKeyName>
-            <includeMdcKeyName>tenantId</includeMdcKeyName>
         </encoder>
     </appender>
 
-    <logger name="io.psyllabus" level="INFO"/>
-    <logger name="org.springframework.security" level="WARN"/>
-
-    <root level="INFO">
-        <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="FILE"/>
-    </root>
-
-    <springProfile name="dev">
-        <logger name="io.psyllabus" level="DEBUG"/>
-        <logger name="org.hibernate.SQL" level="DEBUG"/>
-        <root level="DEBUG">
-            <appender-ref ref="CONSOLE"/>
+    <springProfile name="dev, test, default">
+        <root level="INFO">
+            <appender-ref ref="PRETTY_CONSOLE" />
+            <appender-ref ref="FILE" />
         </root>
     </springProfile>
 
-    <springProfile name="prod">
-        <root level="WARN">
-            <appender-ref ref="FILE"/>
+    <springProfile name="prod, staging">
+        <root level="INFO">
+            <appender-ref ref="LOGSTASH_CONSOLE" />
+            <appender-ref ref="FILE" />
         </root>
     </springProfile>
 
