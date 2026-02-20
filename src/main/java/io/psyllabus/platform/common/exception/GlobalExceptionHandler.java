@@ -77,6 +77,24 @@ public class GlobalExceptionHandler  {
 
     }
 
+    // 400
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleValidation(ValidationException ex){
+        log.warn("Validation error: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ex.getMessage(), ErrorResponse.of(ex.getMessage(), "VALIDATION_ERROR")));
+    }
+
+    // 403
+    @ExceptionHandler(InsufficientPermissionException.class)
+    public ResponseEntity<ApiResponse<Void>> handlePermission(InsufficientPermissionException ex){
+        log.warn("Permission denied: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(ex.getMessage(), ErrorResponse.of(ex.getMessage(), "PERMISSION_DENIED")));
+    }
+
+
+
 
     /**
      * “If a MethodArgumentNotValidException happens, call the method below.”

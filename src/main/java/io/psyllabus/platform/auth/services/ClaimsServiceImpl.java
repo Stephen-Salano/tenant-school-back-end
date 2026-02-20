@@ -5,6 +5,9 @@ import io.psyllabus.platform.auth.entities.User;
 import io.psyllabus.platform.auth.repository.UserRepository;
 import io.psyllabus.platform.branch.entities.Branch;
 import io.psyllabus.platform.branch.repository.BranchRepository;
+import io.psyllabus.platform.common.exception.ResourceNotFoundException;
+import io.psyllabus.platform.common.exception.SubscriptionException;
+import io.psyllabus.platform.common.exception.TenantNotFoundException;
 import io.psyllabus.platform.school.entities.School;
 import io.psyllabus.platform.school.repository.SchoolRepository;
 import io.psyllabus.platform.subscription.entity.Subscription;
@@ -33,11 +36,11 @@ public class ClaimsServiceImpl implements ClaimsService {
     
     // Load user
     User user = userRepository.findById(userId)
-      .orElseThrow(() -> new RuntimeException("User not found"));
+      .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
     
     // Load school
     School school = schoolRepository.findById(user.getTenantId())
-      .orElseThrow(() -> new RuntimeException("School not found"));
+      .orElseThrow(() -> new TenantNotFoundException("School not found for tenant: " + user.getTenantId()));
     
     // Load branch (optional)
     Branch branch = null;
@@ -48,7 +51,7 @@ public class ClaimsServiceImpl implements ClaimsService {
     // Load subscription
     Subscription subscription = subscriptionRepository
       .findByTenantIdAndIsActiveTrue(user.getTenantId())
-      .orElseThrow(() -> new RuntimeException("No active subscription"));
+      .orElseThrow(() -> new SubscriptionException("No active subscription for tenant: " + user.getTenantId()));
     
     // Build response
     return new ClaimsResponse(
