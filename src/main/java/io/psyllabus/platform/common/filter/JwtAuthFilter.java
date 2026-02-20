@@ -106,7 +106,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 return;
             }
             
-            User user = userRepository.findByUsernameAndTenantId(username, tenantId)
+            User user = userRepository.findUsernameAndTenantId(username, tenantId)
                     .orElse(null);
             
             if (user == null) {

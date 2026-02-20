@@ -37,7 +37,7 @@ public class Subscription extends Auditable {
     private UUID tenantId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "plan_type", nullable = false, length = 50)
+    @Column(name = "plan-type", nullable = false, length = 50)
     private PlanType planType;
 
     @Column(name = "start_date", nullable = false)
@@ -81,7 +81,7 @@ public class Subscription extends Auditable {
      * @return true if active and not expired, false otherwise
      */
     public boolean isValid(){
-        if (!isActive || (status != SubscriptionStatus.ACTIVE)){
+        if (!isActive || status != SubscriptionStatus.ACTIVE){
             return false;
         }
         if (endDate == null){
