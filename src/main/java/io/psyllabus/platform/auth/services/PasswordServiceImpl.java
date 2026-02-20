@@ -13,11 +13,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Slf4j
 public class PasswordServiceImpl implements PasswordService {
-    private final BCryptPasswordEncoder passwordEncoder;
 
-    public PasswordServiceImpl() {
-        this.passwordEncoder = new BCryptPasswordEncoder(12); // Strength
-    }
+    // injected from the SecurityConfig @Bean
+    private final BCryptPasswordEncoder passwordEncoder;
 
     @Override
     public String hashPassword(String rawPassword) {
