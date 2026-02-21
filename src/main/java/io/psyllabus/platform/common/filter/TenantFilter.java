@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
@@ -32,7 +33,7 @@ import java.util.UUID;
  * 2. Extract Host header (e.g., "student.stmary.ourcompany.com")
  * 3. Determine if Subdomain or Custom Domain
  * 4. Query schools table (via Cached Service)
- * 5. Set TenantContext.setCurrentTenant(school.id)
+ * 5. Set TenantContext.setCurrentTenant(school.schoolId)
  * 6. Continue filter chain
  * 7. Clear context in finally block
  *
@@ -63,7 +64,7 @@ public class TenantFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
-            HttpServletRequest request, HttpServletResponse response, FilterChain filterChain
+            @NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
         try{
             // 1. Dev/Test Override: Check for X-Tenant-ID header

@@ -73,7 +73,7 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
      * Find subscription by tenant and plan type
      * Used during upgrades/downgrades
      *
-     * @param tenantId the tenant id
+     * @param tenantId the tenant schoolId
      * @param planType the plan type
      * @return Optional containing the subscription if found
      */
