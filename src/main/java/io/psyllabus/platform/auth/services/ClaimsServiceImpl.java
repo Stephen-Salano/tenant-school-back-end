@@ -52,6 +52,8 @@ public class ClaimsServiceImpl implements ClaimsService {
     Subscription subscription = subscriptionRepository
       .findByTenantIdAndIsActiveTrue(user.getTenantId())
       .orElseThrow(() -> new SubscriptionException("No active subscription for tenant: " + user.getTenantId()));
+
+    log.debug("Claims built for user: {} (tenant: {})", userId, user.getTenantId());
     
     // Build response
     return new ClaimsResponse(
