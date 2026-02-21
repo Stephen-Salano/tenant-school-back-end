@@ -53,7 +53,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
      * Find user by username, email or admission number (flexible login)
      * Supports multiple login methods in a single query
      * @param identifier username, email or admission number
-     * @param tenantId the tenant (school) id
+     * @param tenantId the tenant (school) schoolId
      * @return Optional containing the user if found
      */
     @Query("""
@@ -69,7 +69,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     /**
      * Count users by type within a tenant
      * Used for schools statistics
-     * @param tenantId the tenant (school) id
+     * @param tenantId the tenant (school) schoolId
      * @param userType the user type to count
      * @return count of users
      */

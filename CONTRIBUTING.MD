@@ -1005,7 +1005,7 @@ class StudentControllerIntegrationTest {
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.admissionNumber").value("STU999"))
             .andExpect(jsonPath("$.data.firstName").value("Jane"))
-            .andExpect(jsonPath("$.data.id").exists());
+            .andExpect(jsonPath("$.data.schoolId").exists());
     }
     
     @Test

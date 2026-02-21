@@ -6,7 +6,7 @@ import java.util.UUID;
 
 /**
  * GET /api/staff
- * { id, name, employeeNumber, department, status }
+ * { schoolId, name, employeeNumber, department, status }
  */
 public record StaffResponse(
         UUID id,

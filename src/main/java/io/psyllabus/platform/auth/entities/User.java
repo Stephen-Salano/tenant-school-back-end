@@ -38,7 +38,7 @@ public class User extends Auditable implements UserDetails {
 
 
     @Column(name = "tenant_id", nullable = false)
-    private UUID tenantId;  // References schools.id
+    private UUID tenantId;  // References schools.schoolId
 
     @Column(name = "branch_id")
     private UUID branchId;  // Optional: for multi-branch schools
@@ -97,11 +97,6 @@ public class User extends Auditable implements UserDetails {
     @Override
     public boolean isAccountNonLocked() {
         return status != UserStatus.SUSPENDED;
-    }
-
-    @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
     }
 
     @Override

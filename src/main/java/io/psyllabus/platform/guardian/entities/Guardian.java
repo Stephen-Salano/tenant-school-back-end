@@ -26,7 +26,7 @@ public class Guardian extends Auditable {
     private UUID tenantId;
 
     @Column(name = "user_id", nullable = false)
-    private UUID userId; // references the users.id
+    private UUID userId; // references the users.schoolId
 
     @Column(name = "first_name", nullable = false, length = 100)
     private String firstName;

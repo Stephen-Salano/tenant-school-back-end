@@ -78,7 +78,7 @@ public interface JwtService {
     UUID extractTenantId(String token);
 
     /**
-     * Extract user id from token
+     * Extract user schoolId from token
      *
      * @param token the JWT token
      * @return User UUID

@@ -5,11 +5,11 @@ import io.psyllabus.platform.school.enums.SubscriptionPlan;
 import java.util.UUID;
 
 /**
- * GET /api/schools
- * { id, name, plan, isActive }
+ * General-purpose school view — used by authenticated admin endpoints (GET /api/schools/me).
+ * Does NOT include admin credentials (those are only in SchoolOnboardResponse).
  */
 public record SchoolResponse(
-        UUID id,
+        UUID schoolId,
         String name,
         String subdomainPrefix,
         String email,

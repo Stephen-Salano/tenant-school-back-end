@@ -40,7 +40,7 @@ public class Branch extends Auditable {
     private String email;
 
     @Column(name = "branch_admin_id")
-    private UUID branchAdminId;  // References users.id
+    private UUID branchAdminId;  // References users.schoolId
 
     @Column(name = "is_main_branch")
     @Builder.Default
