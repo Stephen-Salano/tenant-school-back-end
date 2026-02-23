@@ -3,6 +3,7 @@ package io.psyllabus.platform.guardian.services;
 import io.psyllabus.platform.guardian.dto.request.GuardianCreateRequest;
 import io.psyllabus.platform.guardian.dto.responses.GuardianResponse;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface GuardianService {
@@ -26,4 +27,10 @@ public interface GuardianService {
      * Find guardian by email
      */
     GuardianResponse findByEmail(String email, UUID tenantId);
+
+    /**
+     * Return all guardians linked to a specific student (tenant-scoped).
+     * Used by ADMIN/STAFF to view a student's family/emergency contacts.
+     */
+    List<GuardianResponse> findByStudentId(UUID studentId);
 }

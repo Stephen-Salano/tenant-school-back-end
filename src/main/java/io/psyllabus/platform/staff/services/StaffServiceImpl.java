@@ -5,16 +5,21 @@ import io.psyllabus.platform.auth.dto.responses.UserResponse;
 import io.psyllabus.platform.auth.enums.AccessScope;
 import io.psyllabus.platform.auth.enums.UserType;
 import io.psyllabus.platform.auth.services.AuthService;
+import io.psyllabus.platform.common.dto.PageResponse;
 import io.psyllabus.platform.common.exception.DuplicateResourceException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
 import io.psyllabus.platform.common.util.TenantContext;
 import io.psyllabus.platform.staff.dto.request.StaffCreateRequest;
+import io.psyllabus.platform.staff.dto.request.UpdateStaffStatusRequest;
+import io.psyllabus.platform.staff.dto.responses.StaffDetailResponse;
 import io.psyllabus.platform.staff.dto.responses.StaffResponse;
 import io.psyllabus.platform.staff.entities.Staff;
 import io.psyllabus.platform.staff.enums.EmploymentStatus;
 import io.psyllabus.platform.staff.repository.StaffRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -103,6 +108,39 @@ public class StaffServiceImpl implements StaffService {
         return mapToResponse(staff);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<StaffResponse> findAll(Pageable pageable) {
+        UUID tenantId = TenantContext.getCurrentTenantId();
+        Page<StaffResponse> page = staffRepository
+                .findByTenantId(tenantId, pageable)
+                .map(this::mapToResponse);
+        return PageResponse.from(page);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public StaffDetailResponse findById(UUID staffId) {
+        UUID tenantId = TenantContext.getCurrentTenantId();
+        Staff staff = staffRepository.findByIdAndTenantId(staffId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException(" Staff not found"));
+        return mapToDetailResponse(staff);
+    }
+
+    @Override
+    public StaffResponse updateStatus(UUID staffId, UpdateStaffStatusRequest request) {
+        UUID tenantId = TenantContext.getCurrentTenantId();
+        Staff staff = staffRepository.findByIdAndTenantId(staffId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Staff not found"));
+
+        EmploymentStatus previous = staff.getEmploymentStatus();
+        staff.setEmploymentStatus(request.status());
+        staff = staffRepository.save(staff);
+        log.info("Staff {} status: {} -> {} (reason: {})",
+                staff.getEmployeeNumber(), previous, request.status(), request.reason());
+        return mapToResponse(staff);
+    }
+
     private StaffResponse mapToResponse(Staff staff) {
         return new StaffResponse(
                 staff.getId(),
@@ -111,6 +149,22 @@ public class StaffServiceImpl implements StaffService {
                 staff.getLastName(),
                 staff.getEmail(),
                 staff.getEmploymentStatus()
+        );
+    }
+
+    private StaffDetailResponse mapToDetailResponse(Staff staff) {
+        return new StaffDetailResponse(
+                staff.getId(),
+                staff.getEmployeeNumber(),
+                staff.getFirstName(),
+                staff.getLastName(),
+                staff.getEmail(),
+                staff.getPhone(),
+                staff.getDepartmentId(),
+                staff.getHireDate(),
+                staff.getEmploymentStatus(),
+                staff.getQualification(),
+                staff.getSpecialization()
         );
     }
 }

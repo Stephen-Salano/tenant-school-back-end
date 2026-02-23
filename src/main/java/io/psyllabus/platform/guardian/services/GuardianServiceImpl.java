@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.Guard;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -125,10 +126,31 @@ public class GuardianServiceImpl implements  GuardianService{
     }
 
     @Override
+    @Transactional(readOnly = true)
     public GuardianResponse findByEmail(String email, UUID tenantId) {
         Guardian guardian = guardianRepository.findByEmailAndTenantId(email, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException(" Guardian not found"));
         return mapToResponse(guardian);
+    }
+
+    @Override
+    public List<GuardianResponse> findByStudentId(UUID studentId) {
+
+        UUID tenantId = TenantContext.getCurrentTenantId();
+
+        // Get all guardian IDs linked to this student
+        List<UUID> guardianIds = studentGuardianRepository
+                .findByStudentIdAndTenantId(studentId, tenantId)
+                .stream()
+                .map(StudentGuardian::getGuardianId)
+                .toList();
+
+        // Fetch each guardian (max 2-3 per student — N+1 acceptable here)
+        return guardianIds.stream()
+                .map(id -> guardianRepository.findByIdAndTenantId(id, tenantId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Guardian record missing for id: " + id)))
+                .map(this::mapToResponse)
+                .toList();
     }
 
     private GuardianResponse mapToResponse(Guardian guardian) {
