@@ -1,6 +1,8 @@
 package io.psyllabus.platform.staff.repository;
 
 import io.psyllabus.platform.staff.entities.Staff;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -17,4 +19,9 @@ public interface StaffRepository extends JpaRepository<Staff, UUID> {
     boolean existsByEmployeeNumberAndTenantId(String employeeNumber, UUID tenantId);
 
     boolean existsByEmailAndTenantId(String email, UUID tenantId);
+
+    // ── Added for Stage 5 ──────────────────────────────────────────────────────
+    Page<Staff> findByTenantId(UUID tenantId, Pageable pageable);
+
+    long countByTenantId(UUID tenantId);
 }

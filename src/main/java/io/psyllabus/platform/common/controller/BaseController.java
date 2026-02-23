@@ -65,7 +65,14 @@ public abstract class BaseController {
         return ResponseEntity.ok(ApiResponse.success(null, message));
     }
 
-    // helper for paginated results
+    /**
+     * 200 OK with paginated data.
+     * Use for all list endpoints: GET /api/staff, GET /api/students, etc.
+     *
+     * Usage:
+     *   Page<Staff> page = staffRepository.findByTenantId(tenantId, pageable);
+     *   return paged(PageResponse.from(page.map(this::mapToResponse)), "Staff retrieved");
+     */
     protected <T> ResponseEntity<ApiResponse<PageResponse<T>>> paged(PageResponse<T> data, String message) {
         return ResponseEntity.ok(ApiResponse.success(data, message));
     }
