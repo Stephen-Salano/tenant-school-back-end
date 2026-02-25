@@ -179,9 +179,11 @@ public class TenantFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getRequestURI();
-        return path.startsWith("/actuator/health") ||
+        return path.startsWith("/actuator/") ||
                 path.startsWith("/actuator/info") ||
                 path.startsWith("/error") ||
-                path.startsWith("/h2-console");
+                path.startsWith("/h2-console") ||
+                path.startsWith("/swagger-ui") ||
+                path.startsWith("/v3/api-docs");
     }
 }
