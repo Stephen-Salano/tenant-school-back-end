@@ -12,7 +12,7 @@ import java.util.UUID;
         @Index(name = "idx_subdomain_prefix", columnList = "subdomain_prefix"),
         @Index(name = "idx_custom_domain", columnList = "custom_domain"),
         @Index(name = "idx_plan", columnList = "plan"),
-        @Index(name = "idx_is_active", columnList = "is_active")
+        @Index(name = "idx_school_is_active", columnList = "is_active")
 })
 @Getter
 @Setter

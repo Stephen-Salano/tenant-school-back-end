@@ -17,6 +17,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - psyllabus-network
 
   redis:
     image: redis:7-alpine
@@ -28,6 +30,8 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+    networks:
+      - psyllabus-network
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
@@ -43,6 +47,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+    networks:
+      - psyllabus-network
 
   prometheus:
     image: prom/prometheus:latest
@@ -55,6 +61,8 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
+    networks:
+      - psyllabus-network
 
   grafana:
     image: grafana/grafana:latest
@@ -68,8 +76,43 @@ services:
       - ./docker/grafana/dashboards:/etc/grafana/provisioning/dashboards
     depends_on:
       - prometheus
+      - loki
+    networks:
+      - psyllabus-network
+
+
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    networks:
+      - psyllabus-network
+
+  alloy:
+    image: grafana/alloy:latest
+    container_name: psyllabus-alloy
+    ports:
+      - "12345:12345"   # Alloy web UI — http://localhost:12345
+    volumes:
+      - /home/salano/IdeaProjects/Psyllabus Platform API/logs:/logs
+      - ./alloy-config.alloy:/etc/alloy/config.alloy
+      - alloy_data:/var/lib/alloy/data   # buffer storage
+    command: >
+      run
+      --server.http.listen-addr=0.0.0.0:12345
+      --storage.path=/var/lib/alloy/data
+      /etc/alloy/config.alloy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # reach localhost Spring Boot
+    networks:
+      - psyllabus-network
+
+networks:
+  psyllabus-network:
+    driver: bridge
 
 volumes:
   postgres_data:
   prometheus_data:
   grafana_data:
+  alloy_data:

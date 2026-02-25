@@ -1,9 +1,9 @@
 spring:
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/psyllabus_dev}
+    url: ${DEV_DB_URL}
     driver-class-name: org.postgresql.Driver
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD}
+    username: ${DEV_DB_USERNAME}
+    password: ${DEV_DB_PASSWORD}
 
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
@@ -17,6 +17,18 @@ spring:
     redis:
       host: localhost
       port: 6379
+      password:
+    # Disable spring-boot-docker-compose auto-start
+    # We start infrastructure manually so local Postgres doesn't conflict with Docker's
+  docker:
+    compose:
+      enabled: false
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: ${RABBITMQ_USER:admin}
+    password: ${RABBITMQ_PASS:admin}
 
 tenant:
   domain:
@@ -35,6 +47,7 @@ logging:
 
 
 jwt:
-  secret-key: ${JWT_SECRET_KEY}
-  access-token-expiration: 3600000  # 1 hour
-  refresh-token-expiration: 604800000  # 7 days
+  secret-key: ${DEV_JWT_SECRET_KEY}
+  signing-key: ${DEV_SIGNING_KEY}
+  access-token-expiration: ${DEV_JWT_ACCESS_EXPR}
+  refresh-token-expiration: ${DEV_JWT_REFRESH_EXPR}

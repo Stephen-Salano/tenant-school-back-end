@@ -59,7 +59,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("""
         SELECT u from User u
         WHERE u.tenantId = :tenantId
-        AND (U.username = :identifier OR u.email = :identifier)
+        AND (u.username = :identifier OR u.email = :identifier)
     """)
     Optional<User> findByIdentifierAndTenantId(
             @Param("identifier") String identifier,

@@ -1,0 +1,18 @@
+local.file_match "psyllabus_logs" {
+  path_targets = [{
+    __path__ = "/logs/*.log",
+    job      = "psyllabus-api",
+    env      = "dev",
+  }]
+}
+
+loki.source.file "psyllabus" {
+  targets    = local.file_match.psyllabus_logs.targets
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

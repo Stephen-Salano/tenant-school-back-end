@@ -33,6 +33,9 @@ public class JwtServiceImpl implements JwtService {
     @Value("${jwt.secret-key}")
     private String jwtSecret;
 
+    @Value("${jwt.signing-key}")
+    private String jwtSigningKey;
+
     @Value("${jwt.access-token-expiration}")
     private long accessTokenExpiration;
 
@@ -212,7 +215,7 @@ public class JwtServiceImpl implements JwtService {
      */
     private SecretKey getSigningKey() {
         try {
-            byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
+            byte[] keyBytes = Decoders.BASE64.decode(jwtSigningKey);
             return Keys.hmacShaKeyFor(keyBytes);
         } catch (Exception e) {
             log.error("Signing key error: {}", e.getMessage(), e);
