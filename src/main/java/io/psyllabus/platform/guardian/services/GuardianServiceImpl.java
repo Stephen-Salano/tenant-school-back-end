@@ -19,7 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.Guard;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,6 +32,7 @@ public class GuardianServiceImpl implements  GuardianService{
     private final StudentGuardianRepository studentGuardianRepository;
     private final AuthService authService;
 
+    private static final String GUARDIAN_TEMP_PASSWORD = "Parent@123";
     /*
      TODO: private final UUID tenantId = TenantContext.getCurrentTenantId(); globally instead of calling it every time
      */
@@ -56,7 +56,7 @@ public class GuardianServiceImpl implements  GuardianService{
         RegisterRequest userRequest = new RegisterRequest(
             request.email(), // Username  = email
                 request.email(),
-                request.phone(), // default password = phone number
+                GUARDIAN_TEMP_PASSWORD, // default password = phone number
                 request.firstName(),
                 request.lastName(),
                 request.phone(),

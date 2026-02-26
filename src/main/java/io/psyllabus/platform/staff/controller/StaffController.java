@@ -63,9 +63,9 @@ public class StaffController extends BaseController {
     public ResponseEntity<ApiResponse<PageResponse<StaffResponse>>> listStaff(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(defaultValue = "createdAt") String sortedBy
+            @RequestParam(defaultValue = "createdAt") String sortBy
     ){
-        Pageable pageable = PaginationUtils.of(page, size, sortedBy);
+        Pageable pageable = PaginationUtils.of(page, size, sortBy);
         return paged(staffService.findAll(pageable), "Staff retrieved");
     }
 

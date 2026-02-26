@@ -1,5 +1,6 @@
 package io.psyllabus.platform.subscription.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.psyllabus.platform.common.audit.Auditable;
 import io.psyllabus.platform.subscription.enums.PlanType;
 import io.psyllabus.platform.subscription.enums.SubscriptionStatus;
@@ -27,6 +28,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Subscription extends Auditable {
 
     @Id

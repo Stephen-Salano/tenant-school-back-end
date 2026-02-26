@@ -111,11 +111,12 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
-    public StudentResponse findByAdmissionNumber(String admissionNumber, UUID tenantId) {
+    public StudentDetailResponse findByAdmissionNumber(String admissionNumber) {
+        UUID tenantId = TenantContext.getCurrentTenantId();
         Student student = studentRepository.findByAdmissionNumberAndTenantId(admissionNumber, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
 
-        return mapToResponse(student);
+        return mapToDetailResponse(student);
     }
 
     @Override

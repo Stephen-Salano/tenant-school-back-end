@@ -36,6 +36,7 @@
     </springProfile>
 
     <logger name="io.netty" level="ERROR" />
+    <logger name="org.springframework.security.web.FilterChainProxy" level="WARN" />
 
     <springProfile name="prod, staging">
         <root level="INFO">

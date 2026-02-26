@@ -184,6 +184,9 @@ public class TenantFilter extends OncePerRequestFilter {
                 path.startsWith("/error") ||
                 path.startsWith("/h2-console") ||
                 path.startsWith("/swagger-ui") ||
-                path.startsWith("/v3/api-docs");
+                path.startsWith("/v3/api-docs") ||
+                path.equals("/api/schools/onboard") || //TODO: remove this later on and add platform admin issue #35
+                path.startsWith("/api/auth/login") ||
+                path.startsWith("/api/auth/register");
     }
 }
