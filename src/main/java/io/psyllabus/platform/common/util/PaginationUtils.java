@@ -20,14 +20,14 @@ public final class PaginationUtils {
 
     public static final int DEFAULT_PAGE = 0;
     public static final int DEFAULT_SIZE = 20;
-    public static final int MAX_SIZE = 10;
+    public static final int MAX_SIZE = 100;
 
     /**
      * Building a descending-sorted Pageable (newest first - good default for lists)
      * @param page the actual page number
      * @param size how many items per page
      * @param sortBy name of the column to sort by
-     * @return
+     * @return a Pageable object
      */
     public static Pageable of(int page, int size, String sortBy){
         // prevens errors incase someone requests page 5, it resets to 0

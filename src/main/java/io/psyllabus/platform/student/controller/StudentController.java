@@ -16,7 +16,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.coyote.Response;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -95,4 +94,20 @@ public class StudentController extends BaseController {
         return ok(studentService.findById(studentId), "Student retrieved");
     }
 
+    @GetMapping("/admission/{admissionNumber}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @RequireFeature(FeatureConstants.STUDENT_MANAGEMENT)
+    @Operation(summary = "Find student by admission number")
+    public ResponseEntity<ApiResponse<StudentDetailResponse>> getByAdmissionNumber(
+            @PathVariable String admissionNumber,
+            Authentication authentication
+    ) {
+        var user = getCurrentUser(authentication);
+        if (user.getUserType().name().equals("PARENT")) {
+            throw new InsufficientPermissionException(
+                    "Parent access pending guardian-link verification"
+            );
+        }
+        return ok(studentService.findByAdmissionNumber(admissionNumber), "Student retrieved");
+    }
 }

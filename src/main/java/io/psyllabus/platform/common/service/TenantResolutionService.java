@@ -5,7 +5,6 @@ import io.psyllabus.platform.school.entities.School;
 import io.psyllabus.platform.school.repository.SchoolRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -25,7 +24,7 @@ public class TenantResolutionService {
      * @return the tenant ID
      * @throws TenantNotFoundException if tenant not found or inactive
      */
-    @Cacheable(value = "tenant-subdomain", key = "#subdomainPrefix", unless = "#result == null")
+//    @Cacheable(value = "tenant-subdomain", key = "#subdomainPrefix", unless = "#result == null")
     public UUID resolveBySubdomain(String subdomainPrefix) {
         log.debug("Resolving tenant by subdomain: {}", subdomainPrefix);
         School school = schoolRepository.findBySubdomainPrefix(subdomainPrefix)
@@ -48,7 +47,7 @@ public class TenantResolutionService {
      * @return the tenant ID
      * @throws TenantNotFoundException if tenant not found or inactive
      */
-    @Cacheable(value = "tenant-custom-domain", key = "#customDomain", unless = "#result == null")
+//    @Cacheable(value = "tenant-custom-domain", key = "#customDomain", unless = "#result == null")
     public UUID resolveByCustomDomain(String customDomain) {
         log.debug("Resolving tenant by custom domain: {}", customDomain);
         School school = schoolRepository.findByCustomDomain(customDomain)
@@ -71,7 +70,7 @@ public class TenantResolutionService {
      * @return the tenant ID
      * @throws TenantNotFoundException if tenant not found or inactive
      */
-    @Cacheable(value = "tenant-id", key = "#tenantId", unless = "#result == null")
+//    @Cacheable(value = "tenant-id", key = "#tenantId", unless = "#result == null")
     public UUID resolveById(UUID tenantId) {
         log.debug("Resolving tenant by ID: {}", tenantId);
         School school = schoolRepository.findById(tenantId)

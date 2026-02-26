@@ -28,7 +28,7 @@ public interface StudentService {
     /**
      * Find student by admission number
      */
-    StudentResponse findByAdmissionNumber(String admissionNumber, UUID tenantId);
+    StudentDetailResponse findByAdmissionNumber(String admissionNumber);
 
     /**
      * Paginated list of all students within the current tenant.
