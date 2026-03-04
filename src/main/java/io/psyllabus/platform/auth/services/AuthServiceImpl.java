@@ -2,19 +2,19 @@ package io.psyllabus.platform.auth.services;
 
 import io.psyllabus.platform.auth.dto.request.LoginRequest;
 import io.psyllabus.platform.auth.dto.request.RegisterRequest;
+import io.psyllabus.platform.auth.dto.responses.AuthResult;
 import io.psyllabus.platform.auth.dto.responses.LoginResponse;
 import io.psyllabus.platform.auth.dto.responses.UserResponse;
+import io.psyllabus.platform.auth.entities.RefreshToken;
 import io.psyllabus.platform.auth.entities.User;
 import io.psyllabus.platform.auth.repository.UserRepository;
-import io.psyllabus.platform.common.exception.DuplicateResourceException;
-import io.psyllabus.platform.common.exception.TenantNotFoundException;
-import io.psyllabus.platform.common.exception.UnauthorizedException;
-import io.psyllabus.platform.common.exception.ValidationException;
+import io.psyllabus.platform.common.exception.*;
 import io.psyllabus.platform.common.util.TenantContext;
 import io.psyllabus.platform.school.entities.School;
 import io.psyllabus.platform.school.repository.SchoolRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,7 +22,12 @@ import java.util.UUID;
 
 /**
  * Implementation of AuthService.
- * Handles user authentication and registration with multi-tenancy support.
+ * Handles login (dual-token), refresh, logout, and registration.
+ *
+ * Token strategy:
+ *   Access token  — short-lived JWT, returned in JSON body
+ *   Refresh token — longer-lived JWT + DB revocation record (hybrid)
+ *                   returned to controller, controller sets HttpOnly cookie
  */
 @Service
 @Transactional
@@ -34,9 +39,10 @@ public class AuthServiceImpl implements AuthService {
     private final SchoolRepository schoolRepository;
     private final PasswordService passwordService;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
 
     @Override
-    public LoginResponse login(LoginRequest request) {
+    public AuthResult login(LoginRequest request) {
         log.info("Login attempt for username: {}", request.username());
 
         // Step 1: Get Tenant from Context (Resolved by TenantFilter)
@@ -67,19 +73,49 @@ public class AuthServiceImpl implements AuthService {
             throw new UnauthorizedException("Account is disabled");
         }
 
-        // Step 6: Generate Minimal JWT token (Identity Only)
-        String token = jwtService.generateAccessToken(user, school);
+        // Step 6: Generate Minimal JWT accessToken (Identity Only) + refresh token
+        String accessToken = jwtService.generateAccessToken(user, school);
+        String refreshToken = jwtService.generateRefreshToken(user, school);
 
         log.info("Login successful for user: {} (tenant: {})", user.getUsername(), school.getName());
 
         // Step 7: Return Minimal Login Response
-        return new LoginResponse(
-                token,
+     LoginResponse loginResponse = new LoginResponse(
+                accessToken,
                 "Bearer",
                 jwtService.getAccessTokenExpiration(),
                 user.getId(),
                 user.getUsername()
         );
+     return new AuthResult(loginResponse, refreshToken);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public String refresh(String refreshJwt, UUID tenantId) {
+        // Validate JWT signature + revocation (two-gate check in RefreshTokenService)
+        RefreshToken tokenRecord = refreshTokenService.validateAndGet(refreshJwt, tenantId);
+
+        // Load user and school to generate new access token
+        User user = userRepository.findById(tokenRecord.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        School school = schoolRepository.findById(tenantId)
+                .orElseThrow(() -> new TenantNotFoundException("School not found: " + tenantId));
+
+        String newAccessToken = jwtService.generateAccessToken(user, school);
+
+        log.info("Access token refreshed for user: {} (tenant: {})", user.getId(), tenantId);
+        return newAccessToken;
+    }
+
+    @Override
+    @CacheEvict(value = {"userProfile", "userClaims"}, key = "#refreshJwt", condition = "false")
+    // TODO: we can't key cache eviction by userId here since we only have the JWT.
+    // Full cache eviction on logout is handled separately if needed (future sprint).
+    public void logout(String refreshJwt, UUID tenantId) {
+        refreshTokenService.revoke(refreshJwt, tenantId);
+        log.info("User logged out (refresh token revoked), tenant: {}", tenantId);
     }
 
     @Override
@@ -135,10 +171,5 @@ public class AuthServiceImpl implements AuthService {
                 user.getLastName(),
                 user.getUserType()
         );
-    }
-
-    @Override
-    public boolean userExists(String username, UUID tenantId) {
-        return userRepository.findByIdentifierAndTenantId(username, tenantId).isPresent();
     }
 }

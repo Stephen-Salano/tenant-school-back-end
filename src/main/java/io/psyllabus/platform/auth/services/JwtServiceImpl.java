@@ -5,6 +5,8 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.psyllabus.platform.auth.entities.User;
+import io.psyllabus.platform.common.exception.ConfigurationException;
+import io.psyllabus.platform.common.exception.UnauthorizedException;
 import io.psyllabus.platform.school.entities.School;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +54,7 @@ public class JwtServiceImpl implements JwtService {
     private static final String CLAIM_USER_ID = "user_id";
     private static final String ENVIRONMENT_CLAIM = "env";
     private static final String TOKEN_TYPE_CLAIM = "typ";
+    private static final String CLAIM_JTI = "jti"; // JWT ID — unique per token, used for revocation tracking
 
 
     @Override
@@ -59,7 +62,10 @@ public class JwtServiceImpl implements JwtService {
         Instant now = Instant.now();
 
         // If token_type = "access" => use access_token_ttl else use refresh_token_ttl
-        Instant expiry = now.plus(type.equals("access") ? accessTokenExpiration : refreshTokenExpiration, ChronoUnit.MILLIS);
+        Instant expiry = now.plus(
+                type.equals("access") ? accessTokenExpiration : refreshTokenExpiration,
+                ChronoUnit.MILLIS
+        );
 
         Map<String, Object> claims = new HashMap<>();
 
@@ -71,6 +77,11 @@ public class JwtServiceImpl implements JwtService {
         // Minimal Business claims
         claims.put(CLAIM_USER_ID, user.getId().toString());
         claims.put(CLAIM_TENANT_ID, school.getId().toString());
+
+        // jti — unique per token, used by RefreshTokenService for DB-backed revocation.
+        // We generate it here so JwtService owns all token construction.
+        // RefreshTokenService extracts it after generation via extractJti().
+        claims.put(CLAIM_JTI, UUID.randomUUID().toString());
 
         String token = Jwts.builder()
                 .claims(claims)
@@ -101,7 +112,7 @@ public class JwtServiceImpl implements JwtService {
     public boolean validateToken(String token) {
         try{
             // parse and verify signature
-            Claims claims = extractClaims(token);
+             extractClaims(token);
 
             // Check expiration
             if (isTokenExpired(token)){
@@ -138,7 +149,7 @@ public class JwtServiceImpl implements JwtService {
             log.debug("Token validity for {}: {}", username, valid);
             return valid;
         } catch (Exception e){
-            log.warn("Token validation ith username failed: {}", e.getMessage());
+            log.warn("Token validation with username failed: {}", e.getMessage());
             return false;
         }
     }
@@ -153,8 +164,29 @@ public class JwtServiceImpl implements JwtService {
                     .getPayload();
         } catch (Exception e){
             log.error("Token parsing failed: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to parse JWT token", e);
+            throw new UnauthorizedException("Failed to parse JWT token");
         }
+    }
+
+    /**
+     * Extract the jti (JWT ID) claim.
+     *
+     * Used by RefreshTokenService after calling generateRefreshToken() —
+     * it gets the full JWT, calls this to get the jti, hashes it, and stores
+     * the hash in DB for revocation tracking.
+     *
+     * Visual:
+     *   generateRefreshToken() → "eyJhbGc..." (full JWT, sent to client)
+     *       └─ extractJti("eyJhbGc...") → "550e8400-e29b-41d4-..." (jti UUID)
+     *           └─ sha256("550e8400...") → "7f4a9b..." (stored in DB)
+     */
+    @Override
+    public String extractJti(String token) {
+        Claims claims = extractClaims(token);
+        String jti = claims.get(CLAIM_JTI, String.class);
+        if (jti == null)
+            throw new IllegalArgumentException("Token does not contain a jti claim");
+        return jti;
     }
 
     @Override
@@ -219,7 +251,7 @@ public class JwtServiceImpl implements JwtService {
             return Keys.hmacShaKeyFor(keyBytes);
         } catch (Exception e) {
             log.error("Signing key error: {}", e.getMessage(), e);
-            throw new RuntimeException("Invalid JWT signing key", e);
+            throw new ConfigurationException("Invalid JWT signing key", e);
         }
     }
 
