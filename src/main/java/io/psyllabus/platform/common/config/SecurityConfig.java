@@ -44,16 +44,27 @@ public class SecurityConfig {
     private final UserRepository userRepository;
     private final CorsConfigurationSource corsConfigurationSource;
 
-    // Public endpoints (no JWT required)
+    /**
+     * Public endpoints — no JWT required.
+     *
+     * /api/auth/refresh — carries no Bearer token; the refresh JWT is in an HttpOnly cookie.
+     *   Spring Security must not require a Bearer token here, otherwise every token refresh
+     *   call would be rejected before it reaches the controller.
+     *
+     * /api/auth/logout — same reasoning; the refresh token is in a cookie, not a header.
+     *   A user who is "logging out" may have an expired or missing access token.
+     *   They must still be able to revoke their refresh token and clear the cookie.
+     */
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/auth/login",
             "/api/auth/register",
+            "/api/auth/refresh",    // refresh token lives in HttpOnly cookie — no Bearer header
+            "/api/auth/logout",     // user may have expired access token when logging out
             "/api/auth/forgot-password/**",
             "/api/schools/onboard",
             "/error"
     };
 
-    // Endpoints allowed only in Dev/Test profiles
     private static final String[] DEV_TEST_ENDPOINTS = {
             "/swagger-ui/**",
             "/v3/api-docs/**",
@@ -61,7 +72,6 @@ public class SecurityConfig {
             "/actuator/**"
     };
 
-    // Endpoints allowed in Prod (restricted)
     private static final String[] PROD_ACTUATOR_ENDPOINTS = {
             "/actuator/health",
             "/actuator/prometheus"
@@ -69,11 +79,9 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        // Check currently active profile
         boolean isDevOrTest = Arrays.stream(environment.getActiveProfiles())
                 .anyMatch(p -> p.equalsIgnoreCase("dev") || p.equalsIgnoreCase("test"));
 
-        // Build dynamic permit list
         List<String> permitList = new ArrayList<>(List.of(PUBLIC_ENDPOINTS));
 
         if (isDevOrTest) {
@@ -83,66 +91,50 @@ public class SecurityConfig {
         }
 
         http
-            // Stateless REST — no CSRF, no sessions
-            .csrf(AbstractHttpConfigurer::disable)
-            .sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-            // CORS Configuration
-            .cors(cors -> {
-                if (isDevOrTest) {
-                    // In dev, allow H2 console specifically if needed, otherwise use source
-                    cors.configurationSource(request -> {
-                        if (request.getRequestURI().startsWith("/h2-console")) {
-                            return new CorsConfiguration().applyPermitDefaultValues();
-                        }
-                        return corsConfigurationSource.getCorsConfiguration(request);
-                    });
-                } else {
-                    cors.configurationSource(corsConfigurationSource);
-                }
-            })
+                .cors(cors -> {
+                    if (isDevOrTest) {
+                        cors.configurationSource(request -> {
+                            if (request.getRequestURI().startsWith("/h2-console")) {
+                                return new CorsConfiguration().applyPermitDefaultValues();
+                            }
+                            return corsConfigurationSource.getCorsConfiguration(request);
+                        });
+                    } else {
+                        cors.configurationSource(corsConfigurationSource);
+                    }
+                })
 
-            // Headers Configuration
-            .headers(headers -> {
-                if (isDevOrTest) {
-                    headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin) // Allow H2 console iframe
-                           .httpStrictTransportSecurity(HeadersConfigurer.HstsConfig::disable);
-                }
-                // In prod, SecurityHeadersConfig filter handles strict headers (CSP, HSTS)
-            })
+                .headers(headers -> {
+                    if (isDevOrTest) {
+                        headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
+                                .httpStrictTransportSecurity(HeadersConfigurer.HstsConfig::disable);
+                    }
+                })
 
-            // Route-level access control
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers(permitList.toArray(new String[0])).permitAll()
-                .requestMatchers("/api/v1/admin/**").hasRole(UserType.ADMIN.name())
-                .requestMatchers("/api/v1/staff/**").hasRole(UserType.STAFF.name())
-                .requestMatchers("/api/v1/student/**").hasRole(UserType.STUDENT.name())
-                .requestMatchers("/api/v1/parent/**").hasRole(UserType.PARENT.name())
-                .anyRequest().authenticated()
-            )
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(permitList.toArray(new String[0])).permitAll()
+                        .requestMatchers("/api/v1/admin/**").hasRole(UserType.ADMIN.name())
+                        .requestMatchers("/api/v1/staff/**").hasRole(UserType.STAFF.name())
+                        .requestMatchers("/api/v1/student/**").hasRole(UserType.STUDENT.name())
+                        .requestMatchers("/api/v1/parent/**").hasRole(UserType.PARENT.name())
+                        .anyRequest().authenticated()
+                )
 
-            .authenticationProvider(authenticationProvider())
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .authenticationProvider(authenticationProvider())
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    /**
-     * BCrypt with strength=12.
-     * Injected into PasswordServiceImpl.
-     */
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(12);
     }
 
-    /**
-     * UserDetailsService used by Spring's AuthenticationProvider.
-     * Loads user by identifier (username/email) within the current tenant.
-     *
-     * TenantContext is set before this is called (TenantFilter runs first).
-     */
     @Bean
     public UserDetailsService userDetailsService() {
         return identifier -> {

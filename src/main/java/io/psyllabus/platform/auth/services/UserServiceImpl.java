@@ -35,6 +35,11 @@ import java.util.UUID;
  *   doesn't serve stale data after a mutation.
  *
  * Deliberately thin — business logic stays in domain services (StaffService, StudentService, etc.)
+ *
+ *  Password change also revokes all active refresh tokens (K-DPA requirement):
+ * A compromised password means all existing sessions are suspect.
+ * Revoking forces re-login on all devices — attackers with a stolen
+ * refresh token lose access immediately after password change.
  */
 @Service
 @Slf4j
@@ -45,6 +50,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final BranchRepository branchRepository;
     private final PasswordService passwordService;
+    private final RefreshTokenService refreshTokenService;
 
     @Override
     public User getById(UUID userId) {
@@ -53,7 +59,6 @@ public class UserServiceImpl implements UserService {
                 .filter(u -> u.getTenantId().equals(tenantId))
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
     }
-
 
     @Override
     @Cacheable(value = "userProfile", key = "#userId")
@@ -79,25 +84,42 @@ public class UserServiceImpl implements UserService {
         return mapToProfileResponse(saved);
     }
 
+    /**
+     * Change password flow:
+     *   1. Validate newPassword == confirmPassword
+     *   2. Verify current password is correct (prevents CSRF-style forced change)
+     *   3. Hash and persist new password
+     *   4. Revoke ALL active refresh tokens for this user (K-DPA compliance)
+     *      → Forces re-login on every device
+     *      → Attacker with a stolen refresh token cannot continue after password change
+     *   5. Evict profile + claims cache
+     */
     @Override
     @Transactional
     @CacheEvict(value = {"userProfile", "userClaims"}, key = "#userId")
     public void changePassword(UUID userId, ChangePasswordRequest request) {
-        if (!request.newPassword().equals(request.confirmPassword())){
+        if (!request.newPassword().equals(request.confirmPassword())) {
             throw new ValidationException("New password and confirmation do not match");
         }
 
         User user = getById(userId);
 
-        if (!passwordService.verifyPassword(request.currentPassword(), user.getPassword())){
+        if (!passwordService.verifyPassword(request.currentPassword(), user.getPassword())) {
             throw new ValidationException("Current password is incorrect");
         }
 
+        // Persist new hashed password
         user.setHashedPassword(passwordService.hashPassword(request.newPassword()));
         userRepository.save(user);
-        log.info("Password changed for user: {}", userId);
-    }
 
+        // K-DPA: revoke all active refresh tokens — compromised password = all sessions suspect
+        // This forces re-login on every device (mobile, tablet, other browsers)
+        UUID tenantId = TenantContext.getCurrentTenantId();
+        refreshTokenService.revokeAllForUser(userId, tenantId);
+
+        log.info("Password changed and all refresh tokens revoked for user: {} (tenant: {})",
+                userId, tenantId);
+    }
 
     // ── Private helpers ────────────────────────────────────────────────────────
     /**
