@@ -7,7 +7,7 @@ import io.psyllabus.platform.school.entities.School;
 import java.util.UUID;
 
 /**
- * Service for JWT token generation and validation.
+ * Service for JWT access and refresh Token generation and validation.
  * Token structure: tenant_id, user_id, env, typ, aud, iss
  *
  */
@@ -15,6 +15,7 @@ public interface JwtService {
 
     /**
      * Generate JWT token with minimal claims.
+     * Internally assigns a unique jti claim to every token.
      *
      * @param user the authenticated user
      * @param school the user's school (tenant)
@@ -32,7 +33,8 @@ public interface JwtService {
     String generateAccessToken(User user, School school);
 
     /**
-     * Generate the refresh token (wrapper for generateToken with type="refresh")
+     * Generate the refresh refreshToken (wrapper for generateToken with type="refresh")
+     * The jti embedded in this token is what RefreshTokenService hashes and stores.
      *
      * @param user the authenticated user
      * @param school the user's school (tenant)
@@ -42,7 +44,7 @@ public interface JwtService {
 
     /**
      * Validate JWT token (signature, expiration, issuer, audience)
-     * Used by JwtAuthenticationFilter to verify incoming requests
+     * Used by JwtAuthenticationFilter to verify incoming requests & RefreshTokenService(signature check before DB hit)
      *
      * @param token the JWT token to validate
      * @return true if valid, false otherwise
@@ -67,6 +69,18 @@ public interface JwtService {
      * @throws RuntimeException if token parsing fails
      */
     Claims extractClaims(String token);
+
+    /**
+     * Extract jti (JWT ID) from token.
+     *
+     * This is the unique per-token UUID baked in at generation.
+     * RefreshTokenService hashes this value and stores the hash in DB
+     * to track revocation without storing the full JWT.
+     *
+     * @param token the JWT token
+     * @return jti string (UUID format)
+     */
+    String extractJti(String token);
 
     /**
      * Extract tenant ID from token

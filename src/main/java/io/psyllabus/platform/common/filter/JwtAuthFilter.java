@@ -40,8 +40,7 @@ import java.util.UUID;
  * - /api/auth/register
  * - /h2-console/** (dev only)
  * - /actuator/health
- * - /swagger-ui/**, /v3/api-docs/**
- */
+ * - /swagger-ui/**, /v3/api-docs/***/
 @Component
 @Order(2) // Run SECOND (after TenantFilter)
 @RequiredArgsConstructor

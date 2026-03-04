@@ -81,4 +81,6 @@ public class RefreshToken extends Auditable {
     public boolean isValid() {
         return !revoked && !isExpired();
     }
+
+    public boolean isRevoked(){ return  this.revoked; }
 }
