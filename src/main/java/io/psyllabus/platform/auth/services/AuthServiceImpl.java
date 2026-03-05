@@ -73,6 +73,21 @@ public class AuthServiceImpl implements AuthService {
             throw new UnauthorizedException("Account is disabled");
         }
 
+        // Checking user status (to avoid double login)
+        if(!user.isEnabled()){
+            log.warn("Login attempt for disabled user: {}", request.username());
+            throw new UnauthorizedException("Account is disabled");
+        }
+
+        /*
+        If the user is already logged in (has active refresh tokens), this rows
+        are marked revoked here. This enforces single-session-per-user:
+        - No stale rows accumulate in refresh_tokens
+        - Any previously issued refresh token immediately becomes invalid
+        - The user is effectively logged out of all other devices/tabs
+         */
+        refreshTokenService.revokeAllForUser(user.getId(), tenantId);
+
         // Step 6: Generate Minimal JWT accessToken (Identity Only) + refresh token
         String accessToken = jwtService.generateAccessToken(user, school);
         String refreshToken = jwtService.generateRefreshToken(user, school);
