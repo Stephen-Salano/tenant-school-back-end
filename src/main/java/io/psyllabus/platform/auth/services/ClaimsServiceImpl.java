@@ -14,10 +14,43 @@ import io.psyllabus.platform.subscription.entity.Subscription;
 import io.psyllabus.platform.subscription.repository.SubscriptionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
+
+/**
+ * ClaimsService — post-login session bootstrap.
+ *
+ * WHY THIS EXISTS:
+ *   The JWT access token is intentionally minimal (userId + tenantId only).
+ *   The frontend needs much more to render the dashboard: user name, school,
+ *   branch, subscription plan, feature flags, and where to redirect.
+ *
+ * WHEN IT'S CALLED:
+ *   Exactly once per login, immediately after POST /api/auth/login returns.
+ *   Frontend calls GET /api/auth/claims, stores the response, and uses it
+ *   for the entire session (no repeat calls unless the session is re-established).
+ *
+ * CACHING:
+ *   Result is cached in Redis by userId (TTL: 5 minutes).
+ *   Cache is evicted on: password change, profile update, subscription change.
+ *   If you add any feature that modifies user/school/subscription state,
+ *   add @CacheEvict(value = "userClaims", key = "#userId") to that method.
+ *
+ * DATA SOURCES:
+ *   users → who the person is
+ *   schools → which tenant (school) they belong to
+ *   branches → which branch within that school (nullable)
+ *   subscriptions → what plan and features are active
+ *
+ * MULTI-TENANCY:
+ *   Tenant isolation is enforced by using user.getTenantId() to scope
+ *   all lookups. A user from tenant A can never see tenant B's school or
+ *   subscription data through this service.
+ */
+
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +61,9 @@ public class ClaimsServiceImpl implements ClaimsService {
   private final SchoolRepository schoolRepository;
   private final BranchRepository branchRepository;
   private final SubscriptionRepository subscriptionRepository;
+
+  @Value("${spring.application.frontend-url}")
+  private String frontendBaseUrl;
   
   @Override
   @Cacheable(value = "userClaims", key = "#userId", unless = "#result == null")
@@ -75,13 +111,16 @@ public class ClaimsServiceImpl implements ClaimsService {
   }
   
   private String determineDashboardUrl(User user) {
-    return switch (user.getUserType()) {
-      case ADMIN -> "/dashboard/admin";
-      case STAFF -> "/dashboard/teacher";
-      case PARENT -> "/dashboard/parent";
-      case STUDENT -> "/dashboard/student";
+    String path = switch (user.getUserType()){
+      case ADMIN -> "/admin/dashboard";
+      case STAFF -> "/teacher/dashboard";
+      case PARENT -> "/parent/dashboard";
+      case STUDENT -> "/student/dashboard";
       default -> "/dashboard";
     };
+
+    // e.g. "http://localhost:3000/teacher/dashboard" in dev, "https://app.psyllabus.io/admin/dashboard"  in prod
+    return frontendBaseUrl + path;
   }
   
   private String determineDefaultPage(User user) {
