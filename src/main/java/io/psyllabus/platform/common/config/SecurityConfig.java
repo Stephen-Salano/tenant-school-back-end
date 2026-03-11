@@ -3,6 +3,7 @@ package io.psyllabus.platform.common.config;
 import io.psyllabus.platform.auth.enums.UserType;
 import io.psyllabus.platform.auth.repository.UserRepository;
 import io.psyllabus.platform.common.filter.JwtAuthFilter;
+import io.psyllabus.platform.common.filter.PlatformKeyFilter;
 import io.psyllabus.platform.common.util.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,7 +44,7 @@ public class SecurityConfig {
     private final JwtAuthFilter jwtAuthFilter;
     private final UserRepository userRepository;
     private final CorsConfigurationSource corsConfigurationSource;
-
+    private final PlatformKeyFilter platformKeyFilter;
     /**
      * Public endpoints — no JWT required.
      *
@@ -61,7 +62,6 @@ public class SecurityConfig {
             "/api/auth/refresh",    // refresh token lives in HttpOnly cookie — no Bearer header
             "/api/auth/logout",     // user may have expired access token when logging out
             "/api/auth/forgot-password/**",
-            "/api/schools/onboard",
             "/error"
     };
 
@@ -125,6 +125,7 @@ public class SecurityConfig {
                 )
 
                 .authenticationProvider(authenticationProvider())
+                .addFilterBefore(platformKeyFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

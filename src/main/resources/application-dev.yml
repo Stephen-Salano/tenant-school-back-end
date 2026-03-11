@@ -51,3 +51,8 @@ jwt:
   signing-key: ${DEV_SIGNING_KEY}
   access-token-expiration: ${DEV_JWT_ACCESS_EXPR}
   refresh-token-expiration: ${DEV_JWT_REFRESH_EXPR}
+
+platform:
+  api-key: ${PLATFORM_API_KEY:dev-platform-key-change-in-prod}
+  dev:
+    skip-subscription-check: true # turns off subscription gating
