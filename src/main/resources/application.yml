@@ -128,7 +128,10 @@ info:
     name: "Stephen Salano"
     #External service Configuration
     external-services:
-
+platform:
+  api-key: ${PLATFORM_API_KEY: dev-platform-key-change-in-prod}
+  dev:
+    skip-subscription-check: false
 
 
 

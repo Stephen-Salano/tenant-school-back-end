@@ -46,7 +46,9 @@ public class CorsConfig {
                 "Access-Control-Request-Method",
                 "Access-Control-Request-Headers",
                 "X-Requested-With",
-                "Cache-Control"
+                "Cache-Control",
+                "X-Tenant-ID",       // ← add: dev TenantFilter bypass header
+                "X-Platform-Key"
         ));
 
         configuration.setExposedHeaders(Arrays.asList(
