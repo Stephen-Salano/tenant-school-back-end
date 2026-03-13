@@ -1,4 +1,4 @@
-# School Management System
+# Psyllabus Platform API
 
 ![Spring](https://img.shields.io/badge/spring-%236DB33F.svg?style=for-the-badge&logo=spring&logoColor=white)
 [![License](https://img.shields.io/badge/License-Proprietary-red.svg)]()
@@ -130,30 +130,33 @@ The School Management System is a modern, scalable platform designed specificall
 
 ### Backend
 - **Java 21** (LTS)
-- **Spring Boot 3.2+** (Web, Security, Data JPA)
-- **Spring Security** with JWT authentication
+- **Spring Boot 3.5.9** (Web, Security, Data JPA)
+- **Spring Security** with JWT authentication (JJWT 0.13.0)
 - **Hibernate/JPA** for ORM
+- **Sentry** for error tracking (8.27.0)
+- **Bucket4j** for rate limiting (8.16.1)
 
 ### Database
 - **PostgreSQL 15+** (primary database)
-- **Redis 7+** (caching, session management)
+- **Redis 7+** (caching, session management, Spring Session)
 - **Flyway** for database migrations
 
 ### API Documentation
-- **SpringDoc OpenAPI 3** (formerly Swagger)
+- **SpringDoc OpenAPI 3** (formerly Swagger 2)
 - Interactive Swagger UI at `/swagger-ui.html`
 
 ### Build Tools
-- **Maven 3.9+** or **Gradle 8+**
+- **Maven 3.9+**
 - Maven Wrapper (`./mvnw`) included
 
 ### Containerization
 - **Docker** and **Docker Compose**
 - Pre-configured services for PostgreSQL, Redis, Prometheus, Grafana
 
-### Monitoring (Optional)
+### Monitoring & Resilience
 - **Prometheus** for metrics collection
 - **Grafana** for visualization dashboards
+- **Resilience4j** for circuit breakers and retries
 
 ### External Services
 - **OpenAI GPT-4o API** for AI features
@@ -164,7 +167,7 @@ The School Management System is a modern, scalable platform designed specificall
 
 ## Project Structure
 ```
-school-management-system/
+platform-api/
 ├── src/
 │   ├── main/
 │   │   ├── java/io/psyllabus/platform/
@@ -175,74 +178,53 @@ school-management-system/
 │   │   │   ├── assessment/         # Exams, quizzes, grade entry
 │   │   │   ├── attendance/         # Daily attendance tracking
 │   │   │   ├── audit/              # Audit logging, change tracking
-│   │   │   ├── auth/               # Authentication, JWT, user management
+│   │   │   ├── auth/               # Authentication, JWT, Refresh Tokens
 │   │   │   ├── branch/             # Multi-campus support, transfers
-│   │   │   ├── common/             # Shared utilities, exceptions, DTOs
+│   │   │   ├── common/             # Shared utilities, filters, exceptions, DTOs
+│   │   │   │   ├── filter/         # PlatformKeyFilter, TenantFilter, JwtAuthFilter
+│   │   │   │   └── util/           # TenantContext, etc.
 │   │   │   ├── department/         # Department management
 │   │   │   ├── grading/            # CBC/Traditional grading systems
 │   │   │   ├── guardian/           # Parent/guardian management
 │   │   │   ├── messaging/          # Communication, notifications
 │   │   │   ├── payments/           # Fee management, payment tracking
+│   │   │   ├── school/             # Tenant (School) management and onboarding
 │   │   │   ├── specialclass/       # Optional paid classes (Chinese, coding)
 │   │   │   ├── staff/              # Teachers, staff roles
 │   │   │   ├── student/            # Student enrollment, roles
 │   │   │   ├── subscription/       # Plan-based feature gating
 │   │   │   ├── teacherassignment/  # Teacher scheduling
-│   │   │   └── tenant/             # School (tenant) management
+│   │   │   └── PsyllabusPlatformApiApplication.java
 │   │   └── resources/
-│   │       ├── application.properties
-│   │       ├── application-dev.properties
-│   │       ├── application-prod.properties
+│   │       ├── application.yml
+│   │       ├── application-dev.yml
+│   │       ├── application-prod.yml
 │   │       └── db/migration/       # Flyway migration scripts
 │   └── test/                       # Unit and integration tests
 ├── docker/
-│   ├── docker-compose.yml          # All services (PostgreSQL, Redis, Prometheus, Grafana)
-│   ├── docker-compose.dev.yml      # Development overrides
-│   ├── postgres/
-│   │   └── init.sql                # Initial database setup
 │   ├── prometheus/
 │   │   └── prometheus.yml
 │   └── grafana/
 │       └── dashboards/
 ├── docs/
 │   ├── api/                        # API documentation
-│   ├── database/
-│   │   ├── schema.dbml             # Database schema (DBML format)
-│   │   └── er-diagram.png          # ER diagram
-│   ├── architecture/               # Architecture decisions
-│   └── implementation-roadmap.pdf  # 6-month implementation plan
-├── scripts/
-│   ├── setup-local-env.sh          # Local environment setup
-│   ├── seed-demo-data.sh           # Seed demo schools
-│   └── backup-db.sh                # Database backup script
-├── .github/
-│   └── workflows/
-│       ├── ci.yml                  # Continuous Integration
-│       └── code-quality.yml        # Code quality checks
-├── .gitignore
-├── .editorconfig
-├── docker-compose.yml
-├── Makefile                        # Common commands
-├── mvnw / mvnw.cmd                 # Maven wrapper
+│   └── architecture/               # Architecture decisions and diagrams
+├── compose.yaml / compose.prod.yml # Docker Compose files
 ├── pom.xml                         # Maven dependencies
-├── README.md                       # This file
-└── CONTRIBUTING.md                 # Contribution guidelines
+└── README.md                       # This file
 ```
 
 ### Package Organization
 
-The project follows a **feature-based package structure** (not layered). Each package contains:
+The project follows a **feature-based package structure**. Each package typically contains:
 ```
 <package>/
-├── entity/          # JPA entities
+├── entities/        # JPA entities
 ├── repository/      # Spring Data JPA repositories
 ├── service/         # Business logic
 ├── controller/      # REST controllers
-├── dto/
-│   ├── request/     # Request DTOs
-│   └── response/    # Response DTOs
-├── enums/           # Enums specific to this feature
-└── (strategy/       # Strategy pattern implementations, if needed)
+├── dto/             # Data Transfer Objects
+└── enums/           # Package-specific enums
 ```
 
 ---
@@ -281,44 +263,36 @@ cd school-management-system
 
 ### 2. Environment Setup
 
-#### A. Copy Environment Template
-```bash
-cp .env.example .env
-```
+#### A. Configure Environment Variables
 
-#### B. Configure Environment Variables
-
-Edit `.env` file with your local settings:
+Create a `.env` file or export these variables:
 ```properties
+# Application Security
+PLATFORM_API_KEY=your-secure-platform-key-here
+JWT_SECRET=your-256-bit-secret-key-change-in-production
+JWT_EXPIRATION_MS=86400000
+
+# Tenant Configuration
+TENANT_BASE_DOMAIN=psyllabus.io
+FRONTEND_URL=http://localhost:3000
+
 # Database
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
-POSTGRES_DB=school_mgmt_db
-POSTGRES_USER=school_admin
-POSTGRES_PASSWORD=change_me_in_production
+POSTGRES_DB=psyllabus_db
+POSTGRES_USER=psyllabus_admin
+POSTGRES_PASSWORD=change_me
 
 # Redis
 REDIS_HOST=localhost
 REDIS_PORT=6379
-
-# JWT
-JWT_SECRET=your-256-bit-secret-key-change-in-production
-JWT_EXPIRATION_MS=86400000
+REDIS_PASSWORD=
 
 # OpenAI (for AI features)
 OPENAI_API_KEY=sk-your-openai-api-key
 
-# SendGrid (for email notifications)
-SENDGRID_API_KEY=SG.your-sendgrid-api-key
-SENDGRID_FROM_EMAIL=noreply@yourschool.com
-
-# Africa's Talking (for SMS - optional)
-AFRICASTALKING_USERNAME=sandbox
-AFRICASTALKING_API_KEY=your-api-key
-
-# Application
-SPRING_PROFILES_ACTIVE=dev
-SERVER_PORT=8080
+# External Services (SendGrid, Africa's Talking)
+...
 ```
 
 ### 3. Docker Services
@@ -432,6 +406,15 @@ Once the application is running, access the Swagger UI:
 ```
 http://localhost:8080/swagger-ui.html
 ```
+
+### Important: Platform Onboarding
+
+The onboarding endpoint (`POST /api/schools/onboard`) is protected by a **Platform API Key**.
+All requests to this endpoint must include the following header:
+```
+X-Platform-Key: <your-platform-api-key>
+```
+Without this key, you will receive a 403 Forbidden response. This is the first gate in our security chain.
 
 ### Authentication in Swagger
 
