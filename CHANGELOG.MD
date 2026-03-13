@@ -10,10 +10,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Architecture diagram to README.MD
+- **Security**: Implemented `PlatformKeyFilter` to protect critical endpoints (`/api/schools/onboard`, `/api/platform/**`) using `X-Platform-Key`.
+- **Security**: Added timing-safe comparison for API keys to prevent side-channel attacks.
+- **Auth**: Comprehensive authentication flow with Refresh Tokens (rotation, hashing, and database storage).
+- **Auth**: `RefreshToken` entity and repository for persistent session management.
+- **Auth**: Timezone configuration for JWT tokens to ensure consistency across environments.
+- **Infra**: Implementation of User and School controllers for platform administration.
+- **Academic**: Initial implementation of `AcademicController` for academic year and term management.
+- **Guardian**: Added `LinkGuardianRequest` for linking students to guardians.
 
-### Planned
+### Fixed
+- **Auth**: Aligned dashboard URLs with frontend route structures to resolve navigation issues.
+- **Auth**: Prevented duplicate sessions by handling repeated login attempts correctly.
+- **Auth**: Resolved `TenantContext` null pointer issues during authentication.
+- **API**: Fixed various endpoint errors and improved error response consistency.
 
+### Changed
+- **Dependencies**: Upgraded to Spring Boot 3.5.9 and JJWT 0.13.0.
+- **Security**: Tightened JWT validation including minimum key length and environment checks.
 
 ---
 

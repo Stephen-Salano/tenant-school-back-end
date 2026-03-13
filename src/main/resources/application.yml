@@ -44,6 +44,11 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
 
+  threads:
+    virtual:
+      enabled: true # Java 21 threads
+
+
 # Tenant Configuration
 tenant:
   domain:
@@ -81,6 +86,8 @@ server:
 
 #Actuator
 management:
+  server:
+    port: 9091 # metrics on a separate port from 8080
   endpoints:
     web:
       exposure:
@@ -129,9 +136,27 @@ info:
     #External service Configuration
     external-services:
 platform:
-  api-key: ${PLATFORM_API_KEY: dev-platform-key-change-in-prod}
+  api-key: ${PLATFORM_API_KEY:dev-platform-key-change-in-prod}
   dev:
     skip-subscription-check: false
+
+#
+resilience4j:
+  retry:
+    instances:
+      default:
+        max-attempts: 3
+        wait-duration: 100ms
+        exponential-backoff-multiplier: 2
+        max-wait-duration: 1000ms
+  circuitbreaker:
+    instances:
+      default:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+
 
 
 
