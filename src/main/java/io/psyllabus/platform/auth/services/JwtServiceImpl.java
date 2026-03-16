@@ -5,8 +5,10 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.psyllabus.platform.auth.entities.User;
+import io.psyllabus.platform.auth.enums.UserType;
 import io.psyllabus.platform.common.exception.ConfigurationException;
 import io.psyllabus.platform.common.exception.UnauthorizedException;
+import io.psyllabus.platform.platformadmin.entities.PlatformAdmin;
 import io.psyllabus.platform.school.entities.School;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +54,7 @@ public class JwtServiceImpl implements JwtService {
 
     private static final String CLAIM_TENANT_ID = "tenant_id";
     private static final String CLAIM_USER_ID = "user_id";
+    private static final String CLAIM_USER_TYPE = "user_type";
     private static final String ENVIRONMENT_CLAIM = "env";
     private static final String TOKEN_TYPE_CLAIM = "typ";
     private static final String CLAIM_JTI = "jti"; // JWT ID — unique per token, used for revocation tracking
@@ -106,6 +109,41 @@ public class JwtServiceImpl implements JwtService {
     public String generateRefreshToken(User user, School school) {
         log.debug("Generating refresh token for user: {}", user.getUsername());
         return generateToken(user, school, "refresh");
+    }
+
+    @Override
+    public String generatePlatformToken(PlatformAdmin admin, String type) {
+        Instant now = Instant.now();
+        Instant expiry = now.plus(
+                type.equals("access") ? accessTokenExpiration : refreshTokenExpiration,
+                ChronoUnit.MILLIS
+        );
+
+        Map<String, Object> claims = new HashMap<>();
+        claims.put(TOKEN_TYPE_CLAIM, type);
+        claims.put(ENVIRONMENT_CLAIM, getCurrentEnvironment());
+        claims.put("aud", Collections.singleton(audience));
+        claims.put(CLAIM_USER_TYPE, UserType.PLATFORM_ADMIN.name()); // no user entity to call getUserType() on
+        claims.put(CLAIM_USER_ID, admin.getId().toString());
+        claims.put(CLAIM_JTI, UUID.randomUUID().toString());
+
+        //Note: no CLAIM_TENANT_ID - platform admins belong to no school
+        String token = Jwts.builder()
+                .claims(claims)
+                .subject(admin.getUsername())
+                .issuer(getIssuer())
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(expiry))
+                .signWith(getSigningKey())
+                .compact();
+
+        log.debug("JWT generated: platformAdmin={}, type={}, expires={}", admin.getUsername(), type, expiry);
+        return token;
+    }
+
+    @Override
+    public String generatePlatformAccessToken(PlatformAdmin admin) {
+        return  generatePlatformToken(admin, "access");
     }
 
     @Override
@@ -208,6 +246,18 @@ public class JwtServiceImpl implements JwtService {
         Claims claims = extractClaims(token);
         return claims.getSubject();
     }
+
+    @Override
+    public UserType extractUserType(String token) {
+        try{
+            String value = extractClaims(token).get(CLAIM_USER_TYPE, String.class);
+            return  value != null ? UserType.valueOf(value) : null;
+        }catch (Exception e){
+            log.debug("Could not extract user_type from token: {}", e.getMessage());
+            return null;
+        }
+    }
+
 
     @Override
     public boolean isTokenExpired(String token) {
@@ -314,4 +364,6 @@ public class JwtServiceImpl implements JwtService {
             return false;
         }
     }
+
+
 }
