@@ -5,6 +5,7 @@ import io.psyllabus.platform.auth.repository.UserRepository;
 import io.psyllabus.platform.common.filter.JwtAuthFilter;
 import io.psyllabus.platform.common.filter.PlatformKeyFilter;
 import io.psyllabus.platform.common.util.TenantContext;
+import io.psyllabus.platform.platformadmin.common.filter.PlatformAdminAuthFilter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -45,6 +46,7 @@ public class SecurityConfig {
     private final UserRepository userRepository;
     private final CorsConfigurationSource corsConfigurationSource;
     private final PlatformKeyFilter platformKeyFilter;
+    private final PlatformAdminAuthFilter platformAdminAuthFilter;
     /**
      * Public endpoints — no JWT required.
      *
@@ -126,6 +128,7 @@ public class SecurityConfig {
 
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(platformKeyFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(platformAdminAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

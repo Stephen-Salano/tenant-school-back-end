@@ -185,6 +185,7 @@ public class TenantFilter extends OncePerRequestFilter {
                 path.startsWith("/h2-console") ||
                 path.startsWith("/swagger-ui") ||
                 path.startsWith("/v3/api-docs") ||
-                path.equals("/api/schools/onboard"); //TODO: remove this later on and add platform admin issue #35
+                path.equals("/api/schools/onboard") ||
+                path.equals("api/platform/"); // because platform admin has no cotext
     }
 }

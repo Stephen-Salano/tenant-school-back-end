@@ -23,28 +23,29 @@ import java.io.IOException;
 import java.util.UUID;
 
 /**
- * JwtAuthFilter - Validates JWT and authenticates user.
- * 
- * Execution Order: SECOND (after TenantFilter)
- * 
- * Flow:
- * 1. Extract JWT from Authorization header
- * 2. Validate token (signature, expiration, issuer)
- * 3. Extract username from token
- * 4. Load User from database
- * 5. Create Authentication object
- * 6. Set SecurityContextHolder
- * 
- * Public Endpoints (Skip):
- * - /api/auth/login
- * - /api/auth/register
- * - /h2-console/** (dev only)
- * - /actuator/health
- * - /swagger-ui/**, /v3/api-docs/***
- *   These endpoints receive a refresh token via HttpOnly cookie — not a Bearer header.
- *   A user hitting /refresh may have an EXPIRED access token (that is the whole point).
- *   Running JWT validation here would reject them before the controller can issue a new one.
- *   AuthService.refresh() and AuthService.logout() do their own token validation internally.
+ * Validates the Bearer JWT and sets the {@code SecurityContext} principal.
+ *
+ * <p>Runs second in the filter chain (after {@code TenantFilter}). Operates on
+ * two distinct identity paths:</p>
+ *
+ * <p><strong>School user path</strong> (tenantId present in {@code TenantContext}):</p>
+ * <ol>
+ *   <li>Extract username from JWT {@code sub} claim.</li>
+ *   <li>Load {@link User} from {@code users} table, scoped to {@code tenantId}.</li>
+ *   <li>Validate token signature and username match.</li>
+ *   <li>Set {@code UsernamePasswordAuthenticationToken} with the {@link User} as principal.</li>
+ * </ol>
+ *
+ * <p><strong>Platform admin path</strong> (tenantId is {@code null} because
+ * {@code TenantFilter} skips all {@code /api/platform/**} requests):</p>
+ * <ol>
+ *   <li>Extract username from JWT {@code sub} claim.</li>
+ *   <li>Load {@link PlatformAdmin} from {@code platform_admins} table (no tenant scope).</li>
+ *   <li>Validate token and set principal with {@code ROLE_PLATFORM_ADMIN} authority.</li>
+ * </ol>
+ *
+ * <p>Public endpoints ({@code /api/auth/login}, {@code /api/auth/refresh}, etc.) are
+ * excluded via {@link #shouldNotFilter} and never reach this logic.</p>
  */
 @Component
 @Order(2) // Run SECOND (after TenantFilter)
