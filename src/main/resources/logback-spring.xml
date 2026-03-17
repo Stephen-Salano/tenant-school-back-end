@@ -41,7 +41,6 @@
     <springProfile name="prod, staging">
         <root level="INFO">
             <appender-ref ref="CONSOLE" />
-            <appender-ref ref="LOGSTASH_CONSOLE" />
             <appender-ref ref="FILE" />
         </root>
     </springProfile>

@@ -9,12 +9,12 @@ import io.psyllabus.platform.branch.repository.BranchRepository;
 import io.psyllabus.platform.common.constants.FeatureConstants;
 import io.psyllabus.platform.common.exception.DuplicateResourceException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
+import io.psyllabus.platform.common.exception.ValidationException;
 import io.psyllabus.platform.common.util.TenantContext;
 import io.psyllabus.platform.school.dto.request.SchoolCreateRequest;
 import io.psyllabus.platform.school.dto.responses.SchoolOnboardResponse;
 import io.psyllabus.platform.school.dto.responses.SchoolResponse;
 import io.psyllabus.platform.school.entities.School;
-import io.psyllabus.platform.school.enums.SubscriptionPlan;
 import io.psyllabus.platform.school.repository.SchoolRepository;
 import io.psyllabus.platform.subscription.entity.Subscription;
 import io.psyllabus.platform.subscription.enums.PlanType;
@@ -26,7 +26,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -62,21 +64,24 @@ public class SchoolServiceImpl implements SchoolService{
     @Value("${tenant.domain.base:psyllabus.co.ke}")
     private String baseDomain;
 
-    /**
-     * Temp password given to all provisioned admin accounts on first setup.
-     * Admin is expected to change this on first login (password change sprint).
-     */
-    private static final String ADMIN_TEMP_PASSWORD = "Admin@123";
-
     @Override
     public SchoolOnboardResponse onboardSchool(SchoolCreateRequest request) {
+        String password = generateTempPassword();
         log.info("Provisioning school: subdomain={}, plan={}", request.subdomainPrefix(), request.planType());
 
-        // Guard: uniqueness checks before writing anything
-        if (schoolRepository.existsBySubdomainPrefix(request.subdomainPrefix())){
+        boolean hasSubdomain = request.subdomainPrefix() != null && !request.subdomainPrefix().isBlank();
+        boolean hasCustomDomain = request.customDomain() != null && !request.customDomain().isBlank();
+
+        if (!hasSubdomain && !hasCustomDomain) {
+            throw new ValidationException("Either subdomainPrefix or customDomain must be provided");
+        }
+        if (hasSubdomain && hasCustomDomain) {
+            throw new ValidationException("Provide either subdomainPrefix or customDomain — not both");
+        }
+        if (hasSubdomain && schoolRepository.existsBySubdomainPrefix(request.subdomainPrefix())) {
             throw new DuplicateResourceException("Subdomain already taken: " + request.subdomainPrefix());
         }
-        if (schoolRepository.existsByEmail(request.email())){
+        if (schoolRepository.existsByEmail(request.email())) {
             throw new DuplicateResourceException("Email already registered: " + request.email());
         }
 
@@ -87,7 +92,8 @@ public class SchoolServiceImpl implements SchoolService{
                 .email(request.email())
                 .phone(request.phone())
                 .address(request.address())
-                .plan(mapPlanType(request.planType()))
+                .customDomain(request.customDomain())
+                .plan(request.planType())
                 .isActive(true)
                 .build();
         school = schoolRepository.save(school);
@@ -120,14 +126,13 @@ public class SchoolServiceImpl implements SchoolService{
         log.info("Main branch created: id={} for school={}", mainBranch.getId(), schoolId);
 
         // Station 4: Admin User - AuthService.register() reads TenantContext
-        // sp we set it manually for this unauthenticated provisioning call
-        TenantContext.setCurrentTenant(schoolId);
+        // so we set it manually for this unauthenticated provisioning call
         TenantContext.setCurrentTenant(schoolId);
         try{
             RegisterRequest adminRequest = new RegisterRequest(
                     request.adminEmail(), // username = email for admins
                     request.adminEmail(),
-                    ADMIN_TEMP_PASSWORD,
+                    password,
                     request.adminFirstName(),
                     request.adminLastName(),
                     request.adminPhone(),
@@ -148,8 +153,11 @@ public class SchoolServiceImpl implements SchoolService{
                 school.getName(),
                 school.getSubdomainPrefix(),
                 request.adminEmail(),
-                ADMIN_TEMP_PASSWORD,
-                "https://" + request.subdomainPrefix() + "." + baseDomain
+                password,
+                buildPortalUrl(request),
+                request.planType(),
+                LocalDateTime.now(ZoneOffset.UTC),
+                null
         );
     }
 
@@ -183,14 +191,6 @@ public class SchoolServiceImpl implements SchoolService{
                 school.getPlan(),
                 school.getIsActive()
         );
-    }
-
-    private SubscriptionPlan mapPlanType(PlanType planType) {
-        return switch (planType) {
-            case BASIC        -> SubscriptionPlan.BASIC;
-            case PROFESSIONAL -> SubscriptionPlan.PROFESSIONAL;
-            case ENTERPRISE   -> SubscriptionPlan.ENTERPRISE;
-        };
     }
 
     /**
@@ -256,5 +256,23 @@ public class SchoolServiceImpl implements SchoolService{
                 yield features;
             }
         };
+    }
+
+    private String buildPortalUrl(SchoolCreateRequest request){
+        if(request.subdomainPrefix() != null && !request.subdomainPrefix().isBlank()){
+            return "https://" + request.subdomainPrefix() + "." + baseDomain;
+        }
+        return "https://" + request.customDomain();
+    }
+
+    private String generateTempPassword() {
+        // Alphanumeric, 12 chars — strong enough for a forced-reset credential
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        SecureRandom random = new SecureRandom();
+        StringBuilder sb = new StringBuilder(12);
+        for (int i = 0; i < 12; i++) {
+            sb.append(chars.charAt(random.nextInt(chars.length())));
+        }
+        return sb.toString();
     }
 }

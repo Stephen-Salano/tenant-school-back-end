@@ -1,7 +1,7 @@
 package io.psyllabus.platform.school.entities;
 
 import io.psyllabus.platform.common.audit.Auditable;
-import io.psyllabus.platform.school.enums.SubscriptionPlan;
+import io.psyllabus.platform.subscription.enums.PlanType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -46,10 +46,14 @@ public class School extends Auditable {
     @Enumerated(EnumType.STRING)
     @Column(name = "plan", length = 20)
     @Builder.Default
-    private SubscriptionPlan plan = SubscriptionPlan.BASIC;
+    private PlanType plan = PlanType.BASIC;
 
     @Column(name = "is_active")
     @Builder.Default
     private Boolean isActive = true;
+
+    @Column(name = "provisioned_by")
+    private UUID provisionedBy;
+
 
 }

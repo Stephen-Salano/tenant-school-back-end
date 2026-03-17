@@ -1,7 +1,9 @@
 package io.psyllabus.platform.school.repository;
 
 import io.psyllabus.platform.school.entities.School;
-import io.psyllabus.platform.school.enums.SubscriptionPlan;
+import io.psyllabus.platform.subscription.enums.PlanType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -60,7 +62,7 @@ public interface SchoolRepository extends JpaRepository<School, UUID> {
      * @param plan the subscription plan
      * @return count of schools
      */
-    long countByPlan(SubscriptionPlan plan);
+    long countByPlan(PlanType plan);
 
     /**
      * Count active schools
@@ -68,4 +70,10 @@ public interface SchoolRepository extends JpaRepository<School, UUID> {
      * @return count of active schools
      */
     long countByIsActiveTrue();
+
+    Page<School> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    default Optional<School> findByIdCrossTenant(UUID schoolId){
+        return findById(schoolId);
+    }
 }

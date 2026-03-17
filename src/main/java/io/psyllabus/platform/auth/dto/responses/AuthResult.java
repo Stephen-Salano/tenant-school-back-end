@@ -15,7 +15,7 @@ package io.psyllabus.platform.auth.dto.responses;
  * The controller is the only consumer of refreshToken() here.
  * The service layer has no knowledge of HTTP cookies.
  */
-public record AuthResult(
+public record  AuthResult(
         LoginResponse loginResponse,
         String refreshToken // full refresh JWT - controller puts this in HttpOnly cookie
 ) {

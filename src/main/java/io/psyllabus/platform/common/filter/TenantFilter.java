@@ -186,6 +186,6 @@ public class TenantFilter extends OncePerRequestFilter {
                 path.startsWith("/swagger-ui") ||
                 path.startsWith("/v3/api-docs") ||
                 path.equals("/api/schools/onboard") ||
-                path.equals("api/platform/"); // because platform admin has no cotext
+                path.equals("/api/platform/"); // because platform admin has no cotext
     }
 }
