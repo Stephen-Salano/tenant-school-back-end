@@ -1,6 +1,7 @@
 package io.psyllabus.platform.common.config;
 
 import io.psyllabus.platform.auth.entities.User;
+import io.psyllabus.platform.platformadmin.entities.PlatformAdmin;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.AuditorAware;
@@ -32,11 +33,13 @@ public class AuditingConfig {
         return () -> {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-            if (auth == null || !auth.isAuthenticated() || !(auth.getPrincipal() instanceof User user)){
-                return Optional.of(SYSTEM_UUID);
+            if (auth.getPrincipal() instanceof PlatformAdmin admin){
+                return Optional.of(admin.getId());
             }
-
-            return Optional.of(user.getId());
+            if (auth.getPrincipal() instanceof User user){
+                return Optional.of(user.getId());
+            }
+            return Optional.of(SYSTEM_UUID);
         };
     }
 }

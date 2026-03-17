@@ -47,6 +47,12 @@ public record SchoolCreateRequest(
         String adminLastName,
 
         @NotBlank(message = "Admin phone is required")
-        String adminPhone
+        String adminPhone,
+
+        @Size(max = 255)
+        String customDomain,
+
+        @Size(max = 100)
+        String notes
 ) {
 }

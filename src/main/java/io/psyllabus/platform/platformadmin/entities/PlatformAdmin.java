@@ -32,6 +32,7 @@ import java.util.UUID;
  * acceptable and can be tightened when a platform-admin auditor provider is added.</p>
  */
 
+@Entity
 @Table(
         name = "platform_admins",
         indexes = {

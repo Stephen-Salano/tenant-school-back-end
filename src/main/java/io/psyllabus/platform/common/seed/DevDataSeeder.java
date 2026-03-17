@@ -32,6 +32,7 @@ import java.time.LocalDate;
 @RequiredArgsConstructor
 @Slf4j
 public class DevDataSeeder  implements ApplicationRunner {
+    public static final String STUDENT_ENROLLED = "[DevSeed] Student enrolled: {}";
     private final SchoolRepository schoolRepository;
     private final SchoolService schoolService;
     private final StaffService staffService;
@@ -59,7 +60,9 @@ public class DevDataSeeder  implements ApplicationRunner {
                     "admin@stmary.ac.ke",
                     "Mary",
                     "Wanjiku",
-                    "+254700000001"
+                    "+254700000001",
+                    null,   // customDomain — using subdomain
+                    null    // notes — internal only, not needed in seeder
             ));
 
             log.info("[DevSeed] School provisioned: id={}", school.schoolId());
@@ -110,7 +113,7 @@ public class DevDataSeeder  implements ApplicationRunner {
                     StudentStatus.ACTIVE,
                     null    // medicalConditions
             ));
-            log.info("[DevSeed] Student enrolled: {}", student1.admissionNumber());
+            log.info(STUDENT_ENROLLED, student1.admissionNumber());
 
             StudentResponse student2 = studentService.enrollStudent(new StudentCreateRequest(
                     "ADM-00002",
@@ -125,7 +128,7 @@ public class DevDataSeeder  implements ApplicationRunner {
                     StudentStatus.ACTIVE,
                     "Mild asthma — has inhaler"
             ));
-            log.info("[DevSeed] Student enrolled: {}", student2.admissionNumber());
+            log.info(STUDENT_ENROLLED, student2.admissionNumber());
 
             StudentResponse student3 = studentService.enrollStudent(new StudentCreateRequest(
                     "ADM-00003",
@@ -140,7 +143,7 @@ public class DevDataSeeder  implements ApplicationRunner {
                     StudentStatus.ACTIVE,
                     null
             ));
-            log.info("[DevSeed] Student enrolled: {}", student3.admissionNumber());
+            log.info(STUDENT_ENROLLED, student3.admissionNumber());
 
             // ── 5. Guardians ─────────────────────────────────────────────────────
             GuardianResponse parent1 = guardianService.createGuardian(new GuardianCreateRequest(

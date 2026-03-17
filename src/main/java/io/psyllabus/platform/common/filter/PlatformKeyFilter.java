@@ -62,7 +62,6 @@ public class PlatformKeyFilter extends OncePerRequestFilter {
     private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
 
     private static final List<String> PROTECTED_PATHS = List.of(
-            "/api/schools/onboard",
             "/api/platform/**"
     );
 

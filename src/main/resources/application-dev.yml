@@ -22,7 +22,7 @@ spring:
     # We start infrastructure manually so local Postgres doesn't conflict with Docker's
   docker:
     compose:
-      enabled: false
+      enabled: true
 
   rabbitmq:
     host: localhost

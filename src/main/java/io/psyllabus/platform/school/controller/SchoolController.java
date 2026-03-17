@@ -42,27 +42,6 @@ public class SchoolController extends BaseController {
     private final SchoolService schoolService;
 
     /**
-     * POST /api/schools/onboard — PUBLIC (no JWT required).
-     *
-     * Platform admin calls this after closing a deal with a school.
-     * Creates: School → Subscription → Branch → Admin user.
-     * Returns one-time admin credentials — store them safely before returning to the school.
-     *
-     * SecurityConfig permits this path without authentication.
-     */
-    @PostMapping("/onboard")
-    @Operation(summary = "Provision a new school", description = "Public endpoint - creates school, subscription, branch, and admin user in one transaction")
-    public ResponseEntity<ApiResponse<SchoolOnboardResponse>> onboard(
-            @Valid
-            @RequestBody SchoolCreateRequest request
-            ){
-        log.info("School onboarding request: subdomain={}", request.subdomainPrefix());
-        SchoolOnboardResponse response = schoolService.onboardSchool(request);
-        log.info("School provisioned successfully: id={}", response.schoolId());
-        return created(response, "School provisioned successfully");
-    }
-
-    /**
      * GET /api/schools/me — ADMIN only.
      *
      * Authenticated school admin fetches their own school profile.

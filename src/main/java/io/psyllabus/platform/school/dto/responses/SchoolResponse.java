@@ -1,6 +1,7 @@
 package io.psyllabus.platform.school.dto.responses;
 
-import io.psyllabus.platform.school.enums.SubscriptionPlan;
+
+import io.psyllabus.platform.subscription.enums.PlanType;
 
 import java.util.UUID;
 
@@ -13,7 +14,7 @@ public record SchoolResponse(
         String name,
         String subdomainPrefix,
         String email,
-        SubscriptionPlan plan,
+        PlanType plan,
         Boolean isActive
 ) {
 }

@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.*;
  * All endpoints here are implicitly authenticated — SecurityConfig protects /api/users/** with JWT.
  */
 
-@Controller
+@RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 @Slf4j
