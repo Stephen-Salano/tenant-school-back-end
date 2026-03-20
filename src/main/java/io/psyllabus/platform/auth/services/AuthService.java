@@ -3,7 +3,6 @@ package io.psyllabus.platform.auth.services;
 import io.psyllabus.platform.auth.dto.request.LoginRequest;
 import io.psyllabus.platform.auth.dto.request.RegisterRequest;
 import io.psyllabus.platform.auth.dto.responses.AuthResult;
-import io.psyllabus.platform.auth.dto.responses.LoginResponse;
 import io.psyllabus.platform.auth.dto.responses.UserResponse;
 
 import java.util.UUID;
@@ -79,5 +78,7 @@ public interface AuthService {
      * @throws io.psyllabus.platform.common.exception.ValidationException if password weak
      */
     UserResponse register(RegisterRequest request);
+
+    AuthResult completePasswordReset(String changeToken, String newPassword);
 
 }
