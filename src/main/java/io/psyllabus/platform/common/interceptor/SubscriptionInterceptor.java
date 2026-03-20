@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -44,12 +45,21 @@ public class SubscriptionInterceptor implements HandlerInterceptor {
     private final SubscriptionService subscriptionService;
     private final ObjectMapper objectMapper;
 
+    @Value("${platform.dev.skip-subscription-check}")
+    private boolean skipSubscriptionCheck;
+
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 
         // Only intercept controller methods (no static resources)
         if (!(handler instanceof HandlerMethod handlerMethod)){
             return true;
+        }
+
+        // Dev bypass - skip all subscription checks in dev profile
+        if (skipSubscriptionCheck) {
+            return true; // Silent - no log to avoid spam
         }
 
         // Check if method requires feature
