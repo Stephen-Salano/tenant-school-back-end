@@ -16,5 +16,7 @@ public record LoginResponse(
   String tokenType,
   long expiresIn,
   UUID userId,
-  String username
+  String username,
+  boolean passwordChangeRequired,
+  String changeToken
 ) {}
