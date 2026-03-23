@@ -14,11 +14,14 @@ import io.psyllabus.platform.school.entities.School;
 import io.psyllabus.platform.school.repository.SchoolRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.CacheManager;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Implementation of AuthService.
@@ -35,11 +38,14 @@ import java.util.UUID;
 @Slf4j
 public class AuthServiceImpl implements AuthService {
 
+    public static final String TOKEN_TYPE = "Bearer";
     private final UserRepository userRepository;
     private final SchoolRepository schoolRepository;
     private final PasswordService passwordService;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
+    private final StringRedisTemplate redisTemplate;
+    private final CacheManager cacheManager;
 
     @Override
     public AuthResult login(LoginRequest request) {
@@ -73,11 +79,11 @@ public class AuthServiceImpl implements AuthService {
             throw new UnauthorizedException("Account is disabled");
         }
 
-        // Checking user status (to avoid double login)
-        if(!user.isEnabled()){
-            log.warn("Login attempt for disabled user: {}", request.username());
-            throw new UnauthorizedException("Account is disabled");
+        if (Boolean.TRUE.equals(user.getMustChangePassword())){
+           return initiateForcePasswordReset(user);
         }
+
+
 
         /*
         If the user is already logged in (has active refresh tokens), this rows
@@ -97,12 +103,24 @@ public class AuthServiceImpl implements AuthService {
         // Step 7: Return Minimal Login Response
      LoginResponse loginResponse = new LoginResponse(
                 accessToken,
-                "Bearer",
+             TOKEN_TYPE,
                 jwtService.getAccessTokenExpiration(),
                 user.getId(),
-                user.getUsername()
+                user.getUsername(), false, null
         );
      return new AuthResult(loginResponse, refreshToken);
+    }
+
+    @Override
+    @Transactional
+    public AuthResult completePasswordReset(String changeToken, String newPassword) {
+        String userId = validateResetToken(changeToken);
+        User user = loadUserFromToken(userId);
+
+        updateUserPassword(user, newPassword);
+        invalidateResetToken(changeToken);
+
+        return generateAuthResult(user);
     }
 
     @Override
@@ -124,11 +142,18 @@ public class AuthServiceImpl implements AuthService {
         return newAccessToken;
     }
 
+
     @Override
-    @CacheEvict(value = {"userProfile", "userClaims"}, key = "#refreshJwt", condition = "false")
-    // TODO: we can't key cache eviction by userId here since we only have the JWT.
-    // Full cache eviction on logout is handled separately if needed (future sprint).
     public void logout(String refreshJwt, UUID tenantId) {
+        try {
+            UUID userId = jwtService.extractUserId(refreshJwt);
+            Objects.requireNonNull(cacheManager.getCache("userProfile")).evict(userId);
+            Objects.requireNonNull(cacheManager.getCache("userClaims")).evict(userId);
+        } catch (Exception e) {
+            // token may be malformed/expired — eviction is best-effort on logout
+            log.debug("Cache eviction skipped on logout — could not extract userId: {}", e.getMessage());
+        }
+
         refreshTokenService.revoke(refreshJwt, tenantId);
         log.info("User logged out (refresh token revoked), tenant: {}", tenantId);
     }
@@ -185,6 +210,72 @@ public class AuthServiceImpl implements AuthService {
                 user.getFirstName(),
                 user.getLastName(),
                 user.getUserType()
+        );
+    }
+
+    // helper function
+    private AuthResult initiateForcePasswordReset(User user){
+        // generate token
+        String changeToken  = UUID.randomUUID().toString();
+
+        // Store token in redis
+        redisTemplate.opsForValue().set(
+                "change_token" + changeToken,
+                user.getId().toString(),
+                15, TimeUnit.MINUTES
+        );
+        // create a limited response
+        LoginResponse limitedResponse = new LoginResponse(
+                null, TOKEN_TYPE, 0,
+                user.getId(), user.getUsername(),
+                true, changeToken
+        );
+        // return the AuthResult
+        return new AuthResult(limitedResponse, null);
+    }
+
+    private String validateResetToken(String changeToken) {
+        String userId = redisTemplate.opsForValue().get("change_token" + changeToken);
+        if (userId == null) {
+            throw new UnauthorizedException("Invalid or expired reset token");
+        }
+        return userId;
+    }
+
+    private User loadUserFromToken(String userId) {
+        return userRepository.findById(UUID.fromString(userId))
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    }
+
+    private void updateUserPassword(User user, String newPassword) {
+        if (!passwordService.isPasswordStrong(newPassword)) {
+            throw new ValidationException("Password does not meet strength requirements");
+        }
+        user.setHashedPassword(passwordService.hashPassword(newPassword));
+        user.setMustChangePassword(false);
+        userRepository.save(user);
+    }
+
+    private void invalidateResetToken(String changeToken) {
+        redisTemplate.delete("change_token:" + changeToken);
+    }
+
+    private AuthResult generateAuthResult(User user) {
+        School school = schoolRepository.findById(user.getTenantId())
+                .orElseThrow(() -> new TenantNotFoundException("School not found"));
+
+        String accessToken = jwtService.generateAccessToken(user, school);
+        String refreshToken = refreshTokenService.createRefreshToken(user, school);
+
+        log.info("Force reset completed for user: {} (tenant: {})", user.getId(), user.getTenantId());
+
+        return new AuthResult(
+                new LoginResponse(
+                        accessToken, TOKEN_TYPE,
+                        jwtService.getAccessTokenExpiration(), user.getId(),
+                        user.getUsername(), false, null
+                ),
+                refreshToken
         );
     }
 }

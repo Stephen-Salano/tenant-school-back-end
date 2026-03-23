@@ -1,10 +1,13 @@
 package io.psyllabus.platform.common.seed;
 
+import io.psyllabus.platform.auth.enums.UserStatus;
 import io.psyllabus.platform.common.util.TenantContext;
 import io.psyllabus.platform.guardian.dto.request.GuardianCreateRequest;
 import io.psyllabus.platform.guardian.dto.responses.GuardianResponse;
 import io.psyllabus.platform.guardian.enums.RelationshipType;
 import io.psyllabus.platform.guardian.services.GuardianService;
+import io.psyllabus.platform.platformadmin.entities.PlatformAdmin;
+import io.psyllabus.platform.platformadmin.repositories.PlatformAdminRepository;
 import io.psyllabus.platform.school.dto.request.SchoolCreateRequest;
 import io.psyllabus.platform.school.dto.responses.SchoolOnboardResponse;
 import io.psyllabus.platform.school.repository.SchoolRepository;
@@ -23,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -38,9 +42,13 @@ public class DevDataSeeder  implements ApplicationRunner {
     private final StaffService staffService;
     private final StudentService studentService;
     private final GuardianService guardianService;
+    private final PlatformAdminRepository platformAdminRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public void run(ApplicationArguments args) {
+        seedPlatformAdmin();
+
         if (schoolRepository.existsBySubdomainPrefix("stmary")) {
             log.info("[DevSeed] stmary tenant already exists — skipping seed");
             return;
@@ -207,5 +215,23 @@ public class DevDataSeeder  implements ApplicationRunner {
             ║  Portal:    https://stmary.psyllabus.co.ke               ║
             ╚══════════════════════════════════════════════════════════╝
             """, school.schoolId());
+    }
+
+    private void seedPlatformAdmin(){
+        if (platformAdminRepository.existsByEmail("platform@psyllabus.io")){
+            log.info("[DevSeed] Platform admin already exists - skipping");
+            return;
+        }
+
+        PlatformAdmin admin = PlatformAdmin.builder()
+                .username("platform-admin")
+                .email("platform@psyllabus.io")
+                .hashedPassword(passwordEncoder.encode("PlatformAdmin@123"))
+                .firstName("Platform")
+                .lastName("Admin")
+                .status(UserStatus.ACTIVE)
+                .build();
+        platformAdminRepository.save(admin);
+        log.info("[DevSeed] Platform admin seeded: platform@psyllabus.io / PlatformAdmin@123");
     }
 }

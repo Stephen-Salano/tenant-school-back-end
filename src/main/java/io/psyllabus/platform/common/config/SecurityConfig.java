@@ -63,6 +63,7 @@ public class SecurityConfig {
             "/api/auth/register",
             "/api/auth/refresh",    // refresh token lives in HttpOnly cookie — no Bearer header
             "/api/auth/logout",     // user may have expired access token when logging out
+            "/api/auth/reset-required",
             "/api/auth/forgot-password/**",
             "/error"
     };

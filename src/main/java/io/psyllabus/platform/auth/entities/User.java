@@ -15,6 +15,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
+
 @Entity
 @Table(name = "users", indexes = {
         @Index(name = "idex_tenant_id", columnList = "tenant_id"),
@@ -31,7 +32,11 @@ import java.util.UUID;
 @Builder
 public class User extends Auditable implements UserDetails {
 
-    // TODO: What is the difference between this and a student / staff / parent (we should keep only account details)
+//     Authentication identity only. Domain profile (name, role-specific fields)
+//    lives in Staff / Student / Guardian, linked by userId FK.
+//    firstName/lastName/phone are intentionally duplicated here
+//    to avoid joins on every authenticated request.
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -51,6 +56,9 @@ public class User extends Auditable implements UserDetails {
 
     @Column(name = "hashed_password", nullable = false, length = 255)
     private String hashedPassword;
+
+    @Column(name = "must_change_password")
+    private Boolean mustChangePassword = true;
 
     @Column(name = "first_name", nullable = false, length = 100)
     private String firstName;
