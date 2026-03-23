@@ -1,5 +1,6 @@
 package io.psyllabus.platform.auth.controller;
 
+import io.psyllabus.platform.auth.dto.request.ForceResetRequest;
 import io.psyllabus.platform.auth.dto.request.LoginRequest;
 import io.psyllabus.platform.auth.dto.responses.AuthResult;
 import io.psyllabus.platform.auth.dto.responses.ClaimsResponse;
@@ -11,6 +12,7 @@ import io.psyllabus.platform.auth.services.ClaimsService;
 import io.psyllabus.platform.auth.services.JwtService;
 import io.psyllabus.platform.common.dto.ApiResponse;
 import io.psyllabus.platform.common.util.TenantContext;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -76,6 +78,10 @@ public class AuthController {
             HttpServletResponse response
     ) {
         AuthResult result = authService.login(request);
+
+        if (result.refreshToken() != null){
+            setRefreshCookie(response, result.refreshToken());
+        }
 
         // Set refresh token as HttpOnly cookie — browser stores it, JS never sees it
         setRefreshCookie(response, result.refreshToken());
@@ -157,6 +163,25 @@ public class AuthController {
     ) {
         ClaimsResponse claimsResponse = claimsService.getFullClaims(user.getId());
         return ResponseEntity.ok(ApiResponse.success(claimsResponse, "Claims fetched successfully"));
+    }
+
+    @PostMapping("/reset-required")
+    @Operation(summary = "Complete forced password reset",
+        description = "Consumes the changeToken from login, sets new password, returns full session tokens."
+    )
+    public ResponseEntity<ApiResponse<LoginResponse>> completeForceReset(
+            @Valid @RequestBody ForceResetRequest request,
+            HttpServletResponse response
+            ){
+        AuthResult result = authService.completePasswordReset(
+                request.changeToken(),
+                request.newPassword()
+        );
+        if (result.refreshToken() != null){
+            setRefreshCookie(response, result.refreshToken());
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(result.loginResponse(), "Password reset successful"));
     }
 
     // ── Cookie helpers ─────────────────────────────────────────────────────────
