@@ -1,5 +1,7 @@
 package io.psyllabus.platform.school.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.psyllabus.platform.auth.dto.request.RegisterRequest;
 import io.psyllabus.platform.auth.enums.AccessScope;
 import io.psyllabus.platform.auth.enums.UserType;
@@ -8,13 +10,18 @@ import io.psyllabus.platform.branch.entities.Branch;
 import io.psyllabus.platform.branch.repository.BranchRepository;
 import io.psyllabus.platform.common.constants.FeatureConstants;
 import io.psyllabus.platform.common.exception.DuplicateResourceException;
+import io.psyllabus.platform.common.exception.InsufficientPermissionException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
 import io.psyllabus.platform.common.exception.ValidationException;
+import io.psyllabus.platform.common.util.RandomUtils;
 import io.psyllabus.platform.common.util.TenantContext;
 import io.psyllabus.platform.school.dto.request.SchoolCreateRequest;
+import io.psyllabus.platform.school.dto.request.SchoolProfileUpdateRequest;
 import io.psyllabus.platform.school.dto.responses.SchoolOnboardResponse;
-import io.psyllabus.platform.school.dto.responses.SchoolResponse;
+import io.psyllabus.platform.school.dto.responses.SchoolProfileResponse;
 import io.psyllabus.platform.school.entities.School;
+import io.psyllabus.platform.school.entities.SchoolProfile;
+import io.psyllabus.platform.school.repository.SchoolProfileRepository;
 import io.psyllabus.platform.school.repository.SchoolRepository;
 import io.psyllabus.platform.subscription.entity.Subscription;
 import io.psyllabus.platform.subscription.enums.PlanType;
@@ -23,32 +30,35 @@ import io.psyllabus.platform.subscription.repository.SubscriptionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
- * SchoolServiceImpl — this class IS the Facade pattern for school provisioning.
+ * SchoolServiceImpl — Facade pattern for school provisioning and profile management.
  *
- * Think of it as an assembly line. Each step is a station:
+ * <p>Think of it as an assembly line for provisioning. Each step is a station:</p>
+ * <ol>
+ *   <li>School created → the tenant record; everything else hangs off its ID.</li>
+ *   <li>Subscription   → defines which features the school gets.</li>
+ *   <li>Main Branch    → every school starts with one campus.</li>
+ *   <li>Admin User     → created inside the new tenant context.</li>
+ * </ol>
  *
- *   [1] School created      → the tenant record. Everything else hangs off its ID.
- *   [2] Subscription        → defines which features the school gets.
- *   [3] Main Branch         → every school starts with one campus.
- *   [4] Admin User          → created inside the new tenant context.
+ * <p>The controller sees ONE method call: {@code onboardSchool(request)}.
+ * It knows nothing about Subscription, Branch, AuthService, or TenantContext.</p>
  *
- * The controller sees ONE method call: onboardSchool(request).
- * It knows nothing about Subscription, Branch, AuthService, or TenantContext.
- * That's what makes this a Facade.
- *
- * Transactional wraps all 4 stations: if admin creation fails (e.g. duplicate email),
- * the school, subscription, and branch all roll back — no orphaned tenant records.
+ * <p>{@code @Transactional} wraps all 4 stations: if admin creation fails
+ * (e.g. duplicate email), the school, subscription, and branch all roll back —
+ * no orphaned tenant records.</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -56,17 +66,23 @@ import java.util.UUID;
 @Transactional
 public class SchoolServiceImpl implements SchoolService{
 
+    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
+
     private final SchoolRepository schoolRepository;
+    private final SchoolProfileRepository schoolProfileRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final BranchRepository branchRepository;
     private final AuthService authService;
+    private final ObjectMapper objectMapper;
 
     @Value("${tenant.domain.base:psyllabus.co.ke}")
     private String baseDomain;
 
+    // ── Provisioning ──────────────────────────────────────────────────────────
+
     @Override
     public SchoolOnboardResponse onboardSchool(SchoolCreateRequest request) {
-        String password = generateTempPassword();
+        String password = RandomUtils.generateRandomAlphanumeric(12);
         log.info("Provisioning school: subdomain={}, plan={}", request.subdomainPrefix(), request.planType());
 
         boolean hasSubdomain = request.subdomainPrefix() != null && !request.subdomainPrefix().isBlank();
@@ -85,7 +101,7 @@ public class SchoolServiceImpl implements SchoolService{
             throw new DuplicateResourceException("Email already registered: " + request.email());
         }
 
-        // Station : School (the tenant)
+        // Station 1: School (the tenant)
         School school = School.builder()
                 .name(request.name())
                 .subdomainPrefix(request.subdomainPrefix())
@@ -100,20 +116,20 @@ public class SchoolServiceImpl implements SchoolService{
         UUID schoolId = school.getId();
         log.info("School created: id={}", schoolId);
 
-        // Station 2: Subscription (plan -> feature list)
+        // Station 2: Subscription (plan → feature list)
         Subscription subscription = Subscription.builder()
                 .tenantId(schoolId)
                 .planType(request.planType())
                 .startDate(LocalDateTime.now())
-                .endDate(null) // TODO: expiry will be added when billin is wired
+                .endDate(null) // populated when billing is wired
                 .features(featuresFor(request.planType()))
                 .status(SubscriptionStatus.ACTIVE)
                 .isActive(true)
                 .build();
         subscriptionRepository.save(subscription);
-        log.info("Subscription created: plan={} for school={}", request.planType(), school);
+        log.info("Subscription created: plan={} for school={}", request.planType(), schoolId);
 
-        // Station 3: Main Branch creation
+        // Station 3: Main Branch
         Branch mainBranch = Branch.builder()
                 .tenantId(schoolId)
                 .name("Main Campus")
@@ -121,16 +137,15 @@ public class SchoolServiceImpl implements SchoolService{
                 .isMainBranch(true)
                 .isActive(true)
                 .build();
-
         mainBranch = branchRepository.save(mainBranch);
         log.info("Main branch created: id={} for school={}", mainBranch.getId(), schoolId);
 
-        // Station 4: Admin User - AuthService.register() reads TenantContext
-        // so we set it manually for this unauthenticated provisioning call
+        // Station 4: Admin User — AuthService.register() reads TenantContext,
+        // so we set it manually for this unauthenticated provisioning call.
         TenantContext.setCurrentTenant(schoolId);
-        try{
+        try {
             RegisterRequest adminRequest = new RegisterRequest(
-                    request.adminEmail(), // username = email for admins
+                    request.adminEmail(),
                     request.adminEmail(),
                     password,
                     request.adminFirstName(),
@@ -142,10 +157,10 @@ public class SchoolServiceImpl implements SchoolService{
             );
             authService.register(adminRequest);
             log.info("Admin user created for school={}", schoolId);
-        }finally {
-            // Always clear -- this request has no persistent tenant context
+        } finally {
             TenantContext.clear();
         }
+
         log.info("School provisioning complete: {}", school.getName());
 
         return new SchoolOnboardResponse(
@@ -161,50 +176,247 @@ public class SchoolServiceImpl implements SchoolService{
         );
     }
 
+    // ── Tenant resolution (internal infrastructure) ───────────────────────────
+
     @Override
     @Transactional(readOnly = true)
-    public SchoolResponse findById(UUID schoolId) {
+    public School findBySubdomain(String subdomainPrefix) {
+        return schoolRepository.findBySubdomainPrefix(subdomainPrefix)
+                .orElseThrow(() -> new ResourceNotFoundException("School not found for subdomain: " + subdomainPrefix));
+    }
+
+    // ── School profile ────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional(readOnly = true)
+    @Cacheable(value = "schoolProfiles", key = "#schoolId")
+    public SchoolProfileResponse getSchoolProfile(UUID schoolId) {
         School school = schoolRepository.findById(schoolId)
                 .orElseThrow(() -> new ResourceNotFoundException("School not found: " + schoolId));
-        return mapToResponse(school);
+
+        SchoolProfile profile = schoolProfileRepository.findBySchoolId(schoolId)
+                .orElse(null); // profile is null until the admin completes the settings wizard
+
+        log.debug("Fetching school profile: schoolId={}, profileExists={}", schoolId, profile != null);
+        return mapToProfileResponse(school, profile);
     }
 
     @Override
-    public SchoolResponse findBySubdomain(String subdomainPrefix) {
-        School school = schoolRepository.findBySubdomainPrefix(subdomainPrefix)
-                .orElseThrow(() -> new ResourceNotFoundException("School not found: " + subdomainPrefix));
-        return mapToResponse(school);
+    @CacheEvict(value = "schoolProfiles", key = "#schoolId")
+    public SchoolProfileResponse updateSchoolProfile(UUID schoolId, SchoolProfileUpdateRequest request) {
+        UUID currentTenantId = TenantContext.getCurrentTenantId();
+        if (!schoolId.equals(currentTenantId)) {
+            throw new InsufficientPermissionException("Cannot update another school's profile");
+        }
+
+        School school = schoolRepository.findById(schoolId)
+                .orElseThrow(() -> new ResourceNotFoundException("School not found: " + schoolId));
+
+        // Fetch or create the profile row — first time an admin saves settings,
+        // the profile row will not exist yet.
+        SchoolProfile profile = schoolProfileRepository.findBySchoolId(schoolId)
+                .orElseGet(() -> {
+                    log.info("Creating initial SchoolProfile row for school={}", schoolId);
+                    SchoolProfile newProfile = new SchoolProfile();
+                    newProfile.setSchoolId(schoolId);
+                    newProfile.setSchool(school);
+                    return newProfile;
+                });
+
+        // Apply non-null sections only (PATCH semantics).
+        applyGeneralSection(profile, request.general());
+        applyAcademicSection(profile, request.academic());
+        applyEnrollmentSection(profile, request.enrollment());
+        applyJsonbSection(profile, request.facilities());
+        applyJsonbSection(profile, request.technology());
+        applyJsonbSection(profile, request.policies());
+        applyJsonbSection(profile, request.communication());
+
+        schoolProfileRepository.save(profile);
+        log.info("SchoolProfile updated: schoolId={}", schoolId);
+
+        return mapToProfileResponse(school, profile);
     }
 
-    // ── Private helpers ────────────────────────────────────────────────────────
+    // ── Section appliers (PATCH semantics) ───────────────────────────────────
 
     /**
-     * Factory Method (inline) — maps entity to response DTO.
-     * Kept private: callers never know what fields the School entity has.
+     * Applies non-null fields from the General section to the entity.
+     * Column-mapped fields are merged field-by-field.
      */
-    private SchoolResponse mapToResponse(School school) {
-        return new SchoolResponse(
+    private void applyGeneralSection(SchoolProfile profile, SchoolProfileUpdateRequest.GeneralSection section) {
+        if (section == null) return;
+        if (section.schoolCode() != null)     profile.setSchoolCode(section.schoolCode());
+        if (section.schoolType() != null)     profile.setSchoolType(section.schoolType());
+        if (section.genderPolicy() != null)   profile.setGenderPolicy(section.genderPolicy());
+        if (section.logoUrl() != null)        profile.setLogoUrl(section.logoUrl());
+        if (section.website() != null)        profile.setWebsite(section.website());
+        if (section.establishedYear() != null) profile.setEstablishedYear(section.establishedYear());
+        if (section.motto() != null)          profile.setMotto(section.motto());
+        if (section.vision() != null)         profile.setVision(section.vision());
+        if (section.mission() != null)        profile.setMission(section.mission());
+        if (section.brandColors() != null)    profile.setBrandColors(section.brandColors());
+    }
+
+    /**
+     * Applies non-null fields from the Academic section to the entity.
+     */
+    private void applyAcademicSection(SchoolProfile profile, SchoolProfileUpdateRequest.AcademicSection section) {
+        if (section == null) return;
+        if (section.curriculumType() != null)        profile.setCurriculumType(section.curriculumType());
+        if (section.schoolDays() != null)            profile.setSchoolDays(section.schoolDays());
+        if (section.startTime() != null)             profile.setStartTime(section.startTime());
+        if (section.endTime() != null)               profile.setEndTime(section.endTime());
+        if (section.lunchStartTime() != null)        profile.setLunchStartTime(section.lunchStartTime());
+        if (section.lunchEndTime() != null)          profile.setLunchEndTime(section.lunchEndTime());
+        if (section.useSystemLearningAreas() != null) profile.setUseSystemLearningAreas(section.useSystemLearningAreas());
+    }
+
+    /**
+     * Applies non-null fields from the Enrollment section to the entity.
+     * currentEnrollment and availableSlots are read-only computed values —
+     * they are never accepted in a write request.
+     */
+    private void applyEnrollmentSection(SchoolProfile profile, SchoolProfileUpdateRequest.EnrollmentSection section) {
+        if (section == null) return;
+        if (section.totalCapacity() != null)      profile.setTotalCapacity(section.totalCapacity());
+        if (section.maxClassSize() != null)       profile.setMaxClassSize(section.maxClassSize());
+        if (section.studentTeacherRatio() != null) profile.setStudentTeacherRatio(section.studentTeacherRatio());
+        if (section.averageClassSize() != null)   profile.setAverageClassSize(section.averageClassSize());
+        if (section.gradesOffered() != null)      profile.setGradesOffered(section.gradesOffered());
+    }
+
+    /**
+     * Applies a JSONB tab section to its corresponding entity field.
+     * JSONB sections are replaced at the tab level — the entire blob is overwritten
+     * when the section is present. This matches the UI's tab-level save behaviour.
+     *
+     * <p>Uses a sealed dispatch on the section type — adding a new JSONB tab
+     * requires a new branch here and in the entity.</p>
+     */
+    private void applyJsonbSection(SchoolProfile profile, Object section) {
+        if (section == null) return;
+
+        switch (section) {
+            case SchoolProfileUpdateRequest.FacilitiesSection s ->
+                    profile.setFacilities(objectMapper.convertValue(s, MAP_TYPE));
+            case SchoolProfileUpdateRequest.TechnologySection s ->
+                    profile.setTechnology(objectMapper.convertValue(s, MAP_TYPE));
+            case SchoolProfileUpdateRequest.PoliciesSection s ->
+                    profile.setPolicies(objectMapper.convertValue(s, MAP_TYPE));
+            case SchoolProfileUpdateRequest.CommunicationSection s ->
+                    profile.setCommunication(objectMapper.convertValue(s, MAP_TYPE));
+            default -> log.warn("applyJsonbSection: unrecognised section type {}", section.getClass().getSimpleName());
+        }
+    }
+
+    // ── Response mapper ───────────────────────────────────────────────────────
+
+    /**
+     * Maps {@link School} + {@link SchoolProfile} into a single {@link SchoolProfileResponse}.
+     *
+     * <p>The profile may be {@code null} when the admin has not yet configured settings —
+     * all tab sections will be {@code null} in that case and the frontend renders defaults.</p>
+     *
+     * <p>JSONB blobs are converted back into typed nested records using
+     * {@link ObjectMapper#convertValue}. Column-mapped fields are set directly.</p>
+     *
+     * <p>TODO (SM4): Replace the stubbed {@code currentEnrollment = 0} with a real count
+     * from {@code StudentRepository.countActiveByTenantId(schoolId)} once that
+     * repository exists.</p>
+     */
+    private SchoolProfileResponse mapToProfileResponse(School school, SchoolProfile profile) {
+        SchoolProfileResponse.GeneralSection general = null;
+        SchoolProfileResponse.AcademicSection academic = null;
+        SchoolProfileResponse.EnrollmentSection enrollment = null;
+        SchoolProfileResponse.FacilitiesSection facilities = null;
+        SchoolProfileResponse.TechnologySection technology = null;
+        SchoolProfileResponse.PoliciesSection policies = null;
+        SchoolProfileResponse.CommunicationSection communication = null;
+
+        if (profile != null) {
+            general = new SchoolProfileResponse.GeneralSection(
+                    profile.getSchoolCode(),
+                    profile.getSchoolType(),
+                    profile.getGenderPolicy(),
+                    profile.getLogoUrl(),
+                    profile.getWebsite(),
+                    profile.getEstablishedYear(),
+                    profile.getMotto(),
+                    profile.getVision(),
+                    profile.getMission(),
+                    profile.getBrandColors()
+            );
+
+            academic = new SchoolProfileResponse.AcademicSection(
+                    profile.getCurriculumType(),
+                    profile.getSchoolDays(),
+                    profile.getStartTime(),
+                    profile.getEndTime(),
+                    profile.getLunchStartTime(),
+                    profile.getLunchEndTime(),
+                    profile.isUseSystemLearningAreas()
+            );
+
+            // TODO (SM4): replace stub with StudentRepository.countActiveByTenantId(school.getId())
+            int currentEnrollment = 0;
+            int availableSlots = profile.getTotalCapacity() != null
+                    ? Math.max(0, profile.getTotalCapacity() - currentEnrollment)
+                    : 0;
+
+            enrollment = new SchoolProfileResponse.EnrollmentSection(
+                    profile.getTotalCapacity(),
+                    currentEnrollment,
+                    availableSlots,
+                    profile.getMaxClassSize(),
+                    profile.getStudentTeacherRatio(),
+                    profile.getAverageClassSize(),
+                    profile.getGradesOffered()
+            );
+
+            facilities = profile.getFacilities() != null
+                    ? objectMapper.convertValue(profile.getFacilities(), SchoolProfileResponse.FacilitiesSection.class)
+                    : null;
+
+            technology = profile.getTechnology() != null
+                    ? objectMapper.convertValue(profile.getTechnology(), SchoolProfileResponse.TechnologySection.class)
+                    : null;
+
+            policies = profile.getPolicies() != null
+                    ? objectMapper.convertValue(profile.getPolicies(), SchoolProfileResponse.PoliciesSection.class)
+                    : null;
+
+            communication = profile.getCommunication() != null
+                    ? objectMapper.convertValue(profile.getCommunication(), SchoolProfileResponse.CommunicationSection.class)
+                    : null;
+        }
+
+        return new SchoolProfileResponse(
                 school.getId(),
                 school.getName(),
                 school.getSubdomainPrefix(),
                 school.getEmail(),
+                school.getPhone(),
+                school.getAddress(),
                 school.getPlan(),
-                school.getIsActive()
+                school.getIsActive(),
+                general,
+                academic,
+                enrollment,
+                facilities,
+                technology,
+                policies,
+                communication
         );
     }
 
+    // ── Private helpers ───────────────────────────────────────────────────────
+
     /**
      * Determines which features a school gets based on their plan.
-     *
-     * Tier logic (from product docs):
-     *   BASIC        → Core academic management only
-     *   PROFESSIONAL → Core + AI modules (Teacher AI, Parent AI, institutional analytics)
-     *   ENTERPRISE   → Pro + advanced AI, multi-campus, custom reports, dedicated account manager
-     *
-     * Each higher tier is a superset — ENTERPRISE has everything PROFESSIONAL has.
-     * This avoids silent gaps where an enterprise school is missing a pro feature.
+     * Each higher tier is a strict superset — ENTERPRISE has everything PROFESSIONAL has.
      */
-    private List<String> featuresFor(PlanType planType){
+    private List<String> featuresFor(PlanType planType) {
         List<String> core = List.of(
                 FeatureConstants.STUDENT_MANAGEMENT,
                 FeatureConstants.STAFF_MANAGEMENT,
@@ -216,16 +428,15 @@ public class SchoolServiceImpl implements SchoolService{
                 FeatureConstants.EMAIL_NOTIFICATIONS
         );
 
-        return switch (planType){
+        return switch (planType) {
             case BASIC -> core;
-
             case PROFESSIONAL -> {
                 List<String> features = new ArrayList<>(core);
                 features.addAll(List.of(
                         FeatureConstants.ADVANCED_ANALYTICS,
-                        FeatureConstants.TEACHER_INTERVENTION,   // Teacher AI
-                        FeatureConstants.STUDENT_GUIDANCE,       // Parent AI
-                        FeatureConstants.INSTITUTIONAL_AI,       // wait — see note below
+                        FeatureConstants.TEACHER_INTERVENTION,
+                        FeatureConstants.STUDENT_GUIDANCE,
+                        FeatureConstants.INSTITUTIONAL_AI,
                         FeatureConstants.SMS_NOTIFICATIONS,
                         FeatureConstants.SCHOOL_BRANDING,
                         FeatureConstants.PRIORITY_SUPPORT
@@ -235,7 +446,6 @@ public class SchoolServiceImpl implements SchoolService{
             case ENTERPRISE -> {
                 List<String> features = new ArrayList<>(core);
                 features.addAll(List.of(
-                        // Everything from PRO
                         FeatureConstants.ADVANCED_ANALYTICS,
                         FeatureConstants.TEACHER_INTERVENTION,
                         FeatureConstants.STUDENT_GUIDANCE,
@@ -243,7 +453,6 @@ public class SchoolServiceImpl implements SchoolService{
                         FeatureConstants.SMS_NOTIFICATIONS,
                         FeatureConstants.SCHOOL_BRANDING,
                         FeatureConstants.PRIORITY_SUPPORT,
-                        // Enterprise-only additions
                         FeatureConstants.PREDICTIVE_ANALYTICS,
                         FeatureConstants.CUSTOM_REPORTS,
                         FeatureConstants.CUSTOM_DASHBOARDS,
@@ -258,21 +467,10 @@ public class SchoolServiceImpl implements SchoolService{
         };
     }
 
-    private String buildPortalUrl(SchoolCreateRequest request){
-        if(request.subdomainPrefix() != null && !request.subdomainPrefix().isBlank()){
+    private String buildPortalUrl(SchoolCreateRequest request) {
+        if (request.subdomainPrefix() != null && !request.subdomainPrefix().isBlank()) {
             return "https://" + request.subdomainPrefix() + "." + baseDomain;
         }
         return "https://" + request.customDomain();
-    }
-
-    private String generateTempPassword() {
-        // Alphanumeric, 12 chars — strong enough for a forced-reset credential
-        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        SecureRandom random = new SecureRandom();
-        StringBuilder sb = new StringBuilder(12);
-        for (int i = 0; i < 12; i++) {
-            sb.append(chars.charAt(random.nextInt(chars.length())));
-        }
-        return sb.toString();
     }
 }
