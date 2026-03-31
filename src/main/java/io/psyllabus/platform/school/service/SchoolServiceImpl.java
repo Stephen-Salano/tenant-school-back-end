@@ -414,7 +414,9 @@ public class SchoolServiceImpl implements SchoolService{
 
     /**
      * Determines which features a school gets based on their plan.
-     * Each higher tier is a strict superset — ENTERPRISE has everything PROFESSIONAL has.
+     * Tier mapping (as per latest stakeholder intelligence model):
+     * - BASIC: Core academic foundation.
+     * - PROFESSIONAL: Stakeholder intelligence and AI layers.
      */
     private List<String> featuresFor(PlanType planType) {
         List<String> core = List.of(
@@ -425,7 +427,9 @@ public class SchoolServiceImpl implements SchoolService{
                 FeatureConstants.ANNOUNCEMENTS,
                 FeatureConstants.ASSIGNMENTS,
                 FeatureConstants.FEES_TRACKING,
-                FeatureConstants.EMAIL_NOTIFICATIONS
+                FeatureConstants.EXTRACURRICULAR_TRACKING,
+                FeatureConstants.EMAIL_NOTIFICATIONS,
+                FeatureConstants.MULTI_CAMPUS // Multi-campus allowed on all plans per latest directive
         );
 
         return switch (planType) {
@@ -433,34 +437,17 @@ public class SchoolServiceImpl implements SchoolService{
             case PROFESSIONAL -> {
                 List<String> features = new ArrayList<>(core);
                 features.addAll(List.of(
-                        FeatureConstants.ADVANCED_ANALYTICS,
-                        FeatureConstants.TEACHER_INTERVENTION,
-                        FeatureConstants.STUDENT_GUIDANCE,
-                        FeatureConstants.INSTITUTIONAL_AI,
+                        FeatureConstants.ADMIN_INTELLIGENCE,
+                        FeatureConstants.EARLY_WARNING_SYSTEM,
+                        FeatureConstants.FINANCIAL_ANALYTICS,
+                        FeatureConstants.TEACHER_DIAGNOSTICS,
+                        FeatureConstants.INTERVENTION_SUPPORT,
+                        FeatureConstants.PROGRESS_TRENDS,
+                        FeatureConstants.MOTIVATIONAL_FEEDBACK,
+                        FeatureConstants.PARENT_GUIDANCE,
                         FeatureConstants.SMS_NOTIFICATIONS,
                         FeatureConstants.SCHOOL_BRANDING,
                         FeatureConstants.PRIORITY_SUPPORT
-                ));
-                yield features;
-            }
-            case ENTERPRISE -> {
-                List<String> features = new ArrayList<>(core);
-                features.addAll(List.of(
-                        FeatureConstants.ADVANCED_ANALYTICS,
-                        FeatureConstants.TEACHER_INTERVENTION,
-                        FeatureConstants.STUDENT_GUIDANCE,
-                        FeatureConstants.INSTITUTIONAL_AI,
-                        FeatureConstants.SMS_NOTIFICATIONS,
-                        FeatureConstants.SCHOOL_BRANDING,
-                        FeatureConstants.PRIORITY_SUPPORT,
-                        FeatureConstants.PREDICTIVE_ANALYTICS,
-                        FeatureConstants.CUSTOM_REPORTS,
-                        FeatureConstants.CUSTOM_DASHBOARDS,
-                        FeatureConstants.BULK_SMS,
-                        FeatureConstants.MULTI_CAMPUS,
-                        FeatureConstants.CUSTOM_DOMAINS,
-                        FeatureConstants.ADVANCED_EXPORTS,
-                        FeatureConstants.DEDICATED_SUPPORT
                 ));
                 yield features;
             }

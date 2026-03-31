@@ -136,7 +136,7 @@ info:
     #External service Configuration
     external-services:
 platform:
-  api-key: ${PLATFORM_API_KEY:dev-platform-key-change-in-prod}
+  api-key: ${PLATFORM_API_KEY}
   dev:
     skip-subscription-check: false
 
