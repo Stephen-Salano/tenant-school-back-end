@@ -25,6 +25,8 @@
         </rollingPolicy>
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
             <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>userId</includeMdcKeyName>
+            <includeMdcKeyName>tenantId</includeMdcKeyName>
         </encoder>
     </appender>
 
@@ -33,6 +35,7 @@
             <appender-ref ref="PRETTY_CONSOLE" />
             <appender-ref ref="FILE" />
         </root>
+        <logger name="io.psyllabus.platform.audit" level="DEBUG" />
     </springProfile>
 
     <logger name="io.netty" level="ERROR" />
@@ -40,7 +43,7 @@
 
     <springProfile name="prod, staging">
         <root level="INFO">
-            <appender-ref ref="CONSOLE" />
+            <appender-ref ref="LOGSTASH_CONSOLE" />
             <appender-ref ref="FILE" />
         </root>
     </springProfile>

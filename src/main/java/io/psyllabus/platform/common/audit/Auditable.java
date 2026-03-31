@@ -14,11 +14,19 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * Base class for entities that require auditing.
+ * <p>
+ * {@code nullable = true} for created_by to support unauthenticated 
+ * operations like initial school provisioning.
+ * </p>
+ */
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
 public abstract class Auditable {
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -28,8 +36,8 @@ public abstract class Auditable {
     private LocalDateTime updatedAt;
 
     @CreatedBy
-    @Column(name = "created_by", nullable = false)
-    private UUID createdby;
+    @Column(name = "created_by")
+    private UUID createdBy;
 
     @LastModifiedBy
     @Column(name = "updated_by")

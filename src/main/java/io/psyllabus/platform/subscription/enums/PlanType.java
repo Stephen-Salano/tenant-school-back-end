@@ -2,33 +2,19 @@ package io.psyllabus.platform.subscription.enums;
 
 /**
  * Subscription plan types
- * Determines which features are available to a school
+ * Determines the depth of intelligence and analytics available to a school.
  */
 public enum PlanType {
     /**
-     * Basic Plan - Core academic management only.
-     * Features: Students, staff, classes, grades, attendance.
-     * No AI features, basic analytics only.
+     * Basic Plan - Foundational Stakeholder System.
+     * Focus: Digital transformation and operational foundation.
+     * Manual analysis and static reporting.
      */
     BASIC,
     /**
-     * Professional Plan - Includes AI assistants.
-     * All Basic features plus:
-     * - Teacher AI assistant (diagnostic support)
-     * - Parent AI assistant (motivational insights)
-     * - SMS notifications (1,500/month)
-     * - Advanced analytics
+     * Professional Plan - Stakeholder Intelligence & Guided Analytics.
+     * Focus: Data-driven decision making and diagnostic insights.
+     * AI-guided analytics for teachers, parents, and admins.
      */
-    PROFESSIONAL,
-    /**
-     * Enterprise Plan - Full feature access.
-     * All Professional features plus:
-     * - Institutional AI (trend analysis, strategic planning)
-     * - Career guidance AI module
-     * - Multi-campus analytics
-     * - Custom reports
-     * - Dedicated account manager
-     * - Custom domain support
-     */
-    ENTERPRISE
+    PROFESSIONAL
 }
