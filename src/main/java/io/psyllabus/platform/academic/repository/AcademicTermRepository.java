@@ -16,4 +16,6 @@ public interface AcademicTermRepository extends JpaRepository<AcademicTerm, UUID
     List<AcademicTerm> findAllByAcademicYearIdAndTenantId(UUID academicYearId, UUID tenantId);
     Optional<AcademicTerm> findByIdAndTenantId(UUID id, UUID tenantId);
     Optional<AcademicTerm> findByTenantIdAndIsCurrentTrue(UUID tenantId);
+    long countByAcademicYearIdAndTenantId(UUID academicYearId, UUID tenantId);
+    boolean existsByAcademicYearIdAndTermNumberAndTenantId(UUID academicYearId, int termNumber, UUID tenantId);
 }
