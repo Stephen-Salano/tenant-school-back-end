@@ -6,6 +6,7 @@ import io.psyllabus.platform.common.dto.ValidationErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -93,7 +94,17 @@ public class GlobalExceptionHandler  {
                 .body(ApiResponse.error(ex.getMessage(), ErrorResponse.of(ex.getMessage(), "PERMISSION_DENIED")));
     }
 
-
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ApiResponse<Void>> handleOptimisticLocking(ObjectOptimisticLockingFailureException ex) {
+        log.warn("Optimistic locking conflict: {}", ex.getMessage());
+        ErrorResponse errorDetails = ErrorResponse.of(
+                "Another request modified this record simultaneously — please retry",
+                "CONCURRENT_MODIFICATION"
+        );
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("Concurrent modification detected", errorDetails));
+    }
 
 
     /**
