@@ -53,10 +53,10 @@ public class TenantFilter extends OncePerRequestFilter {
     private final Environment environment;
 
     @Value("${tenant.domain.base}")
-    private String BASE_DOMAIN;
+    private String baseDomain;
     
     @Value("${tenant.resolution.header-name:X-Tenant-ID}")
-    private String TENANT_HEADER_NAME;
+    private String tenantHeaderName;
 
     private static final String SUBDOMAIN_SEPARATOR = ".";
     private static final String MDC_TENANT_ID = "tenantId";
@@ -69,9 +69,9 @@ public class TenantFilter extends OncePerRequestFilter {
         try{
             // 1. Dev/Test Override: Check for X-Tenant-ID header
             if (isDevOrTest()) {
-                String headerTenantId = request.getHeader(TENANT_HEADER_NAME);
+                String headerTenantId = request.getHeader(tenantHeaderName);
                 if (headerTenantId != null && !headerTenantId.isBlank()) {
-                    log.debug("Dev mode: Using {} header: {}", TENANT_HEADER_NAME, headerTenantId);
+                    log.debug("Dev mode: Using {} header: {}", tenantHeaderName, headerTenantId);
                     resolveTenantByHeader(headerTenantId);
                     filterChain.doFilter(request, response);
                     return;
@@ -92,7 +92,7 @@ public class TenantFilter extends OncePerRequestFilter {
             UUID tenantId;
 
             // 2. Determine Resolution Strategy
-            if (cleanHost.endsWith(BASE_DOMAIN)) {
+            if (cleanHost.endsWith(baseDomain)) {
                 // Scenario 1: Subdomain (e.g., student.stmary.ourcompany.com)
                 String subdomainPrefix = extractSubDomainPrefix(cleanHost);
                 log.debug("Extracted subdomain prefix: {}", subdomainPrefix);
@@ -150,7 +150,7 @@ public class TenantFilter extends OncePerRequestFilter {
      */
     private String extractSubDomainPrefix(String host) {
         // Remove base domain
-        String withoutSuffix = host.substring(0, host.length() - BASE_DOMAIN.length());
+        String withoutSuffix = host.substring(0, host.length() - baseDomain.length());
         
         // Remove trailing dot if present (it should be)
         if (withoutSuffix.endsWith(SUBDOMAIN_SEPARATOR)) {
@@ -186,6 +186,6 @@ public class TenantFilter extends OncePerRequestFilter {
                 path.startsWith("/swagger-ui") ||
                 path.startsWith("/v3/api-docs") ||
                 path.equals("/api/schools/onboard") ||
-                path.equals("/api/platform/"); // because platform admin has no cotext
+                path.startsWith("/api/platform/"); // because platform admin has no cotext
     }
 }

@@ -79,12 +79,10 @@ public class AuthController {
     ) {
         AuthResult result = authService.login(request);
 
+        // Set refresh token as HttpOnly cookie — browser stores it, JS never sees it
         if (result.refreshToken() != null){
             setRefreshCookie(response, result.refreshToken());
         }
-
-        // Set refresh token as HttpOnly cookie — browser stores it, JS never sees it
-        setRefreshCookie(response, result.refreshToken());
 
         return ResponseEntity.ok(ApiResponse.success(result.loginResponse(), "Login successful"));
     }
