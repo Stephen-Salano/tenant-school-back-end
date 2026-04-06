@@ -41,7 +41,7 @@ logging:
     org.springframework.security: DEBUG
     org.hibernate.sql: DEBUG
     #This silences the "Using docker compose file ..." and "Services running..." mesages
-    org.springframework.boot.docker.compose: WARN
+    org.springframework.boot.docker.compose: INFO
     #This silences the specific lifecycle management that prints image/container status
     org.springframework.boot.docker.compose.lifecycle: WARN
 
@@ -56,3 +56,4 @@ platform:
   api-key: ${PLATFORM_API_KEY:dev-platform-key-change-in-prod}
   dev:
     skip-subscription-check: true # turns off subscription gating
+    admin-password: ${DEV_ADMIN_PASS:PlatformAdmin@123}

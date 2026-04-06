@@ -23,6 +23,7 @@ import io.psyllabus.platform.student.service.StudentService;
 import io.psyllabus.platform.subscription.enums.PlanType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
@@ -35,6 +36,7 @@ import java.time.LocalDate;
 @Profile("dev")
 @RequiredArgsConstructor
 @Slf4j
+@io.psyllabus.platform.common.annotation.SystemProcess
 public class DevDataSeeder  implements ApplicationRunner {
     public static final String STUDENT_ENROLLED = "[DevSeed] Student enrolled: {}";
     private final SchoolRepository schoolRepository;
@@ -44,6 +46,9 @@ public class DevDataSeeder  implements ApplicationRunner {
     private final GuardianService guardianService;
     private final PlatformAdminRepository platformAdminRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @Value("${platform.dev.admin-password}")
+    private String adminPassword;
 
     @Override
     public void run(ApplicationArguments args) {
@@ -226,12 +231,12 @@ public class DevDataSeeder  implements ApplicationRunner {
         PlatformAdmin admin = PlatformAdmin.builder()
                 .username("platform-admin")
                 .email("platform@psyllabus.io")
-                .hashedPassword(passwordEncoder.encode("PlatformAdmin@123"))
+                .hashedPassword(passwordEncoder.encode(adminPassword))
                 .firstName("Platform")
                 .lastName("Admin")
                 .status(UserStatus.ACTIVE)
                 .build();
         platformAdminRepository.save(admin);
-        log.info("[DevSeed] Platform admin seeded: platform@psyllabus.io / PlatformAdmin@123");
+        log.info("[DevSeed] Platform admin seeded: platform@psyllabus.io / {}", adminPassword);
     }
 }

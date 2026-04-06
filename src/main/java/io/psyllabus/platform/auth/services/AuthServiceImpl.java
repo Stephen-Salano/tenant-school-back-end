@@ -8,6 +8,7 @@ import io.psyllabus.platform.auth.dto.responses.UserResponse;
 import io.psyllabus.platform.auth.entities.RefreshToken;
 import io.psyllabus.platform.auth.entities.User;
 import io.psyllabus.platform.auth.repository.UserRepository;
+import io.psyllabus.platform.common.constants.AuthConstants;
 import io.psyllabus.platform.common.exception.*;
 import io.psyllabus.platform.common.util.TenantContext;
 import io.psyllabus.platform.school.entities.School;
@@ -220,7 +221,7 @@ public class AuthServiceImpl implements AuthService {
 
         // Store token in redis
         redisTemplate.opsForValue().set(
-                "change_token" + changeToken,
+                AuthConstants.CHANGE_TOKEN_PREFIX + changeToken,
                 user.getId().toString(),
                 15, TimeUnit.MINUTES
         );
@@ -235,7 +236,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private String validateResetToken(String changeToken) {
-        String userId = redisTemplate.opsForValue().get("change_token" + changeToken);
+        String userId = redisTemplate.opsForValue().get(AuthConstants.CHANGE_TOKEN_PREFIX + changeToken);
         if (userId == null) {
             throw new UnauthorizedException("Invalid or expired reset token");
         }
@@ -257,7 +258,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private void invalidateResetToken(String changeToken) {
-        redisTemplate.delete("change_token:" + changeToken);
+        redisTemplate.delete(AuthConstants.CHANGE_TOKEN_PREFIX + changeToken);
     }
 
     private AuthResult generateAuthResult(User user) {
