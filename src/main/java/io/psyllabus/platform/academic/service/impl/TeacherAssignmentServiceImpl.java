@@ -44,26 +44,10 @@ public class TeacherAssignmentServiceImpl implements TeacherAssignmentService {
     public TeacherAssignmentResponse assignTeacher(TeacherAssignmentCreateRequest request) {
         UUID tenantId = TenantContext.getCurrentTenantId();
 
-        // 1. Validate Staff
-        Staff staff = staffRepository.findByIdAndTenantId(request.staffId(), tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Staff member not found: " + request.staffId()));
+        AssignmentValidationData data = validateAssignmentRequest(request, tenantId);
 
-        // 2. Validate Class
-        SchoolClass schoolClass = schoolClassRepository.findByIdAndTenantId(request.classId(), tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Class not found: " + request.classId()));
-
-        // 3. Validate Subject
-        Subject subject = subjectRepository.findByIdAndTenantId(request.subjectId(), tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Subject not found: " + request.subjectId()));
-
-        // 4. Validate Academic Term
-        AcademicTerm term = academicTermRepository.findByIdAndTenantId(request.academicTermId(), tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Academic term not found: " + request.academicTermId()));
-
-        // 5. Unique Constraint Check
-        if (teacherAssignmentRepository.existsByStaffIdAndClassIdAndSubjectIdAndAcademicTermIdAndTenantId(
-                request.staffId(), request.classId(), request.subjectId(), request.academicTermId(), tenantId)) {
-            throw new DuplicateResourceException("Teacher assignment already exists for this staff, class, subject and term.");
+        if (request.isClassTeacher()) {
+            handleClassTeacherDemotion(request.classId(), request.academicTermId(), tenantId);
         }
 
         TeacherAssignment assignment = TeacherAssignment.builder()
@@ -78,11 +62,55 @@ public class TeacherAssignmentServiceImpl implements TeacherAssignmentService {
                 .build();
 
         TeacherAssignment saved = teacherAssignmentRepository.save(assignment);
-        log.info("Teacher assigned: id={} staff={} class={} subject={} tenant={}", 
-                saved.getId(), staff.getFirstName() + " " + staff.getLastName(), schoolClass.getName(), subject.getName(), tenantId);
-
-        return mapToResponse(saved, staff, schoolClass, subject, term);
+        return mapToResponse(saved, data.staff(), data.schoolClass(), data.subject(), data.term());
     }
+
+    private AssignmentValidationData validateAssignmentRequest(TeacherAssignmentCreateRequest request, UUID tenantId) {
+        Staff staff = staffRepository.findByIdAndTenantId(request.staffId(), tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Staff member not found: " + request.staffId()));
+
+        SchoolClass schoolClass = schoolClassRepository.findByIdAndTenantId(request.classId(), tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Class not found: " + request.classId()));
+
+        Subject subject = subjectRepository.findByIdAndTenantId(request.subjectId(), tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Subject not found: " + request.subjectId()));
+
+        AcademicTerm term = academicTermRepository.findByIdAndTenantId(request.academicTermId(), tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Academic term not found: " + request.academicTermId()));
+
+        if (!schoolClass.getAcademicYearId().equals(term.getAcademicYearId())) {
+            throw new io.psyllabus.platform.common.exception.ValidationException("Class and term academic years do not match.");
+        }
+
+        if (teacherAssignmentRepository.existsByStaffIdAndClassIdAndSubjectIdAndAcademicTermIdAndTenantId(
+                request.staffId(), request.classId(), request.subjectId(), request.academicTermId(), tenantId)) {
+            throw new DuplicateResourceException("Teacher assignment already exists.");
+        }
+
+        return new AssignmentValidationData(staff, schoolClass, subject, term);
+    }
+
+    private void handleClassTeacherDemotion(UUID classId, UUID termId, UUID tenantId) {
+        List<TeacherAssignment> existing = teacherAssignmentRepository
+                .findAllByClassIdAndAcademicTermIdAndIsClassTeacherTrueAndTenantId(classId, termId, tenantId);
+
+        if (!existing.isEmpty()) {
+            existing.forEach(a -> a.setClassTeacher(false));
+            teacherAssignmentRepository.saveAll(existing);
+            log.info("Demoted {} existing class teacher(s) for class {} in term {}", existing.size(), classId, termId);
+        }
+    }
+
+    /**
+     * Internal DTO for validation results to avoid multiple DB lookups.
+     */
+    private record AssignmentValidationData(
+            Staff staff,
+            SchoolClass schoolClass,
+            Subject subject,
+            AcademicTerm term
+    ) {}
+
 
     @Override
     @Transactional(readOnly = true)
