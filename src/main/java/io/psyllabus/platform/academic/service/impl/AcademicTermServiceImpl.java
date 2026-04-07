@@ -1,4 +1,4 @@
-package io.psyllabus.platform.academic.service;
+package io.psyllabus.platform.academic.service.impl;
 
 import io.psyllabus.platform.academic.dto.request.AcademicTermCreateRequest;
 import io.psyllabus.platform.academic.dto.request.AcademicTermUpdateRequest;
@@ -8,6 +8,7 @@ import io.psyllabus.platform.academic.entities.AcademicTerm;
 import io.psyllabus.platform.academic.entities.AcademicYear;
 import io.psyllabus.platform.academic.repository.AcademicTermRepository;
 import io.psyllabus.platform.academic.repository.AcademicYearRepository;
+import io.psyllabus.platform.academic.service.AcademicTermService;
 import io.psyllabus.platform.common.dto.PageResponse;
 import io.psyllabus.platform.common.exception.DuplicateResourceException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;

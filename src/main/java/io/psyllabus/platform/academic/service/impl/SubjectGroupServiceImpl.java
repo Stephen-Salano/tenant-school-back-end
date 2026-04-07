@@ -1,10 +1,11 @@
-package io.psyllabus.platform.academic.service;
+package io.psyllabus.platform.academic.service.impl;
 
 import io.psyllabus.platform.academic.dto.request.AssignHodRequest;
 import io.psyllabus.platform.academic.dto.request.SubjectGroupRequest;
 import io.psyllabus.platform.academic.dto.response.SubjectGroupResponse;
 import io.psyllabus.platform.academic.entities.SubjectGroup;
 import io.psyllabus.platform.academic.repository.SubjectGroupRepository;
+import io.psyllabus.platform.academic.service.SubjectGroupService;
 import io.psyllabus.platform.common.exception.DuplicateResourceException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
 import io.psyllabus.platform.common.exception.ValidationException;
@@ -113,10 +114,10 @@ public class SubjectGroupServiceImpl implements SubjectGroupService {
     @Override
     @Transactional
     public void toggleActive(UUID id) {
-        SubjectGroup securityNote_subjectGroup = getEntityById(id);
-        securityNote_subjectGroup.setActive(!securityNote_subjectGroup.isActive());
-        subjectGroupRepository.save(securityNote_subjectGroup);
-        log.info("Subject group active status toggled: {} (now {})", id, securityNote_subjectGroup.isActive());
+        SubjectGroup subjectGroup = getEntityById(id);
+        subjectGroup.setActive(!subjectGroup.isActive());
+        subjectGroupRepository.save(subjectGroup);
+        log.info("Subject group active status toggled: {} (now {})", id, subjectGroup.isActive());
     }
 
     private SubjectGroup getEntityById(UUID id) {

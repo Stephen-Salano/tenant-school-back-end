@@ -28,7 +28,8 @@ public interface StudentRepository extends JpaRepository<Student, UUID> {
      *
      * @param currentClassId the class UUID
      * @param tenantId the tenant UUID (multi-tenancy isolation)
-     * @return number of students whose currentClassId matches
+     * @param status the student status (usually ACTIVE)
+     * @return number of students whose currentClassId and status matches
      */
-    long countByCurrentClassIdAndTenantId(UUID currentClassId, UUID tenantId);
+    long countByCurrentClassIdAndTenantIdAndStatus(UUID currentClassId, UUID tenantId, io.psyllabus.platform.student.enums.StudentStatus status);
 }

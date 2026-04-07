@@ -1,4 +1,4 @@
-package io.psyllabus.platform.academic.service;
+package io.psyllabus.platform.academic.service.impl;
 
 import io.psyllabus.platform.academic.dto.request.ClassCreateRequest;
 import io.psyllabus.platform.academic.dto.response.ClassDetailResponse;
@@ -10,6 +10,7 @@ import io.psyllabus.platform.academic.enums.AssignmentStatus;
 import io.psyllabus.platform.academic.repository.AcademicYearRepository;
 import io.psyllabus.platform.academic.repository.SchoolClassRepository;
 import io.psyllabus.platform.academic.repository.TeacherAssignmentRepository;
+import io.psyllabus.platform.academic.service.ClassService;
 import io.psyllabus.platform.common.dto.PageResponse;
 import io.psyllabus.platform.common.exception.DuplicateResourceException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
@@ -19,6 +20,7 @@ import io.psyllabus.platform.school.entities.SchoolProfile;
 import io.psyllabus.platform.school.repository.SchoolProfileRepository;
 import io.psyllabus.platform.staff.entities.Staff;
 import io.psyllabus.platform.staff.repository.StaffRepository;
+import io.psyllabus.platform.student.enums.StudentStatus;
 import io.psyllabus.platform.student.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -182,7 +184,7 @@ public class ClassServiceImpl implements ClassService {
         SchoolClass sc = schoolClassRepository.findByIdAndTenantId(classId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException(CLASS_NOT_FOUND + classId));
 
-        int enrolled = (int) studentRepository.countByCurrentClassIdAndTenantId(classId, tenantId);
+        int enrolled = (int) studentRepository.countByCurrentClassIdAndTenantIdAndStatus(classId, tenantId, StudentStatus.ACTIVE);
         int available = sc.getMaxCapacity() != null ? Math.max(0, sc.getMaxCapacity() - enrolled) : 0;
 
         // Fetch class teacher if any
@@ -212,7 +214,7 @@ public class ClassServiceImpl implements ClassService {
         SchoolClass sc = schoolClassRepository.findByIdAndTenantId(classId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException(CLASS_NOT_FOUND + classId));
 
-        int enrolled = (int) studentRepository.countByCurrentClassIdAndTenantId(classId, tenantId);
+        int enrolled = (int) studentRepository.countByCurrentClassIdAndTenantIdAndStatus(classId, tenantId, StudentStatus.ACTIVE);
         int available = sc.getMaxCapacity() != null ? Math.max(0, sc.getMaxCapacity() - enrolled) : 0;
 
         return new ClassEnrollmentStatsResponse(classId, sc.getName(), enrolled, sc.getMaxCapacity(), available);
