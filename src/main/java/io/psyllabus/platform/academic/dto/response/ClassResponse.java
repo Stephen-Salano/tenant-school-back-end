@@ -1,4 +1,21 @@
 package io.psyllabus.platform.academic.dto.response;
 
-public record ClassResponse() {
-}
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+/**
+ * Lightweight class response — used in list endpoints.
+ * Does not include enrollment counts; see {@link ClassDetailResponse} for richer single-fetch output.
+ */
+public record ClassResponse(
+    UUID id,
+    String name,
+    String gradeLevel,
+    String streamName,
+    UUID academicYearId,
+    UUID branchId,
+    Integer maxCapacity,
+    boolean isActive,
+    LocalDateTime createdAt,
+    LocalDateTime updatedAt
+) {}

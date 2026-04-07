@@ -1,6 +1,7 @@
 package io.psyllabus.platform.common.seed;
 
 import io.psyllabus.platform.auth.enums.UserStatus;
+import io.psyllabus.platform.common.annotation.SystemProcess;
 import io.psyllabus.platform.common.util.TenantContext;
 import io.psyllabus.platform.guardian.dto.request.GuardianCreateRequest;
 import io.psyllabus.platform.guardian.dto.responses.GuardianResponse;
@@ -36,7 +37,7 @@ import java.time.LocalDate;
 @Profile("dev")
 @RequiredArgsConstructor
 @Slf4j
-@io.psyllabus.platform.common.annotation.SystemProcess
+@SystemProcess
 public class DevDataSeeder  implements ApplicationRunner {
     public static final String STUDENT_ENROLLED = "[DevSeed] Student enrolled: {}";
     private final SchoolRepository schoolRepository;
