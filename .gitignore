@@ -46,3 +46,5 @@ logs/
 Thumbs.db
 Gemini.MD
 .gemini
+.junie
+.mvn

@@ -12,6 +12,7 @@ import java.util.UUID;
 @Repository
 public interface SubjectCategoryRepository extends JpaRepository<SubjectCategory, UUID> {
     Page<SubjectCategory> findAllByTenantId(UUID tenantId, Pageable pageable);
+    java.util.List<SubjectCategory> findAllByTenantId(UUID tenantId);
     Optional<SubjectCategory> findByIdAndTenantId(UUID id, UUID tenantId);
     boolean existsByNameAndTenantId(String name, UUID tenantId);
 }

@@ -22,4 +22,13 @@ public interface StudentRepository extends JpaRepository<Student, UUID> {
 
     long countByTenantId(UUID tenantId);
 
+    /**
+     * Count active students enrolled in a specific class.
+     * Used by ClassServiceImpl for enrollment stats and slot calculations.
+     *
+     * @param currentClassId the class UUID
+     * @param tenantId the tenant UUID (multi-tenancy isolation)
+     * @return number of students whose currentClassId matches
+     */
+    long countByCurrentClassIdAndTenantId(UUID currentClassId, UUID tenantId);
 }
