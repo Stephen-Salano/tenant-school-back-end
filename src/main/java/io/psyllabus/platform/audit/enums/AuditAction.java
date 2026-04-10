@@ -14,6 +14,7 @@ public enum AuditAction {
     // SM4+: Student & Staff
     ENROLLMENT,
     EMPLOYMENT_CHANGE,
+    BULK_IMPORT, // Fired when an ImportJob reaches DONE, COMPLETED_WITH_ERRORS, or FAILED
     
     // SM7: Payments
     PAYMENT_REVERSAL

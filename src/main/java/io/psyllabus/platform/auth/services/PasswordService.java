@@ -15,6 +15,12 @@ public interface PasswordService {
     String hashPassword(String rawPassword);
 
     /**
+     * Faster hash for bulk import pipelines.
+     * @return BCrypt hash at cost 10 — shaves ~50ms per row in batches.
+     */
+    String hashTempPassword(String rawPassword);
+
+    /**
      * Verify a raw password against a hashed password
      * @param rawPassword the plain text password
      * @param hashedPassword the stored hashed password

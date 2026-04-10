@@ -26,18 +26,24 @@ spring:
     redis:
       time-to-live: 3600000 # 1 hour
       cache-null-values: false
-  # Email
-  mail:
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enabled: true
-            required: true
-          connectiontimeout: 5000
-          timeout: 5000
-          writetimeout: 5000
+
+  # RabbitMQ Configuration
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        retry:
+          enabled: true
+          initial-interval: 2000 # 2s first retry
+          multiplier: 2.0
+          max-attempts: 3
+          max-interval: 30000 # cap at 30s
+    virtual-threads:
+      enabled: true
+
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -57,6 +63,18 @@ tenant:
   resolution:
     header-name: X-Tenant-ID # Fallback or for testing
     query-param: tenant # Fallback or for testing
+
+# Africa's Talking Configuration
+africas-talking:
+  username: ${AT_USERNAME:sandbox}
+  api-key: ${AT_API_KEY:your-sandbox-key}
+  sender-id: ${AT_SENDER_ID:35010}
+
+# Resend Email Configuration
+resend:
+  api-key: ${RESEND_API_KEY:re_test_xxxx}
+  from: ${RESEND_FROM:noreply@psyllabus.co.ke}
+  support-email: ${SUPPORT_EMAIL:support@psyllabus.co.ke}
 
 #JWT Configuration
 jwt:
@@ -156,13 +174,3 @@ resilience4j:
         failure-rate-threshold: 50
         wait-duration-in-open-state: 10s
         permitted-number-of-calls-in-half-open-state: 3
-
-
-
-
-#
-#      mpesa:
-#        consumer-key: ${MPESA_CONSUMER_KEY}
-#        consumer-secret: ${MPESA_CONSUMER_SECRET}
-#        environment: ${MPESA_ENVIRONMENT:sandbox}
-#        timeout: 60000

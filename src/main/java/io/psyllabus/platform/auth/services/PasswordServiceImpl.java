@@ -17,6 +17,8 @@ public class PasswordServiceImpl implements PasswordService {
     // injected from the SecurityConfig @Bean
     private final BCryptPasswordEncoder passwordEncoder;
 
+    private static final BCryptPasswordEncoder BATCH = new BCryptPasswordEncoder(10);
+
     @Override
     public String hashPassword(String rawPassword) {
         if (rawPassword == null || rawPassword.isBlank()){
@@ -27,6 +29,14 @@ public class PasswordServiceImpl implements PasswordService {
         log.debug("Password hashed successfully");
 
         return hashed;
+    }
+
+    @Override
+    public String hashTempPassword(String rawPassword) {
+        if (rawPassword == null || rawPassword.isBlank()){
+            throw new IllegalArgumentException("Password cannot be null or empty");
+        }
+        return BATCH.encode(rawPassword);
     }
 
     @Override
