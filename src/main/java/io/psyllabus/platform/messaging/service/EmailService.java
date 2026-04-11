@@ -1,23 +1,24 @@
 package io.psyllabus.platform.messaging.service;
 
-import io.psyllabus.platform.messaging.enums.EmailType;
+import io.psyllabus.platform.messaging.dto.EmailMessage;
 
 /**
- * Service for sending transactional and system emails.
+ * Sends transactional emails via Resend.
+ *
+ * <p>Callers publish an {@link EmailMessage} to the RabbitMQ queue.
+ * The listener picks it up and delegates here — never call this directly
+ * from a controller or import listener.
  */
 public interface EmailService {
     /**
-     * Send an email with a specific categorization.
+     * Render the template and deliver via Resend.
      *
-     * @param to      the recipient's email address
-     * @param subject the email subject
-     * @param htmlBody the HTML content of the email
-     * @param type    the category of the email being sent
+     * @param message the typed email payload; must not contain plaintext passwords
      */
-    void send(String to, String subject, String htmlBody, EmailType type);
+    void send(EmailMessage message);
 
     /**
-     * Convenience method to send an email to the Psyllabus support team.
+     * Convenience method to send an inquiry to the Psyllabus support team.
      *
      * @param from    the school admin's email address
      * @param subject the subject of the inquiry

@@ -45,16 +45,17 @@ public class RabbitMQConfig {
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(jsonMessageConverter);
 
-        // ── Retry: 3 attempts, exponential backoff ──
+        // ── Retry: 3 attempts, exponential backoff (1s → 2s → 4s) ──
         RetryTemplate retry = RetryTemplate.builder()
                 .maxAttempts(3)
-                .exponentialBackoff(2_000, 2.0, 30_000)
+                .exponentialBackoff(1_000, 2.0, 4_000)
                 .build();
         factory.setRetryTemplate(retry);
 
         factory.setDefaultRequeueRejected(false); // Move to DLQ on failure
         factory.setTaskExecutor(new SimpleAsyncTaskExecutor()); // Virtual Threads
         
+        log.info("RabbitMQ listener factory configured [retry=3, backoff=1s/2s/4s, requeue=false]");
         return factory;
     }
 

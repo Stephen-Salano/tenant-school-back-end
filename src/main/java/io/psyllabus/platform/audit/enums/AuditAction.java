@@ -15,6 +15,7 @@ public enum AuditAction {
     ENROLLMENT,
     EMPLOYMENT_CHANGE,
     BULK_IMPORT, // Fired when an ImportJob reaches DONE, COMPLETED_WITH_ERRORS, or FAILED
+    TEMPLATE_DOWNLOAD, // Added: To track admin access to import tools
     
     // SM7: Payments
     PAYMENT_REVERSAL
