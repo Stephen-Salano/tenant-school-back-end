@@ -3,6 +3,7 @@ package io.psyllabus.platform.common.exception;
 import io.psyllabus.platform.common.dto.ApiResponse;
 import io.psyllabus.platform.common.dto.ErrorResponse;
 import io.psyllabus.platform.common.dto.ValidationErrorResponse;
+import io.psyllabus.platform.onboarding.dto.response.ValidationReport;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -118,7 +119,7 @@ public class GlobalExceptionHandler  {
      * @return A detailed list of all field errors
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ValidationErrorResponse> handleValidationErrors(MethodArgumentNotValidException ex){
+    public ResponseEntity<ApiResponse<ValidationErrorResponse>> handleValidationErrors(MethodArgumentNotValidException ex){
         Map<String, String> errors = new HashMap<>();
         /**
          * getBindingResult() → the validation report
@@ -139,9 +140,34 @@ public class GlobalExceptionHandler  {
         });
 
         log.warn("Validation failed:{}", errors);
+        
+        ValidationErrorResponse validationData = ValidationErrorResponse.of(errors);
+        ApiResponse<ValidationErrorResponse> response = new ApiResponse<>(
+                false,
+                "Validation failed",
+                validationData,
+                null,
+                java.time.LocalDateTime.now()
+        );
+        
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ValidationErrorResponse.of(errors));
+                .body(response);
+    }
+
+    @ExceptionHandler(CsvValidationException.class)
+    public ResponseEntity<ApiResponse<ValidationReport>> handleCsvValidation(CsvValidationException ex) {
+        log.warn("CSV validation failed [errors={}]", ex.getReport().errorCount());
+        
+        ApiResponse<ValidationReport> response = new ApiResponse<>(
+                false,
+                "CSV validation failed",
+                ex.getReport(),
+                null,
+                java.time.LocalDateTime.now()
+        );
+        
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(response);
     }
 
     @ExceptionHandler(MessagingException.class)

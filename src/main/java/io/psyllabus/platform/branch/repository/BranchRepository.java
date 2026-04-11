@@ -2,14 +2,24 @@ package io.psyllabus.platform.branch.repository;
 
 import io.psyllabus.platform.branch.entities.Branch;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Repository
 public interface BranchRepository extends JpaRepository<Branch, UUID> {
+
+    /**
+     * Efficiently load all branch codes for a tenant.
+     * Used by CsvValidationService to validate branch assignments in bulk.
+     */
+    @Query("SELECT b.code FROM Branch b WHERE b.tenantId = :tenantId")
+    Set<String> findAllCodesByTenantId(@Param("tenantId") UUID tenantId);
 
     /**
      * Efficient existence check for cross-tenant isolation.

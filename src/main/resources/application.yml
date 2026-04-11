@@ -70,11 +70,24 @@ africas-talking:
   api-key: ${AT_API_KEY:your-sandbox-key}
   sender-id: ${AT_SENDER_ID:35010}
 
+# Cloudinary Configuration
+cloudinary:
+  cloud-name: ${CLOUDINARY_CLOUD_NAME}
+  api-key: ${CLOUDINARY_API_KEY}
+  api-secret: ${CLOUDINARY_API_SECRET}
+  upload-preset: ${CLOUDINARY_UPLOAD_PRESET:psyllabus_dev}
+  folder-prefix: ${CLOUDINARY_FOLDER_PREFIX:psyllabus}
+
 # Resend Email Configuration
 resend:
   api-key: ${RESEND_API_KEY:re_test_xxxx}
   from: ${RESEND_FROM:noreply@psyllabus.co.ke}
   support-email: ${SUPPORT_EMAIL:support@psyllabus.co.ke}
+
+# Onboarding Configuration
+onboarding:
+  max-rows: ${ONBOARDING_MAX_ROWS:500}
+  max-file-size-bytes: ${ONBOARDING_MAX_FILE_SIZE:5242880} # 5MB
 
 #JWT Configuration
 jwt:
