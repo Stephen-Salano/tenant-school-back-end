@@ -2,7 +2,6 @@ package io.psyllabus.platform.messaging.dto;
 
 import io.psyllabus.platform.auth.enums.UserType;
 import io.psyllabus.platform.messaging.enums.EmailTemplateType;
-
 import java.util.Map;
 
 /**
@@ -10,7 +9,7 @@ import java.util.Map;
  *
  * <p>K-DPA note: {@code variables} must never contain a plaintext password.
  * Pass {@code loginUrl} and {@code admissionNumber} only — the temp password
- * is communicated by the school admin out-of-band.</p>
+ * is communicated by the school admin out-of-band.
  *
  * @param to recipient email address
  * @param toName recipient display name (used in template greeting)
@@ -19,9 +18,9 @@ import java.util.Map;
  * @param variables template variables injected into the HTML body
  */
 public record EmailMessage(
-        String to,
-        String toName,
-        UserType recipientType,
-        EmailTemplateType templateType,
-        Map<String, String> variables
+    String to,
+    String toName,
+    UserType recipientType,
+    EmailTemplateType templateType,
+    Map<String, String> variables
 ) {}

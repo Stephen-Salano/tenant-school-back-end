@@ -1,18 +1,18 @@
 package io.psyllabus.platform.messaging.service;
 
-import io.psyllabus.platform.messaging.enums.SmsType;
-import java.util.List;
+import io.psyllabus.platform.messaging.dto.SmsMessage;
 
 /**
- * Service for sending SMS notifications.
+ * Sends operational SMS messages via Africa's Talking.
+ *
+ * <p>Not called during bulk import — the pipeline skips SMS to avoid costs.
+ * Called only for operational events (fee alerts, results, etc.).
  */
 public interface SmsService {
     /**
-     * Send an SMS to one or more recipients.
+     * Render the template and deliver via Africa's Talking.
      *
-     * @param message    the message body
-     * @param type       the type of SMS for categorization
-     * @param recipients E.164 formatted numbers (e.g., {@code +254712345678})
+     * @param message the typed SMS payload
      */
-    void send(String message, SmsType type, List<String> recipients);
+    void send(SmsMessage message);
 }

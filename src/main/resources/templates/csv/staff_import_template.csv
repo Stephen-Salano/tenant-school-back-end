@@ -1,0 +1,4 @@
+[INSTRUCTIONS] Leave blank cells for optional fields. Dates must be DD/MM/YYYY. Phone numbers: format cells as TEXT in Excel. gender: MALE/FEMALE/OTHER. employee_number: leave blank for system-generated ID. subject_group_name must match an existing Subject Group configured in your school. is_class_teacher: YES or NO. If YES, fill class_teacher_grade and class_teacher_stream to assign the teacher to that class. branch_code: leave blank to assign to MAIN branch. Email is used as the staff username.
+first_name,last_name,email,phone,gender,employee_number,hire_date,subject_group_name,is_class_teacher,class_teacher_grade,class_teacher_stream,qualification,specialization,branch_code
+Alice,Mwangi,alice.mwangi@school.ac.ke,0755444555,FEMALE,,01/09/2022,Mathematics,YES,Grade 8,Blue,B.Ed Mathematics,Algebra & Statistics,MAIN
+David,Omondi,david.omondi@school.ac.ke,0766333222,MALE,,15/01/2023,Sciences,NO,,,B.Sc Chemistry,Organic Chemistry,
