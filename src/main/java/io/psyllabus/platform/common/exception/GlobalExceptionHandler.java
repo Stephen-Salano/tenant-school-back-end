@@ -144,6 +144,15 @@ public class GlobalExceptionHandler  {
                 .body(ValidationErrorResponse.of(errors));
     }
 
+    @ExceptionHandler(MessagingException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMessagingError(MessagingException ex){
+        log.error("Messaging failure: {}", ex.getMessage());
+        ErrorResponse errorDetails = ErrorResponse.of(ex.getMessage(), "MESSAGING_ERROR");
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error(ex.getMessage(), errorDetails));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex){
         log.error("Unexpected error", ex);
