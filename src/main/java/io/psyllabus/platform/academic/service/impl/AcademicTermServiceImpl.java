@@ -1,5 +1,6 @@
 package io.psyllabus.platform.academic.service.impl;
 
+import io.psyllabus.platform.academic.dto.events.CurriculumSelectedEvent;
 import io.psyllabus.platform.academic.dto.request.AcademicTermCreateRequest;
 import io.psyllabus.platform.academic.dto.request.AcademicTermUpdateRequest;
 import io.psyllabus.platform.academic.dto.response.AcademicTermDetailResponse;
@@ -14,13 +15,17 @@ import io.psyllabus.platform.common.exception.DuplicateResourceException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
 import io.psyllabus.platform.common.exception.ValidationException;
 import io.psyllabus.platform.common.util.TenantContext;
+import io.psyllabus.platform.school.enums.CurriculumType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -148,6 +153,85 @@ public class AcademicTermServiceImpl implements AcademicTermService {
 
         log.info("Current academic term set: id={} name={} tenant={}", id, term.getName(), tenantId);
         return mapToResponse(saved);
+    }
+
+    /**
+     * Responds to curriculum selection by auto-generating terms.
+     * CBC generates 3 terms; IGCSE generates 2 terms.
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onCurriculumSelected(CurriculumSelectedEvent event) {
+        log.info("Curriculum selection event received for tenant={}, type={}",
+                event.tenantId(), event.curriculumType());
+
+        // We set the tenant context manually because TransactionalEventListener
+        // might run in a separate thread or context.
+        TenantContext.setCurrentTenant(event.tenantId());
+        try {
+            autoGenerateTerms(event);
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    private void autoGenerateTerms(CurriculumSelectedEvent event) {
+        String yearName = String.valueOf(event.startYear());
+
+        // 1. Find or create the academic year
+        AcademicYear year = academicYearRepository.findAllByTenantId(event.tenantId())
+                .stream()
+                .filter(y -> y.getName().equals(yearName))
+                .findFirst()
+                .orElseGet(() -> createDefaultYear(event));
+
+        // 2. Avoid duplicates
+        if (academicTermRepository.countByAcademicYearIdAndTenantId(year.getId(), event.tenantId()) > 0) {
+            log.info("Terms already exist for year {}, skipping auto-drafting", yearName);
+            return;
+        }
+
+        // 3. Generate draft terms
+        List<AcademicTerm> terms = generateTerms(year, event.curriculumType());
+        academicTermRepository.saveAll(terms);
+        log.info("Auto-drafted {} terms for tenant={} year={}", terms.size(), event.tenantId(), yearName);
+    }
+
+    private AcademicYear createDefaultYear(CurriculumSelectedEvent event) {
+        AcademicYear year = AcademicYear.builder()
+                .tenantId(event.tenantId())
+                .name(String.valueOf(event.startYear()))
+                .startDate(LocalDate.of(event.startYear(), 1, 1))
+                .endDate(LocalDate.of(event.startYear(), 12, 31))
+                .isCurrent(false)
+                .build();
+        return academicYearRepository.save(year);
+    }
+
+    private List<AcademicTerm> generateTerms(AcademicYear year, CurriculumType type) {
+        List<AcademicTerm> terms = new ArrayList<>();
+        int yearValue = year.getStartDate().getYear();
+
+        if (type == CurriculumType.CBC) {
+            terms.add(createTerm(year, "Term 1", 1, LocalDate.of(yearValue, 1, 6), LocalDate.of(yearValue, 4, 10)));
+            terms.add(createTerm(year, "Term 2", 2, LocalDate.of(yearValue, 5, 4), LocalDate.of(yearValue, 8, 7)));
+            terms.add(createTerm(year, "Term 3", 3, LocalDate.of(yearValue, 8, 31), LocalDate.of(yearValue, 11, 20)));
+        } else if (type == CurriculumType.IGCSE) {
+            terms.add(createTerm(year, "Autumn Term", 1, LocalDate.of(yearValue, 9, 1), LocalDate.of(yearValue, 12, 18)));
+            terms.add(createTerm(year, "Spring/Summer Term", 2, LocalDate.of(yearValue + 1, 1, 5), LocalDate.of(yearValue + 1, 6, 30)));
+        }
+        return terms;
+    }
+
+    private AcademicTerm createTerm(AcademicYear year, String name, int num, LocalDate start, LocalDate end) {
+        return AcademicTerm.builder()
+                .tenantId(year.getTenantId())
+                .academicYearId(year.getId())
+                .name(name)
+                .termNumber(num)
+                .startDate(start)
+                .endDate(end)
+                .isCurrent(false)
+                .build();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

@@ -91,7 +91,7 @@ public class DevDataSeeder  implements ApplicationRunner {
                     "Mwangi",
                     "james.mwangi@stmary.ac.ke",
                     "+254711000001",
-                    null,   // departmentId — department sprint pending
+                    null,   // subjectGroupId — department sprint pending
                     LocalDate.of(2022, 1, 10),
                     "Bachelor of Education (Mathematics)",
                     "Mathematics and Physics",

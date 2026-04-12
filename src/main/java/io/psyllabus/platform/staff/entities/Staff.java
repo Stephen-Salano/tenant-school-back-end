@@ -16,7 +16,7 @@ import java.util.UUID;
         @Index(name = "idx_staff_tenant_id", columnList = "tenant_id"),
         @Index(name = "idx_staff_user_id", columnList = "user_id"),
         @Index(name = "idx_staff_employee_number", columnList = "employee_number,tenant_id", unique = true),
-        @Index(name = "idx_staff_department", columnList = "department_id")
+        @Index(name = "idx_staff_subject_group", columnList = "subject_group_id")
 })
 @NoArgsConstructor
 @AllArgsConstructor
@@ -50,8 +50,12 @@ public class Staff extends Auditable {
     @Column(name = "phone", length = 20)
     private String phone;
 
-    @Column(name = "department_id")
-    private UUID departmentId;
+    /**
+     * References subject_groups.id — the SubjectGroup this staff member
+     * belongs to (e.g. "Languages & Literacy", "Mathematics").
+     */
+    @Column(name = "subject_group_id")
+    private UUID subjectGroupId;
 
     @Column(name = "hire_date", nullable = false)
     private LocalDate hireDate;

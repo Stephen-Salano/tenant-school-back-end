@@ -19,5 +19,7 @@ public interface GuardianRepository extends JpaRepository<Guardian, UUID> {
 
     boolean existsByPhoneAndTenantId(String phone, UUID tenantId);
 
+    List<Guardian> findByIdInAndTenantId(List<UUID> ids, UUID tenantId);
+
     List<Guardian> findByTenantId(UUID tenantId);
 }

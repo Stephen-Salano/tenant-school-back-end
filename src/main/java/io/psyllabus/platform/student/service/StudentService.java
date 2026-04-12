@@ -42,5 +42,11 @@ public interface StudentService {
      * Caller (controller) is responsible for RBAC — PARENT must never reach this.
      */
     StudentDetailResponse findById(UUID studentId);
+
+    /**
+     * Update student status (e.g. ACTIVE -> GRADUATED).
+     * If status is TRANSFERRED or GRADUATED, currentClassId is nulled.
+     */
+    StudentResponse updateStatus(UUID studentId, io.psyllabus.platform.student.enums.StudentStatus status);
 }
 

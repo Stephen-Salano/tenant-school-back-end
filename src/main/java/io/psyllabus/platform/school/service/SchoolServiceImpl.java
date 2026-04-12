@@ -74,6 +74,7 @@ public class SchoolServiceImpl implements SchoolService{
     private final BranchRepository branchRepository;
     private final AuthService authService;
     private final ObjectMapper objectMapper;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     @Value("${tenant.domain.base:psyllabus.co.ke}")
     private String baseDomain;
@@ -263,7 +264,15 @@ public class SchoolServiceImpl implements SchoolService{
      */
     private void applyAcademicSection(SchoolProfile profile, SchoolProfileUpdateRequest.AcademicSection section) {
         if (section == null) return;
-        if (section.curriculumType() != null)        profile.setCurriculumType(section.curriculumType());
+        if (section.curriculumType() != null) {
+            profile.setCurriculumType(section.curriculumType());
+            // Trigger auto-drafting of terms for the current year
+            eventPublisher.publishEvent(new io.psyllabus.platform.academic.dto.events.CurriculumSelectedEvent(
+                profile.getSchoolId(),
+                section.curriculumType(),
+                java.time.LocalDate.now().getYear()
+            ));
+        }
         if (section.schoolDays() != null)            profile.setSchoolDays(section.schoolDays());
         if (section.startTime() != null)             profile.setStartTime(section.startTime());
         if (section.endTime() != null)               profile.setEndTime(section.endTime());

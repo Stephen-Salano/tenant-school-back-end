@@ -15,6 +15,7 @@ import io.psyllabus.platform.student.dto.responses.StudentDetailResponse;
 import io.psyllabus.platform.student.dto.responses.StudentResponse;
 import io.psyllabus.platform.student.entities.Student;
 import io.psyllabus.platform.student.repository.StudentRepository;
+import io.psyllabus.platform.student.service.mapper.StudentMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -31,8 +32,11 @@ import java.util.UUID;
 @Slf4j
 public class StudentServiceImpl implements StudentService {
 
+    private static final String STUDENT_NOT_FOUND = "Student not found";
+
     private final StudentRepository studentRepository;
     private final AuthService authService;
+    private final StudentMapper studentMapper;
 
     @Override
     public StudentResponse enrollStudent(StudentCreateRequest request) {
@@ -81,7 +85,7 @@ public class StudentServiceImpl implements StudentService {
 
         log.info("Student enrolled: {}", student.getAdmissionNumber());
 
-        return mapToResponse(student);
+        return studentMapper.toResponse(student);
     }
 
     // TODO: Finish this setup once guardian setup has been established
@@ -90,7 +94,7 @@ public class StudentServiceImpl implements StudentService {
         UUID tenantId = TenantContext.getCurrentTenantId();
 
         Student student = studentRepository.findByIdAndTenantId(studentId, tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(STUDENT_NOT_FOUND));
 
         // Todo : Create StudentGuardian junction record
         log.info("Linking student {} to guardian {}", studentId, guardianId);
@@ -101,7 +105,7 @@ public class StudentServiceImpl implements StudentService {
         UUID tenantId = TenantContext.getCurrentTenantId();
 
         Student student = studentRepository.findByIdAndTenantId(studentId, tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(STUDENT_NOT_FOUND));
 
         // TODO: Will work when we setup classes
         student.setCurrentClassId(classId);
@@ -114,9 +118,9 @@ public class StudentServiceImpl implements StudentService {
     public StudentDetailResponse findByAdmissionNumber(String admissionNumber) {
         UUID tenantId = TenantContext.getCurrentTenantId();
         Student student = studentRepository.findByAdmissionNumberAndTenantId(admissionNumber, tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(STUDENT_NOT_FOUND));
 
-        return mapToDetailResponse(student);
+        return studentMapper.toDetailResponse(student);
     }
 
     @Override
@@ -125,7 +129,7 @@ public class StudentServiceImpl implements StudentService {
         UUID tenantId = TenantContext.getCurrentTenantId();
         Page<StudentResponse> page = studentRepository
                 .findByTenantId(tenantId, pageable)
-                .map(this::mapToResponse);
+                .map(studentMapper::toResponse);
         return PageResponse.from(page);
     }
 
@@ -134,33 +138,27 @@ public class StudentServiceImpl implements StudentService {
     public StudentDetailResponse findById(UUID studentId) {
         UUID tenantId = TenantContext.getCurrentTenantId();
         Student student = studentRepository.findByIdAndTenantId(studentId, tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
-        return mapToDetailResponse(student);
+                .orElseThrow(() -> new ResourceNotFoundException(STUDENT_NOT_FOUND));
+        return studentMapper.toDetailResponse(student);
 
     }
 
-    private StudentResponse mapToResponse(Student student) {
-        return new StudentResponse(
-                student.getId(),
-                student.getAdmissionNumber(),
-                student.getFirstName(),
-                student.getLastName(),
-                student.getCurrentStatus()
-        );
-    }
+    @Override
+    public StudentResponse updateStatus(UUID studentId, io.psyllabus.platform.student.enums.StudentStatus status) {
+        UUID tenantId = TenantContext.getCurrentTenantId();
+        Student student = studentRepository.findByIdAndTenantId(studentId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException(STUDENT_NOT_FOUND));
 
-    private StudentDetailResponse mapToDetailResponse(Student student) {
-        return new StudentDetailResponse(
-                student.getId(),
-                student.getAdmissionNumber(),
-                student.getFirstName(),
-                student.getLastName(),
-                student.getDateOfBirth(),
-                student.getGender(),
-                student.getCurrentClassId(),
-                student.getAdmissionDate(),
-                student.getCurrentStatus(),
-                student.getMedicalConditions()   // K-DPA: controller blocks PARENT before reaching here
-        );
+        student.setCurrentStatus(status);
+        
+        // Nullify class if no longer enrolled to prevent inflated stats
+        if (status == io.psyllabus.platform.student.enums.StudentStatus.TRANSFERRED || 
+            status == io.psyllabus.platform.student.enums.StudentStatus.GRADUATED) {
+            log.info("Student {} moved to status {}, nulling currentClassId", student.getAdmissionNumber(), status);
+            student.setCurrentClassId(null);
+        }
+
+        Student saved = studentRepository.save(student);
+        return studentMapper.toResponse(saved);
     }
 }

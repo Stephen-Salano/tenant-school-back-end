@@ -1,6 +1,5 @@
 package io.psyllabus.platform.messaging.service.impl;
 
-import com.resend.Resend;
 import com.resend.services.emails.model.CreateEmailOptions;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -25,22 +24,23 @@ import org.thymeleaf.spring6.SpringTemplateEngine;
 @Slf4j
 public class ResendEmailServiceImpl implements EmailService {
 
-    private final Resend resendClient;
+    private final com.resend.Resend resendClient;
     private final SpringTemplateEngine emailTemplateEngine;
     private final MeterRegistry meterRegistry;
 
-    @Value("${resend.from}")
+    @Value("${resend.from:noreply@psyllabus.co.ke}")
     private String fromAddress;
 
     @Value("${resend.from-name:Psyllabus}")
     private String fromName;
 
-    @Value("${resend.support-email}")
+    @Value("${resend.support-email:support@psyllabus.co.ke}")
     private String supportEmail;
 
     private Counter sentCounter;
     private Counter failedCounter;
     private Timer sendTimer;
+
 
     @PostConstruct
     void initMetrics() {
@@ -56,6 +56,7 @@ public class ResendEmailServiceImpl implements EmailService {
         
         sendTimer.record(() -> doSend(message));
     }
+
 
     private void doSend(EmailMessage message) {
         try {

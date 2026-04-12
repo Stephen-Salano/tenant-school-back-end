@@ -64,11 +64,6 @@ public class RabbitMQConfig {
     // ══════════════════════════════════════════════════════════════════════
 
     @Bean
-    public TopicExchange academicExchange() {
-        return ExchangeBuilder.topicExchange(ACADEMIC_EXCHANGE).durable(true).build();
-    }
-
-    @Bean
     public DirectExchange onboardingExchange() {
         return ExchangeBuilder.directExchange(ONBOARDING_EXCHANGE).durable(true).build();
     }
@@ -79,11 +74,6 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public DirectExchange academicDLX() {
-        return ExchangeBuilder.directExchange(ACADEMIC_DLX).durable(true).build();
-    }
-
-    @Bean
     public DirectExchange onboardingDLX() {
         return ExchangeBuilder.directExchange(ONBOARDING_DLX).durable(true).build();
     }
@@ -91,33 +81,6 @@ public class RabbitMQConfig {
     @Bean
     public DirectExchange notificationsDLX() {
         return ExchangeBuilder.directExchange(NOTIFICATIONS_DLX).durable(true).build();
-    }
-
-    // ══════════════════════════════════════════════════════════════════════
-    // QUEUES & BINDINGS: ACADEMIC (SM3)
-    // ══════════════════════════════════════════════════════════════════════
-
-    @Bean
-    public Queue termDraftingQueue() {
-        return QueueBuilder.durable(TERM_DRAFTING_QUEUE)
-                .withArgument(X_DEAD_LETTER_EXCHANGE, ACADEMIC_DLX)
-                .withArgument(X_DEAD_LETTER_ROUTING_KEY, TERM_DRAFTING_DLQ)
-                .build();
-    }
-
-    @Bean
-    public Queue termDraftingDLQ() {
-        return new Queue(TERM_DRAFTING_DLQ);
-    }
-
-    @Bean
-    public Binding termDraftingBinding() {
-        return BindingBuilder.bind(termDraftingQueue()).to(academicExchange()).with(TERM_DRAFTING_ROUTING_KEY);
-    }
-
-    @Bean
-    public Binding termDraftingDlqBinding() {
-        return BindingBuilder.bind(termDraftingDLQ()).to(academicDLX()).with(TERM_DRAFTING_DLQ);
     }
 
     // ══════════════════════════════════════════════════════════════════════

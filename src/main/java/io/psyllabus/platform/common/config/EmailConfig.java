@@ -1,6 +1,9 @@
 package io.psyllabus.platform.common.config;
 
+import com.resend.Resend;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Description;
@@ -21,6 +24,24 @@ import org.thymeleaf.templateresolver.ITemplateResolver;
 @Configuration
 @Slf4j
 public class EmailConfig {
+
+    @Value("${resend.api-key:#{null}}")
+    private String resendApiKey;
+
+    /**
+     * Resend client bean for email delivery.
+     * Guarded by presence of API key to allow app to start in dev without it.
+     */
+    @Bean
+    @ConditionalOnProperty(name = "resend.api-key")
+    public Resend resendClient() {
+        if (resendApiKey == null) {
+            log.warn("Resend API key missing — email functionality will be disabled.");
+            return null;
+        }
+        log.info("Resend email client initialized.");
+        return new Resend(resendApiKey);
+    }
 
     /**
      * Resolves Thymeleaf templates from {@code resources/templates/emails/}.

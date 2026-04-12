@@ -27,12 +27,4 @@ public final class RabbitMQConstants {
     public static final String STAFF_IMPORT_QUEUE = "psyllabus.onboarding.staff-import";
     public static final String STAFF_IMPORT_DLQ = "psyllabus.onboarding.staff-import.dlq";
     public static final String STAFF_IMPORT_ROUTING_KEY = "onboarding.staff";
-
-    // ── Academic exchange (Topic) ─────────────────────────────────────────
-    public static final String ACADEMIC_EXCHANGE = "psyllabus.academic";
-    public static final String ACADEMIC_DLX = "psyllabus.academic.dlx";
-    
-    public static final String TERM_DRAFTING_QUEUE = "psyllabus.academic.term-drafting";
-    public static final String TERM_DRAFTING_DLQ = "psyllabus.academic.term-drafting.dlq";
-    public static final String TERM_DRAFTING_ROUTING_KEY = "school.curriculum.set";
 }

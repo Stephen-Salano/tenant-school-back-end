@@ -4,14 +4,18 @@ import io.psyllabus.platform.common.dto.ApiResponse;
 import io.psyllabus.platform.common.dto.ErrorResponse;
 import io.psyllabus.platform.common.dto.ValidationErrorResponse;
 import io.psyllabus.platform.onboarding.dto.response.ValidationReport;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -105,6 +109,62 @@ public class GlobalExceptionHandler  {
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(ApiResponse.error("Concurrent modification detected", errorDetails));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException ex) {
+        log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("Resource conflict — this record may already exist or violates a relationship constraint", 
+                        ErrorResponse.of("DATA_INTEGRITY_VIOLATION", "CONFLICT")));
+    }
+
+    /**
+     * Handles malformed or unreadable JSON in the request body.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnreadableMessage(HttpMessageNotReadableException ex) {
+        log.warn("Malformed request body: {}", ex.getMessage());
+        ErrorResponse errorDetails = ErrorResponse.of(
+                "Request body is malformed or contains an invalid value type.",
+                "MALFORMED_REQUEST_BODY"
+        );
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("Malformed request body", errorDetails));
+    }
+
+    /**
+     * Handles @Valid or @Validated violations on method parameters.
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConstraintViolation(ConstraintViolationException ex) {
+        String detail = ex.getConstraintViolations().stream()
+                .map(cv -> cv.getPropertyPath() + ": " + cv.getMessage())
+                .collect(java.util.stream.Collectors.joining(", "));
+        log.warn("Constraint violation: {}", detail);
+        ErrorResponse errorDetails = ErrorResponse.of(
+                "Validation failed: " + detail,
+                "CONSTRAINT_VIOLATION"
+        );
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("Constraint violation", errorDetails));
+    }
+
+    /**
+     * Handles requests to endpoints that do not exist (Spring 6.x / Boot 3.x).
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResourceFound(NoResourceFoundException ex) {
+        log.debug("No resource found: {}", ex.getResourcePath());
+        ErrorResponse errorDetails = ErrorResponse.of(
+                "The requested endpoint does not exist.",
+                "ENDPOINT_NOT_FOUND"
+        );
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("Resource not found", errorDetails));
     }
 
 
