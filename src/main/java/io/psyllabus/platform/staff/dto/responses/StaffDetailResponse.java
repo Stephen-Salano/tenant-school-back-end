@@ -19,7 +19,7 @@ public record StaffDetailResponse (
         String lastName,
         String email,
         String phone,
-        UUID departmentId,
+        UUID subjectGroupId,
         LocalDate hireDate,
         EmploymentStatus employmentStatus,
         String qualification,

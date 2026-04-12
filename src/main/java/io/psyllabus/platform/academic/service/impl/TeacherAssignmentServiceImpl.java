@@ -11,6 +11,7 @@ import io.psyllabus.platform.academic.repository.SchoolClassRepository;
 import io.psyllabus.platform.academic.repository.SubjectRepository;
 import io.psyllabus.platform.academic.repository.TeacherAssignmentRepository;
 import io.psyllabus.platform.academic.service.TeacherAssignmentService;
+import io.psyllabus.platform.academic.service.mapper.TeacherAssignmentMapper;
 import io.psyllabus.platform.common.exception.DuplicateResourceException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
 import io.psyllabus.platform.common.util.TenantContext;
@@ -33,12 +34,12 @@ import java.util.UUID;
 @Transactional
 public class TeacherAssignmentServiceImpl implements TeacherAssignmentService {
 
-    public static final String UNKNOWN = "Unknown";
     private final TeacherAssignmentRepository teacherAssignmentRepository;
     private final StaffRepository staffRepository;
     private final SchoolClassRepository schoolClassRepository;
     private final SubjectRepository subjectRepository;
     private final AcademicTermRepository academicTermRepository;
+    private final TeacherAssignmentMapper assignmentMapper;
 
     @Override
     public TeacherAssignmentResponse assignTeacher(TeacherAssignmentCreateRequest request) {
@@ -62,7 +63,14 @@ public class TeacherAssignmentServiceImpl implements TeacherAssignmentService {
                 .build();
 
         TeacherAssignment saved = teacherAssignmentRepository.save(assignment);
-        return mapToResponse(saved, data.staff(), data.schoolClass(), data.subject(), data.term());
+        
+        return assignmentMapper.toResponse(
+                saved, 
+                data.staff(), 
+                data.schoolClass(), 
+                data.subject(), 
+                data.term()
+        );
     }
 
     private AssignmentValidationData validateAssignmentRequest(TeacherAssignmentCreateRequest request, UUID tenantId) {
@@ -116,47 +124,15 @@ public class TeacherAssignmentServiceImpl implements TeacherAssignmentService {
     @Transactional(readOnly = true)
     public List<TeacherAssignmentResponse> getAssignmentsByClass(UUID classId) {
         UUID tenantId = TenantContext.getCurrentTenantId();
-        return teacherAssignmentRepository.findAllByClassIdAndTenantId(classId, tenantId).stream()
-                .map(this::mapToResponse)
-                .toList();
+        // High Performance: Uses JPQL Constructor Projection to avoid N+1
+        return teacherAssignmentRepository.findResponsesByClassId(classId, tenantId);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<TeacherAssignmentResponse> getAssignmentsByStaff(UUID staffId) {
         UUID tenantId = TenantContext.getCurrentTenantId();
-        return teacherAssignmentRepository.findAllByStaffIdAndTenantId(staffId, tenantId).stream()
-                .map(this::mapToResponse)
-                .toList();
-    }
-
-    private TeacherAssignmentResponse mapToResponse(TeacherAssignment a) {
-        UUID tenantId = TenantContext.getCurrentTenantId();
-        
-        Staff staff = staffRepository.findByIdAndTenantId(a.getStaffId(), tenantId).orElse(null);
-        SchoolClass sc = schoolClassRepository.findByIdAndTenantId(a.getClassId(), tenantId).orElse(null);
-        Subject sub = subjectRepository.findByIdAndTenantId(a.getSubjectId(), tenantId).orElse(null);
-        AcademicTerm term = academicTermRepository.findByIdAndTenantId(a.getAcademicTermId(), tenantId).orElse(null);
-
-        return mapToResponse(a, staff, sc, sub, term);
-    }
-
-    private TeacherAssignmentResponse mapToResponse(TeacherAssignment a, Staff staff, SchoolClass sc, Subject sub, AcademicTerm term) {
-        return new TeacherAssignmentResponse(
-                a.getId(),
-                a.getStaffId(),
-                staff != null ? staff.getFirstName() + " " + staff.getLastName() : UNKNOWN,
-                a.getClassId(),
-                sc != null ? sc.getName() : UNKNOWN,
-                a.getSubjectId(),
-                sub != null ? sub.getName() : UNKNOWN,
-                a.getAcademicTermId(),
-                term != null ? term.getName() : UNKNOWN,
-                a.isClassTeacher(),
-                a.getLessonsPerWeek(),
-                a.getStatus(),
-                a.getCreatedAt(),
-                a.getUpdatedAt()
-        );
+        // High Performance: Uses JPQL Constructor Projection to avoid N+1
+        return teacherAssignmentRepository.findResponsesByStaffId(staffId, tenantId);
     }
 }

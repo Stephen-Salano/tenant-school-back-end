@@ -78,7 +78,7 @@ public class PlatformAdminAuthFilter extends OncePerRequestFilter {
         try{
             String authHeader = request.getHeader(AUTHORIZATION_HEADER);
 
-            if (authHeader == null || authHeader.startsWith(BEARER_PREFIX)){
+            if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)){
                 log.warn("Missing Bearer token on platform endpoint: {}", request.getRequestURI());
                 filterChain.doFilter(request, response);
                 return;
@@ -88,7 +88,7 @@ public class PlatformAdminAuthFilter extends OncePerRequestFilter {
 
             // Gate 1: Signature, expiry, issuer, audience
             if (!jwtService.validateToken(jwt)){
-                log.warn("Invalid JWT on pplatform endpoint: {}", request.getRequestURI());
+                log.warn("Invalid JWT on platform endpoint: {}", request.getRequestURI());
                 SecurityContextHolder.clearContext();
                 filterChain.doFilter(request, response);
                 return;

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -73,6 +74,17 @@ public interface UserRepository extends JpaRepository<User, UUID> {
             @Param("identifier") String identifier,
             @Param("tenantId") UUID tenantId
     );
+
+    /**
+     * Securely load a user by ID within their tenant scope.
+     * Prevents cross-tenant data leakage if an ID is guessed.
+     */
+    Optional<User> findByIdAndTenantId(UUID id, UUID tenantId);
+
+    /**
+     * Batch load users within a tenant.
+     */
+    List<User> findAllByIdInAndTenantId(List<UUID> ids, UUID tenantId);
 
     /**
      * Count users by type within a tenant

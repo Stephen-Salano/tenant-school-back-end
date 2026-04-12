@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: ${DEV_DB_URL}
+    url: ${DEV_DB_URL:jdbc:postgresql://localhost:5432/psyllabus_dev?prepareThreshold=0}
     driver-class-name: org.postgresql.Driver
     username: ${DEV_DB_USERNAME}
     password: ${DEV_DB_PASSWORD}

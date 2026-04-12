@@ -19,11 +19,11 @@ public interface StaffService {
     StaffResponse createStaff(StaffCreateRequest request);
 
     /**
-     * Assign staff to a department
+     * Assign staff to a subject group (department equivalent)
      * @param staffId the staff members ID number
-     * @param departmentId department Id number
+     * @param subjectGroupId subject group Id number
      */
-    void assignDepartment(UUID staffId, UUID departmentId);
+    void assignSubjectGroup(UUID staffId, UUID subjectGroupId);
 
     /**
      * Find a staff by employee number

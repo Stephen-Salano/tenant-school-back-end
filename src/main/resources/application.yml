@@ -170,6 +170,8 @@ platform:
   api-key: ${PLATFORM_API_KEY}
   dev:
     skip-subscription-check: false
+  default-passwords:
+    guardian: ${GUARDIAN_DEFAULT_PASS:Parent@123}
 
 #
 resilience4j:

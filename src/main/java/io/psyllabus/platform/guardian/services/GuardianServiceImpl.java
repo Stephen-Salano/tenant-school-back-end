@@ -16,6 +16,7 @@ import io.psyllabus.platform.guardian.repository.GuardianRepository;
 import io.psyllabus.platform.guardian.repository.StudentGuardianRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,7 +33,9 @@ public class GuardianServiceImpl implements  GuardianService{
     private final StudentGuardianRepository studentGuardianRepository;
     private final AuthService authService;
 
-    private static final String GUARDIAN_TEMP_PASSWORD = "Parent@123";
+    @Value("${platform.default-passwords.guardian:Parent@123}")
+    private String guardianTempPassword;
+
     /*
      TODO: private final UUID tenantId = TenantContext.getCurrentTenantId(); globally instead of calling it every time
      */
@@ -56,7 +59,7 @@ public class GuardianServiceImpl implements  GuardianService{
         RegisterRequest userRequest = new RegisterRequest(
             request.email(), // Username  = email
                 request.email(),
-                GUARDIAN_TEMP_PASSWORD, // default password = phone number
+                guardianTempPassword, // default password = phone number
                 request.firstName(),
                 request.lastName(),
                 request.phone(),
@@ -145,10 +148,11 @@ public class GuardianServiceImpl implements  GuardianService{
                 .map(StudentGuardian::getGuardianId)
                 .toList();
 
-        // Fetch each guardian (max 2-3 per student — N+1 acceptable here)
-        return guardianIds.stream()
-                .map(id -> guardianRepository.findByIdAndTenantId(id, tenantId)
-                        .orElseThrow(() -> new ResourceNotFoundException("Guardian record missing for id: " + id)))
+        if (guardianIds.isEmpty()) return List.of();
+
+        // Batch fetch guardians to avoid N+1
+        return guardianRepository.findByIdInAndTenantId(guardianIds, tenantId)
+                .stream()
                 .map(this::mapToResponse)
                 .toList();
     }

@@ -16,6 +16,7 @@ import io.psyllabus.platform.staff.dto.responses.StaffResponse;
 import io.psyllabus.platform.staff.entities.Staff;
 import io.psyllabus.platform.staff.enums.EmploymentStatus;
 import io.psyllabus.platform.staff.repository.StaffRepository;
+import io.psyllabus.platform.staff.service.mapper.StaffMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -31,8 +32,11 @@ import java.util.UUID;
 @Slf4j
 public class StaffServiceImpl implements StaffService {
 
+    private static final String STAFF_NOT_FOUND = "Staff not found";
+
     private final StaffRepository staffRepository;
     private final AuthService authService;
+    private final StaffMapper staffMapper;
 
     @Override
     public StaffResponse createStaff(StaffCreateRequest request) {
@@ -74,7 +78,7 @@ public class StaffServiceImpl implements StaffService {
                 .lastName(request.lastName())
                 .email(request.email())
                 .phone(request.phone())
-                .departmentId(request.departmentId())
+                .subjectGroupId(request.subjectGroupId())
                 .hireDate(request.hireDate())
                 .qualification(request.qualification())
                 .specialization(request.specialization())
@@ -84,28 +88,28 @@ public class StaffServiceImpl implements StaffService {
         staff = staffRepository.save(staff);
 
         log.info("Staff created: {}", staff.getEmployeeNumber());
-        return mapToResponse(staff);
+        return staffMapper.toResponse(staff);
     }
 
     @Override
-    public void assignDepartment(UUID staffId, UUID departmentId) {
+    public void assignSubjectGroup(UUID staffId, UUID subjectGroupId) {
         UUID tenantId = TenantContext.getCurrentTenantId();
 
         Staff staff = staffRepository.findByIdAndTenantId(staffId, tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Staff not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(STAFF_NOT_FOUND));
 
-        staff.setDepartmentId(departmentId);
+        staff.setSubjectGroupId(subjectGroupId);
         staffRepository.save(staff);
 
-        log.info("Assigned staff {} to department {}", staffId, departmentId);
+        log.info("Assigned staff {} to subject group {}", staffId, subjectGroupId);
     }
 
     @Override
     public StaffResponse findByEmployeeNumber(String employeeNumber, UUID tenantId) {
         Staff staff = staffRepository.findByEmployeeNumberAndTenantId(employeeNumber, tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Staff not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(STAFF_NOT_FOUND));
 
-        return mapToResponse(staff);
+        return staffMapper.toResponse(staff);
     }
 
     @Override
@@ -114,7 +118,7 @@ public class StaffServiceImpl implements StaffService {
         UUID tenantId = TenantContext.getCurrentTenantId();
         Page<StaffResponse> page = staffRepository
                 .findByTenantId(tenantId, pageable)
-                .map(this::mapToResponse);
+                .map(staffMapper::toResponse);
         return PageResponse.from(page);
     }
 
@@ -123,48 +127,21 @@ public class StaffServiceImpl implements StaffService {
     public StaffDetailResponse findById(UUID staffId) {
         UUID tenantId = TenantContext.getCurrentTenantId();
         Staff staff = staffRepository.findByIdAndTenantId(staffId, tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException(" Staff not found"));
-        return mapToDetailResponse(staff);
+                .orElseThrow(() -> new ResourceNotFoundException(STAFF_NOT_FOUND));
+        return staffMapper.toDetailResponse(staff);
     }
 
     @Override
     public StaffResponse updateStatus(UUID staffId, UpdateStaffStatusRequest request) {
         UUID tenantId = TenantContext.getCurrentTenantId();
         Staff staff = staffRepository.findByIdAndTenantId(staffId, tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Staff not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(STAFF_NOT_FOUND));
 
         EmploymentStatus previous = staff.getEmploymentStatus();
         staff.setEmploymentStatus(request.status());
         staff = staffRepository.save(staff);
         log.info("Staff {} status: {} -> {} (reason: {})",
                 staff.getEmployeeNumber(), previous, request.status(), request.reason());
-        return mapToResponse(staff);
-    }
-
-    private StaffResponse mapToResponse(Staff staff) {
-        return new StaffResponse(
-                staff.getId(),
-                staff.getEmployeeNumber(),
-                staff.getFirstName(),
-                staff.getLastName(),
-                staff.getEmail(),
-                staff.getEmploymentStatus()
-        );
-    }
-
-    private StaffDetailResponse mapToDetailResponse(Staff staff) {
-        return new StaffDetailResponse(
-                staff.getId(),
-                staff.getEmployeeNumber(),
-                staff.getFirstName(),
-                staff.getLastName(),
-                staff.getEmail(),
-                staff.getPhone(),
-                staff.getDepartmentId(),
-                staff.getHireDate(),
-                staff.getEmploymentStatus(),
-                staff.getQualification(),
-                staff.getSpecialization()
-        );
+        return staffMapper.toResponse(staff);
     }
 }

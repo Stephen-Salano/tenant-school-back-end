@@ -14,6 +14,7 @@ import io.psyllabus.platform.branch.dto.responses.BranchDetailResponse;
 import io.psyllabus.platform.branch.dto.responses.BranchResponse;
 import io.psyllabus.platform.branch.entities.Branch;
 import io.psyllabus.platform.branch.repository.BranchRepository;
+import io.psyllabus.platform.branch.service.mapper.BranchMapper;
 import io.psyllabus.platform.common.constants.FeatureConstants;
 import io.psyllabus.platform.common.exception.*;
 import io.psyllabus.platform.common.security.ScopeGuard;
@@ -30,6 +31,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -49,6 +51,7 @@ public class BranchServiceImpl implements BranchService {
     private final UserRepository userRepository;
     private final AuditService auditService;
     private final ScopeGuard scopeGuard;
+    private final BranchMapper branchMapper;
 
     @Value("${platform.dev.skip-subscription-check:false}")
     private boolean skipSubscriptionCheck;
@@ -128,21 +131,33 @@ public class BranchServiceImpl implements BranchService {
         User user = getCurrentUser();
         UUID tenantId = TenantContext.getCurrentTenantId();
 
+        List<Branch> branches;
         // Admin scopes see all branches
         if (scopeGuard.isSchoolAdmin()) {
-            return branchRepository.findAllByTenantId(tenantId).stream()
-                    .map(this::mapToResponse)
-                    .collect(Collectors.toList());
-        }
-
-        // Branch scope sees only their own
-        if (user.getAccessScope() == AccessScope.BRANCH) {
+            branches = branchRepository.findAllByTenantId(tenantId);
+        } else if (user.getAccessScope() == AccessScope.BRANCH) {
+            // Branch scope sees only their own
             Branch b = branchRepository.findByIdAndTenantId(user.getBranchId(), tenantId)
                     .orElseThrow(() -> new ResourceNotFoundException("Assigned branch not found"));
-            return List.of(mapToResponse(b));
+            branches = List.of(b);
+        } else {
+            throw new InsufficientPermissionException("You do not have permission to view branch listings.");
         }
 
-        throw new InsufficientPermissionException("You do not have permission to view branch listings.");
+        // Batch load all branch admins to avoid N+1
+        List<UUID> adminIds = branches.stream()
+                .map(Branch::getBranchAdminId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+
+        Map<UUID, String> adminNames = userRepository.findAllByIdInAndTenantId(adminIds, tenantId).stream()
+                .collect(Collectors.toMap(User::getId, u -> u.getFirstName() + " " + u.getLastName()));
+
+        return branches.stream()
+                .map(b -> branchMapper.toResponse(b, adminNames.getOrDefault(b.getBranchAdminId(), 
+                        b.getBranchAdminId() == null ? "Unassigned" : "Unknown Admin")))
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -154,7 +169,8 @@ public class BranchServiceImpl implements BranchService {
         Branch branch = branchRepository.findByIdAndTenantId(branchId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Branch not found: " + branchId));
 
-        return mapToDetailResponse(branch);
+        String adminName = fetchAdminName(branch.getBranchAdminId());
+        return branchMapper.toDetailResponse(branch, adminName);
     }
 
     @Override
@@ -185,21 +201,13 @@ public class BranchServiceImpl implements BranchService {
 
     private BranchResponse mapToResponse(Branch b) {
         String adminName = fetchAdminName(b.getBranchAdminId());
-        return new BranchResponse(b.getId(), b.getName(), b.getCode(), b.getAddress(), 
-                b.getPhone(), b.getBranchAdminId(), adminName, b.isMainBranch(), 
-                b.isActive(), b.getCreatedAt());
-    }
-
-    private BranchDetailResponse mapToDetailResponse(Branch b) {
-        String adminName = fetchAdminName(b.getBranchAdminId());
-        return new BranchDetailResponse(b.getId(), b.getName(), b.getCode(), b.getAddress(),
-                b.getPhone(), b.getEmail(), b.getBranchAdminId(), adminName, b.isMainBranch(),
-                b.isActive(), b.getCreatedAt(), b.getCreatedBy() != null ? b.getCreatedBy().toString() : "System");
+        return branchMapper.toResponse(b, adminName);
     }
 
     private String fetchAdminName(UUID adminId) {
         if (adminId == null) return "Unassigned";
-        return userRepository.findById(adminId)
+        UUID tenantId = TenantContext.getCurrentTenantId();
+        return userRepository.findByIdAndTenantId(adminId, tenantId)
                 .map(u -> u.getFirstName() + " " + u.getLastName())
                 .orElse("Unknown Admin");
     }

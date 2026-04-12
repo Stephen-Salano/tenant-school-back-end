@@ -23,7 +23,7 @@ public record StaffCreateRequest(
 
         String phone,
 
-        UUID departmentId,
+        UUID subjectGroupId,
 
         @NotNull(message = "Hire date is required")
         LocalDate hireDate,

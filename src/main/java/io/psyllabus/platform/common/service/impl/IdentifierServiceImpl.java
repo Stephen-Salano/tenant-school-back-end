@@ -73,19 +73,26 @@ public class IdentifierServiceImpl implements IdentifierService {
 
     /**
      * Generate and verify uniqueness within the tenant, retrying up to {@code MAX_RETRIES} times.
+     * 
+     * <p>Race Condition Handling: even if existsBy check passes, a concurrent insert 
+     * could cause a DataIntegrityViolationException. We catch and retry.
      */
     private String generate(String prefix, UUID tenantId) {
         for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-            String candidate = buildIdentifier(prefix);
-            boolean collision = STUDENT_PREFIX.equals(prefix) ?
-                    studentRepository.existsByAdmissionNumberAndTenantId(candidate, tenantId) :
-                    staffRepository.existsByEmployeeNumberAndTenantId(candidate, tenantId);
+            try {
+                String candidate = buildIdentifier(prefix);
+                boolean collision = STUDENT_PREFIX.equals(prefix) ?
+                        studentRepository.existsByAdmissionNumberAndTenantId(candidate, tenantId) :
+                        staffRepository.existsByEmployeeNumberAndTenantId(candidate, tenantId);
 
-            if (!collision) {
-                log.debug("Identifier generated [prefix={}, attempt={}, tenantId={}]", prefix, attempt, tenantId);
-                return candidate;
+                if (!collision) {
+                    log.debug("Identifier generated [prefix={}, attempt={}, tenantId={}]", prefix, attempt, tenantId);
+                    return candidate;
+                }
+                log.warn("Identifier collision detected via exists check [prefix={}, attempt={}, tenantId={}]", prefix, attempt, tenantId);
+            } catch (org.springframework.dao.DataIntegrityViolationException e) {
+                log.warn("Identifier collision detected via DB constraint [prefix={}, attempt={}, tenantId={}]", prefix, attempt, tenantId);
             }
-            log.warn("Identifier collision [prefix={}, attempt={}, tenantId={}]", prefix, attempt, tenantId);
         }
         // 5 consecutive collisions — something is structurally wrong
         throw new IllegalStateException(
