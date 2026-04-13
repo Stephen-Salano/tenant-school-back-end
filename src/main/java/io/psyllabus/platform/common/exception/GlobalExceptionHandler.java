@@ -114,9 +114,15 @@ public class GlobalExceptionHandler  {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException ex) {
         log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
+        ErrorResponse errorDetails = ErrorResponse.of(
+                "A record with this identifier already exists. This may indicate a duplicate entry or a conflicting assignment.",
+                "DATA_INTEGRITY_VIOLATION"
+        );
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error("Resource conflict — this record may already exist or violates a relationship constraint", 
-                        ErrorResponse.of("DATA_INTEGRITY_VIOLATION", "CONFLICT")));
+                .body(ApiResponse.error(
+                        "A record with this identifier already exists. This may indicate a duplicate entry or a conflicting assignment.",
+                        errorDetails
+                ));
     }
 
     /**
@@ -131,7 +137,7 @@ public class GlobalExceptionHandler  {
         );
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error("Malformed request body", errorDetails));
+                .body(ApiResponse.error("Request body is malformed or contains an invalid value type.", errorDetails));
     }
 
     /**
@@ -149,7 +155,7 @@ public class GlobalExceptionHandler  {
         );
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error("Constraint violation", errorDetails));
+                .body(ApiResponse.error("Validation failed: " + detail, errorDetails));
     }
 
     /**
@@ -164,7 +170,7 @@ public class GlobalExceptionHandler  {
         );
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error("Resource not found", errorDetails));
+                .body(ApiResponse.error("The requested endpoint does not exist.", errorDetails));
     }
 
 

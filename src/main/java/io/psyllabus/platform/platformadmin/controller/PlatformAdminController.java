@@ -3,8 +3,12 @@ package io.psyllabus.platform.platformadmin.controller;
 import io.psyllabus.platform.common.controller.BaseController;
 import io.psyllabus.platform.common.dto.ApiResponse;
 import io.psyllabus.platform.common.dto.PageResponse;
+import io.psyllabus.platform.onboarding.enums.ImportJobStatus;
+import io.psyllabus.platform.onboarding.enums.ImportJobType;
 import io.psyllabus.platform.platformadmin.dto.request.PlatformAdminCreateRequest;
 import io.psyllabus.platform.platformadmin.dto.responses.PlatformAdminResponse;
+import io.psyllabus.platform.platformadmin.dto.responses.PlatformImportJobResponse;
+import io.psyllabus.platform.platformadmin.dto.responses.PlatformKpiResponse;
 import io.psyllabus.platform.platformadmin.entities.PlatformAdmin;
 import io.psyllabus.platform.platformadmin.services.PlatformAdminService;
 import io.psyllabus.platform.school.dto.request.SchoolCreateRequest;
@@ -19,11 +23,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @RestController
@@ -93,6 +99,36 @@ public class PlatformAdminController extends BaseController {
     ){
         log.debug("Get school: schoolId={}", schoolId);
         return ok(platformAdminService.getAnySchool(schoolId), "School retrieved");
+    }
+
+    @GetMapping("/dashboard/kpis")
+    @PreAuthorize("hasRole('PLATFORM_ADMIN')")
+    @Operation(summary = "Get platform dashboard KPIs", description = "Top-level platform metrics for cross-tenant operations")
+    public ResponseEntity<ApiResponse<PlatformKpiResponse>> getDashboardKpis() {
+        return ok(platformAdminService.getDashboardKpis(), "Platform KPIs retrieved");
+    }
+
+    @GetMapping("/import-jobs")
+    @PreAuthorize("hasRole('PLATFORM_ADMIN')")
+    @Operation(summary = "List import jobs across all schools", description = "Cross-tenant import monitoring with optional filters")
+    public ResponseEntity<ApiResponse<PageResponse<PlatformImportJobResponse>>> listImportJobs(
+            @RequestParam(required = false) ImportJobStatus status,
+            @RequestParam(required = false) ImportJobType jobType,
+            @RequestParam(required = false) UUID tenantId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createdAfter,
+            @PageableDefault(size = 20, sort = "createdAt") Pageable pageable
+    ) {
+        return paged(
+                PageResponse.from(platformAdminService.listImportJobs(status, jobType, tenantId, createdAfter, pageable)),
+                "Import jobs retrieved"
+        );
+    }
+
+    @GetMapping("/import-jobs/{jobId}")
+    @PreAuthorize("hasRole('PLATFORM_ADMIN')")
+    @Operation(summary = "Get a single import job across all schools", description = "Cross-tenant import job detail")
+    public ResponseEntity<ApiResponse<PlatformImportJobResponse>> getImportJob(@PathVariable UUID jobId) {
+        return ok(platformAdminService.getImportJob(jobId), "Import job retrieved");
     }
 
     /**

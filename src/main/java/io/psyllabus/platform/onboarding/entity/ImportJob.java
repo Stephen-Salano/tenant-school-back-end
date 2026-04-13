@@ -122,7 +122,6 @@ public class ImportJob extends Auditable {
     public void complete() {
         this.status = errorRows > 0 ? ImportJobStatus.COMPLETED_WITH_ERRORS : ImportJobStatus.DONE;
         this.completedAt = LocalDateTime.now();
-        this.rawData = null; // free JSONB space once done
     }
 
     /** Mark the job as permanently failed (e.g. unparseable CSV, fatal DB error). */
@@ -130,6 +129,5 @@ public class ImportJob extends Auditable {
         this.status = ImportJobStatus.FAILED;
         this.completedAt = LocalDateTime.now();
         this.errorDetails.add(new ImportErrorDetail(0, null, reason, null));
-        this.rawData = null;
     }
 }

@@ -1,5 +1,6 @@
 package io.psyllabus.platform.auth.dto.responses;
 
+import io.psyllabus.platform.academic.dto.response.TeacherAssignmentResponse;
 import io.psyllabus.platform.auth.enums.AccessScope;
 import io.psyllabus.platform.auth.enums.UserType;
 import io.psyllabus.platform.subscription.enums.PlanType;
@@ -28,5 +29,15 @@ public record ClaimsResponse(
   
   // UI-specific hints
   String dashboardUrl,
-  String defaultLandingPage
+  String defaultLandingPage,
+
+  // Role-specific domain context
+  UUID staffId,
+  UUID subjectGroupId,
+  List<TeacherAssignmentResponse> teacherAssignments,
+  UUID studentId,
+  String admissionNumber,
+  UUID currentClassId,
+  UUID guardianId,
+  List<LinkedStudentClaim> linkedStudents
 ) {}

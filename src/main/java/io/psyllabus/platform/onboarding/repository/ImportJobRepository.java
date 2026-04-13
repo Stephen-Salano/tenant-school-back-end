@@ -38,6 +38,22 @@ public interface ImportJobRepository extends JpaRepository<ImportJob, UUID> {
     /** Find jobs stuck in PROCESSING (e.g. after a pod restart) for recovery. */
     List<ImportJob> findAllByStatus(ImportJobStatus status);
 
+    @Query("""
+            SELECT j FROM ImportJob j
+            WHERE (:status IS NULL OR j.status = :status)
+              AND (:jobType IS NULL OR j.jobType = :jobType)
+              AND (:tenantId IS NULL OR j.tenantId = :tenantId)
+              AND (:createdAfter IS NULL OR j.createdAt >= :createdAfter)
+            ORDER BY j.createdAt DESC
+           """)
+    Page<ImportJob> searchPlatformJobs(
+            @Param("status") ImportJobStatus status,
+            @Param("jobType") io.psyllabus.platform.onboarding.enums.ImportJobType jobType,
+            @Param("tenantId") UUID tenantId,
+            @Param("createdAfter") LocalDateTime createdAfter,
+            Pageable pageable
+    );
+
     /** Bulk-null rawData for completed jobs older than N hours — run via @Scheduled cleaner. */
     @Modifying
     @Query(value = """
