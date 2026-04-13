@@ -111,7 +111,7 @@ public class OnboardingServiceImpl implements OnboardingService {
     public byte[] downloadCompletionReportCsv(UUID jobId, UUID tenantId) {
         ImportJob job = findJobOrThrow(jobId, tenantId);
         if (job.getCompletedAt() == null) {
-            throw new IllegalStateException("Completion report is only available after the import job finishes.");
+            throw new ValidationException("Completion report is only available after the import job finishes.");
         }
         if (job.getRawData() == null || job.getRawData().isEmpty()) {
             throw new ResourceNotFoundException("Completion report data is no longer available for job " + jobId);
@@ -180,7 +180,7 @@ public class OnboardingServiceImpl implements OnboardingService {
     public ImportJobStatusResponse requeueJob(UUID jobId, UUID tenantId) {
         ImportJob job = findJobOrThrow(jobId, tenantId);
         if (job.getStatus() != ImportJobStatus.FAILED) {
-            throw new IllegalStateException("Only FAILED jobs can be re-queued. Current status: " + job.getStatus());
+            throw new ValidationException("Only FAILED jobs can be re-queued. Current status: " + job.getStatus());
         }
 
         job.setStatus(ImportJobStatus.QUEUED);
@@ -205,7 +205,7 @@ public class OnboardingServiceImpl implements OnboardingService {
     public void deleteJob(UUID jobId, UUID tenantId) {
         ImportJob job = findJobOrThrow(jobId, tenantId);
         if (job.getStatus() == ImportJobStatus.PROCESSING) {
-            throw new IllegalStateException("Cannot delete a job that is currently PROCESSING.");
+            throw new ValidationException("Cannot delete a job that is currently PROCESSING.");
         }
         importJobRepository.delete(job);
         log.info("Import job deleted [jobId={}, tenantId={}, status={}]", jobId, tenantId, job.getStatus());
