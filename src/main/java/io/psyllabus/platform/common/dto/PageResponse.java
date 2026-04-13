@@ -1,5 +1,6 @@
 package io.psyllabus.platform.common.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.data.domain.Page;
 
 import java.util.List;
@@ -17,6 +18,7 @@ import java.util.List;
  */
 public record PageResponse<T>(
         List<T> content,
+        @JsonProperty("number")
         int page,
         int size,
         long totalElements,

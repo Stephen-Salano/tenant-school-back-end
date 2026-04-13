@@ -31,6 +31,9 @@ public interface OnboardingService {
     /** Download error rows as a CSV file. */
     byte[] downloadErrorCsv(UUID jobId, UUID tenantId);
 
+    /** Download a full completion report for a finished job. */
+    byte[] downloadCompletionReportCsv(UUID jobId, UUID tenantId);
+
     /** Re-queue a FAILED job for another processing attempt. */
     ImportJobStatusResponse requeueJob(UUID jobId, UUID tenantId);
 

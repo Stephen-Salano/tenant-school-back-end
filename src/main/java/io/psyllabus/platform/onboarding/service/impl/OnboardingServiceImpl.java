@@ -1,6 +1,7 @@
 package io.psyllabus.platform.onboarding.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import io.psyllabus.platform.audit.enums.AuditAction;
 import io.psyllabus.platform.audit.service.AuditService;
 import io.psyllabus.platform.common.config.RabbitMQConstants;
@@ -8,6 +9,7 @@ import io.psyllabus.platform.common.dto.PageResponse;
 import io.psyllabus.platform.common.exception.CsvValidationException;
 import io.psyllabus.platform.common.exception.MessagingException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
+import io.psyllabus.platform.common.exception.ValidationException;
 import io.psyllabus.platform.onboarding.dto.response.ImportJobStatusResponse;
 import io.psyllabus.platform.onboarding.dto.response.ValidationReport;
 import io.psyllabus.platform.onboarding.entity.ImportJob;
@@ -39,6 +41,8 @@ import java.util.*;
 @Transactional
 @Slf4j
 public class OnboardingServiceImpl implements OnboardingService {
+
+    private static final String IMPORT_JOB_LITERAL = "IMPORT_JOB";
 
     private final ImportJobRepository importJobRepository;
     private final CsvValidationService csvValidationService;
@@ -103,6 +107,76 @@ public class OnboardingServiceImpl implements OnboardingService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public byte[] downloadCompletionReportCsv(UUID jobId, UUID tenantId) {
+        ImportJob job = findJobOrThrow(jobId, tenantId);
+        if (job.getCompletedAt() == null) {
+            throw new IllegalStateException("Completion report is only available after the import job finishes.");
+        }
+        if (job.getRawData() == null || job.getRawData().isEmpty()) {
+            throw new ResourceNotFoundException("Completion report data is no longer available for job " + jobId);
+        }
+
+        Map<Integer, List<io.psyllabus.platform.onboarding.dto.ImportErrorDetail>> errorsByRow = new HashMap<>();
+        for (var err : job.getErrorDetails()) {
+            if (err.row() > 0) {
+                errorsByRow.computeIfAbsent(err.row(), ignored -> new ArrayList<>()).add(err);
+            }
+        }
+
+        List<Map<String, String>> rows = new ArrayList<>();
+        Set<String> dynamicColumns = new LinkedHashSet<>();
+        for (Object rawRow : job.getRawData()) {
+            Map<String, String> row = objectMapper.convertValue(rawRow, new TypeReference<>() {
+            });
+            rows.add(row);
+            dynamicColumns.addAll(row.keySet());
+        }
+
+        List<String> headers = new ArrayList<>(List.of(
+                "row",
+                "job_type",
+                "status",
+                "failure_count",
+                "failure_fields",
+                "failure_issues",
+                "failure_values"
+        ));
+        headers.addAll(dynamicColumns);
+
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream();
+             CSVPrinter printer = new CSVPrinter(
+                     new OutputStreamWriter(out, StandardCharsets.UTF_8),
+                     CSVFormat.DEFAULT.builder().setHeader(headers.toArray(String[]::new)).build()
+             )) {
+            for (int i = 0; i < rows.size(); i++) {
+                int rowNumber = i + 1;
+                Map<String, String> row = rows.get(i);
+                List<io.psyllabus.platform.onboarding.dto.ImportErrorDetail> rowErrors =
+                        errorsByRow.getOrDefault(rowNumber, List.of());
+
+                List<String> csvRecordEntry = new ArrayList<>();
+                csvRecordEntry.add(String.valueOf(rowNumber));
+                csvRecordEntry.add(job.getJobType().name());
+                csvRecordEntry.add(rowErrors.isEmpty() ? "SUCCESS" : "FAILED");
+                csvRecordEntry.add(String.valueOf(rowErrors.size()));
+                csvRecordEntry.add(joinRowErrors(rowErrors, io.psyllabus.platform.onboarding.dto.ImportErrorDetail::field));
+                csvRecordEntry.add(joinRowErrors(rowErrors, io.psyllabus.platform.onboarding.dto.ImportErrorDetail::issue));
+                csvRecordEntry.add(joinRowErrors(rowErrors, io.psyllabus.platform.onboarding.dto.ImportErrorDetail::rawValue));
+                for (String column : dynamicColumns) {
+                    csvRecordEntry.add(row.getOrDefault(column, ""));
+                }
+                printer.printRecord(csvRecordEntry);
+            }
+            printer.flush();
+            return out.toByteArray();
+        } catch (IOException e) {
+            log.error("Error building completion report CSV [jobId={}]", jobId, e);
+            throw new MessagingException("Failed to generate completion report", e);
+        }
+    }
+
+    @Override
     public ImportJobStatusResponse requeueJob(UUID jobId, UUID tenantId) {
         ImportJob job = findJobOrThrow(jobId, tenantId);
         if (job.getStatus() != ImportJobStatus.FAILED) {
@@ -123,7 +197,7 @@ public class OnboardingServiceImpl implements OnboardingService {
         rabbitTemplate.convertAndSend(RabbitMQConstants.ONBOARDING_EXCHANGE, routingKey, Map.of("jobId", job.getId().toString()));
 
         log.info("Job re-queued [jobId={}, tenantId={}]", jobId, tenantId);
-        auditService.log(AuditAction.BULK_IMPORT, "IMPORT_JOB", jobId, "Job re-queued for retry");
+        auditService.log(AuditAction.BULK_IMPORT, IMPORT_JOB_LITERAL, jobId, "Job re-queued for retry");
         return ImportJobStatusResponse.from(job);
     }
 
@@ -135,7 +209,7 @@ public class OnboardingServiceImpl implements OnboardingService {
         }
         importJobRepository.delete(job);
         log.info("Import job deleted [jobId={}, tenantId={}, status={}]", jobId, tenantId, job.getStatus());
-        auditService.log(AuditAction.BULK_IMPORT, "IMPORT_JOB", jobId, "Job deleted by admin");
+        auditService.log(AuditAction.BULK_IMPORT, IMPORT_JOB_LITERAL, jobId, "Job deleted by admin");
     }
 
     private ImportJobStatusResponse processUpload(MultipartFile file, ImportJobType jobType, UUID tenantId, String routingKey) {
@@ -161,27 +235,27 @@ public class OnboardingServiceImpl implements OnboardingService {
         rabbitTemplate.convertAndSend(RabbitMQConstants.ONBOARDING_EXCHANGE, routingKey, Map.of("jobId", job.getId().toString()));
 
         log.info("Import job queued [jobId={}, type={}, rows={}, tenantId={}]", job.getId(), jobType, rows.size(), tenantId);
-        auditService.log(AuditAction.BULK_IMPORT, "IMPORT_JOB", job.getId(), "QUEUED " + rows.size() + " " + jobType.name() + " rows");
+        auditService.log(AuditAction.BULK_IMPORT, IMPORT_JOB_LITERAL, job.getId(), "QUEUED " + rows.size() + " " + jobType.name() + " rows");
 
         return ImportJobStatusResponse.from(job);
     }
 
     private void guardFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("Upload file is empty.");
+            throw new ValidationException("Upload file is empty.");
         }
         if (file.getSize() > maxFileSizeBytes) {
-            throw new IllegalArgumentException("File exceeds limit. Size: " + (file.getSize() / 1024) + " KB");
+            throw new ValidationException("File exceeds limit. Size: " + (file.getSize() / 1024) + " KB");
         }
         try {
             byte[] header = file.getInputStream().readNBytes(4);
             for (byte[] sig : BINARY_SIGNATURES) {
                 if (startsWith(header, sig)) {
-                    throw new IllegalArgumentException("Invalid file type. Upload a plain CSV file.");
+                    throw new ValidationException("Invalid file type. Upload a plain CSV file.");
                 }
             }
         } catch (IOException e) {
-            throw new RuntimeException("Could not read uploaded file.", e);
+            throw new ValidationException("Could not read uploaded file: " + e.getMessage());
         }
     }
 
@@ -195,15 +269,15 @@ public class OnboardingServiceImpl implements OnboardingService {
                      .build()
                      .parse(reader)) {
             List<Map<String, String>> rows = new ArrayList<>();
-            for (CSVRecord record : parser) {
-                Map<String, String> row = record.toMap();
+            for (CSVRecord csvRecord : parser) {
+                Map<String, String> row = csvRecord.toMap();
                 boolean isInstruction = row.values().stream()
                         .anyMatch(v -> v != null && v.startsWith("[INSTRUCTIONS]"));
                 if (!isInstruction) rows.add(row);
             }
             return rows;
         } catch (IOException e) {
-            throw new RuntimeException("Failed to parse CSV file: " + e.getMessage(), e);
+            throw new ValidationException("Failed to parse CSV file: " + e.getMessage());
         }
     }
 
@@ -218,5 +292,18 @@ public class OnboardingServiceImpl implements OnboardingService {
             if (data[i] != prefix[i]) return false;
         }
         return true;
+    }
+
+    private String joinRowErrors(
+            List<io.psyllabus.platform.onboarding.dto.ImportErrorDetail> errors,
+            java.util.function.Function<io.psyllabus.platform.onboarding.dto.ImportErrorDetail, String> extractor
+    ) {
+        return errors.stream()
+                .map(extractor)
+                .filter(Objects::nonNull)
+                .filter(value -> !value.isBlank())
+                .distinct()
+                .reduce((left, right) -> left + " | " + right)
+                .orElse("");
     }
 }
