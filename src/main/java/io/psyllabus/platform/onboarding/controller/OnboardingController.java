@@ -77,6 +77,17 @@ public class OnboardingController extends BaseController {
                 .body(csv);
     }
 
+    @GetMapping("/jobs/{jobId}/completion-report")
+    @Operation(summary = "Download full completion report as CSV for a finished job")
+    public ResponseEntity<byte[]> downloadCompletionReport(@PathVariable UUID jobId) {
+        log.info("Completion report download [jobId={}, tenant={}]", jobId, getCurrentTenantId());
+        byte[] csv = onboardingService.downloadCompletionReportCsv(jobId, getCurrentTenantId());
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"import-completion-report-" + jobId + ".csv\"")
+                .contentType(MediaType.parseMediaType("text/csv"))
+                .body(csv);
+    }
+
     @PostMapping("/jobs/{jobId}/requeue")
     @Operation(summary = "Re-queue a FAILED import job for another attempt")
     public ResponseEntity<ApiResponse<ImportJobStatusResponse>> requeueJob(

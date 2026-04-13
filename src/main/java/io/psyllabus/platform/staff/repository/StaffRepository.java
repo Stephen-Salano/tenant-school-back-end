@@ -24,6 +24,8 @@ public interface StaffRepository extends JpaRepository<Staff, UUID> {
 
     Optional<Staff> findByIdAndTenantId(UUID id, UUID tenantId);
 
+    Optional<Staff> findByUserIdAndTenantId(UUID userId, UUID tenantId);
+
     Optional<Staff> findByEmployeeNumberAndTenantId(String employeeNumber, UUID tenantId);
 
     boolean existsByEmployeeNumberAndTenantId(String employeeNumber, UUID tenantId);

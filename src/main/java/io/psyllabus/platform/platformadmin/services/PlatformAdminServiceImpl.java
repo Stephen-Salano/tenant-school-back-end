@@ -3,8 +3,14 @@ package io.psyllabus.platform.platformadmin.services;
 import io.psyllabus.platform.auth.enums.UserStatus;
 import io.psyllabus.platform.common.exception.DuplicateResourceException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
+import io.psyllabus.platform.onboarding.entity.ImportJob;
+import io.psyllabus.platform.onboarding.enums.ImportJobStatus;
+import io.psyllabus.platform.onboarding.enums.ImportJobType;
+import io.psyllabus.platform.onboarding.repository.ImportJobRepository;
 import io.psyllabus.platform.platformadmin.dto.request.PlatformAdminCreateRequest;
 import io.psyllabus.platform.platformadmin.dto.responses.PlatformAdminResponse;
+import io.psyllabus.platform.platformadmin.dto.responses.PlatformImportJobResponse;
+import io.psyllabus.platform.platformadmin.dto.responses.PlatformKpiResponse;
 import io.psyllabus.platform.platformadmin.entities.PlatformAdmin;
 import io.psyllabus.platform.platformadmin.repositories.PlatformAdminRepository;
 import io.psyllabus.platform.school.dto.request.SchoolCreateRequest;
@@ -21,6 +27,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -45,6 +53,7 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
 
     private final SchoolService schoolService;
     private final SchoolRepository schoolRepository;
+    private final ImportJobRepository importJobRepository;
     private final PlatformAdminRepository platformAdminRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -109,6 +118,56 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PlatformKpiResponse getDashboardKpis() {
+        long totalSchools = schoolRepository.count();
+        long activeSchools = schoolRepository.countByIsActiveTrue();
+        long inactiveSchools = totalSchools - activeSchools;
+
+        long queuedImportJobs = importJobRepository.findAllByStatus(ImportJobStatus.QUEUED).size();
+        long processingImportJobs = importJobRepository.findAllByStatus(ImportJobStatus.PROCESSING).size();
+        long failedImportJobs = importJobRepository.findAllByStatus(ImportJobStatus.FAILED).size();
+
+        return new PlatformKpiResponse(
+                totalSchools,
+                activeSchools,
+                inactiveSchools,
+                queuedImportJobs,
+                processingImportJobs,
+                failedImportJobs
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<PlatformImportJobResponse> listImportJobs(
+            ImportJobStatus status,
+            ImportJobType jobType,
+            UUID tenantId,
+            LocalDateTime createdAfter,
+            Pageable pageable
+    ) {
+        Page<ImportJob> page = importJobRepository.searchPlatformJobs(status, jobType, tenantId, createdAfter, pageable);
+        Map<UUID, String> schoolNamesById = schoolRepository.findAllById(
+                        page.getContent().stream().map(ImportJob::getTenantId).distinct().toList()
+                ).stream()
+                .collect(java.util.stream.Collectors.toMap(School::getId, School::getName));
+
+        return page.map(job -> toPlatformImportJobResponse(job, schoolNamesById.get(job.getTenantId())));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PlatformImportJobResponse getImportJob(UUID jobId) {
+        ImportJob job = importJobRepository.findById(jobId)
+                .orElseThrow(() -> new ResourceNotFoundException("Import job not found: " + jobId));
+        String schoolName = schoolRepository.findById(job.getTenantId())
+                .map(School::getName)
+                .orElse("Unknown school");
+        return toPlatformImportJobResponse(job, schoolName);
+    }
+
+    @Override
     public PlatformAdminResponse createPlatformAdmin(PlatformAdminCreateRequest request) {
         log.info("Creating platform admin: username={}", request.username());
 
@@ -157,6 +216,27 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
                 school.getCustomDomain(),
                 school.getCreatedAt(),
                 school.getProvisionedBy()
+        );
+    }
+
+    private PlatformImportJobResponse toPlatformImportJobResponse(ImportJob job, String schoolName) {
+        int progressPercent = job.getTotalRows() == 0
+                ? 0
+                : (int) ((job.getProcessedRows() * 100.0) / job.getTotalRows());
+
+        return new PlatformImportJobResponse(
+                job.getId(),
+                job.getTenantId(),
+                schoolName,
+                job.getJobType(),
+                job.getStatus(),
+                job.getTotalRows(),
+                job.getProcessedRows(),
+                job.getSuccessRows(),
+                job.getErrorRows(),
+                progressPercent,
+                job.getCreatedAt(),
+                job.getCompletedAt()
         );
     }
 }

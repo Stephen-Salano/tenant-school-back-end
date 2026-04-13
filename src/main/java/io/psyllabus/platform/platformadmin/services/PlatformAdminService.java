@@ -1,13 +1,18 @@
 package io.psyllabus.platform.platformadmin.services;
 
 import io.psyllabus.platform.platformadmin.dto.request.PlatformAdminCreateRequest;
+import io.psyllabus.platform.onboarding.enums.ImportJobStatus;
+import io.psyllabus.platform.onboarding.enums.ImportJobType;
 import io.psyllabus.platform.school.dto.request.SchoolCreateRequest;
+import io.psyllabus.platform.platformadmin.dto.responses.PlatformImportJobResponse;
+import io.psyllabus.platform.platformadmin.dto.responses.PlatformKpiResponse;
 import io.psyllabus.platform.platformadmin.dto.responses.PlatformAdminResponse;
 import io.psyllabus.platform.school.dto.responses.SchoolOnboardResponse;
 import io.psyllabus.platform.school.dto.responses.SchoolSummaryResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -71,6 +76,18 @@ public interface PlatformAdminService {
      * @throws io.psyllabus.platform.common.exception.ResourceNotFoundException if not found
      */
     SchoolSummaryResponse getAnySchool(UUID schoolId);
+
+    PlatformKpiResponse getDashboardKpis();
+
+    Page<PlatformImportJobResponse> listImportJobs(
+            ImportJobStatus status,
+            ImportJobType jobType,
+            UUID tenantId,
+            LocalDateTime createdAfter,
+            Pageable pageable
+    );
+
+    PlatformImportJobResponse getImportJob(UUID jobId);
 
     /**
      * Create a new platform-level administrator.
