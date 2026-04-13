@@ -31,6 +31,8 @@ public interface SchoolClassRepository extends JpaRepository<SchoolClass, UUID> 
     Page<SchoolClass> findAllByAcademicYearIdAndTenantId(UUID academicYearId, UUID tenantId, Pageable pageable);
     Page<SchoolClass> findAllByBranchIdAndTenantId(UUID branchId, UUID tenantId, Pageable pageable);
     Optional<SchoolClass> findByIdAndTenantId(UUID id, UUID tenantId);
+    Optional<SchoolClass> findByGradeLevelAndStreamNameAndTenantId(String gradeLevel, String streamName, UUID tenantId);
+    Optional<SchoolClass> findByGradeLevelAndStreamNameIsNullAndTenantId(String gradeLevel, UUID tenantId);
     boolean existsByNameAndAcademicYearIdAndTenantId(String name, UUID academicYearId, UUID tenantId);
     boolean existsByNameAndAcademicYearIdAndTenantIdAndIdNot(String name, UUID academicYearId, UUID tenantId, UUID id);
 

@@ -2,6 +2,7 @@ package io.psyllabus.platform.onboarding.service.impl;
 
 import io.psyllabus.platform.academic.repository.SchoolClassRepository;
 import io.psyllabus.platform.academic.repository.SubjectGroupRepository;
+import io.psyllabus.platform.academic.repository.SubjectRepository;
 import io.psyllabus.platform.auth.repository.UserRepository;
 import io.psyllabus.platform.branch.repository.BranchRepository;
 import io.psyllabus.platform.onboarding.dto.response.RowError;
@@ -30,6 +31,7 @@ public class CsvValidationServiceImpl implements CsvValidationService {
     private final BranchRepository branchRepository;
     private final SchoolClassRepository schoolClassRepository;
     private final SubjectGroupRepository subjectGroupRepository;
+    private final SubjectRepository subjectRepository;
     private final StudentRepository studentRepository;
     private final StaffRepository staffRepository;
     private final UserRepository userRepository;
@@ -100,6 +102,7 @@ public class CsvValidationServiceImpl implements CsvValidationService {
         Set<String> validBranchCodes = branchRepository.findAllCodesByTenantId(tenantId);
         Set<String> validClassKeys = schoolClassRepository.findAllActiveClassKeysByTenantId(tenantId);
         Set<String> validSubjectGroups = subjectGroupRepository.findAllNamesByTenantId(tenantId);
+        Set<String> validSubjectNames = subjectRepository.findAllNamesByTenantId(tenantId);
         Set<String> existingAdmissions = studentRepository.findAllAdmissionNumbersByTenantId(tenantId);
         Set<String> existingEmployeeNums = staffRepository.findAllEmployeeNumbersByTenantId(tenantId);
         Set<String> existingEmails = userRepository.findAllEmailsByTenantId(tenantId);
@@ -118,7 +121,7 @@ public class CsvValidationServiceImpl implements CsvValidationService {
             if (jobType == ImportJobType.STUDENT_BULK_IMPORT) {
                 validateStudentReferences(row, rowNum, validClassKeys, existingAdmissions, existingEmails, seenInFile, errors);
             } else {
-                validateStaffReferences(row, rowNum, validClassKeys, validSubjectGroups, existingEmployeeNums, existingEmails, seenInFile, errors);
+                validateStaffReferences(row, rowNum, validClassKeys, validSubjectGroups, validSubjectNames, existingEmployeeNums, existingEmails, seenInFile, errors);
             }
         }
 
@@ -158,10 +161,13 @@ public class CsvValidationServiceImpl implements CsvValidationService {
         validateDate(row, rowNum, "hire_date", errors);
         validateOptionalPhone(row, rowNum, "phone", errors);
 
-        String isClassTeacher = trim(row.get("is_class_teacher")).toUpperCase();
-        if ("YES".equals(isClassTeacher)) {
-            requireNonBlank(row, rowNum, "class_teacher_grade", errors);
-            // Stream is optional in some schools, but if specified in CSV, we validate it in phase 2
+        String teachingAssignments = trim(row.get("teaching_assignments"));
+        String classTeacherAssignment = trim(row.get("class_teacher_assignment"));
+        if (!teachingAssignments.isEmpty()) {
+            validateTeachingAssignmentFormat(teachingAssignments, rowNum, "teaching_assignments", errors);
+        }
+        if (!classTeacherAssignment.isEmpty()) {
+            validateTeachingAssignmentFormat(classTeacherAssignment, rowNum, "class_teacher_assignment", errors);
         }
     }
 
@@ -191,7 +197,7 @@ public class CsvValidationServiceImpl implements CsvValidationService {
     }
 
     private void validateStaffReferences(
-            Map<String, String> row, int rowNum, Set<String> validClassKeys, Set<String> validSubjectGroups,
+            Map<String, String> row, int rowNum, Set<String> validClassKeys, Set<String> validSubjectGroups, Set<String> validSubjectNames,
             Set<String> existingEmployeeNums, Set<String> existingEmails, Set<String> seenInFile, List<RowError> errors) {
 
         String email = trim(row.get("email")).toLowerCase();
@@ -211,16 +217,88 @@ public class CsvValidationServiceImpl implements CsvValidationService {
             errors.add(new RowError(rowNum, "subject_group_name", "Subject group not found in this school.", groupName));
         }
 
-        String isClassTeacher = trim(row.get("is_class_teacher")).toUpperCase();
-        if ("YES".equals(isClassTeacher)) {
-            String grade = trim(row.get("class_teacher_grade"));
-            String stream = trim(row.get("class_teacher_stream"));
-            String key = grade + "::" + stream;
-            if (!validClassKeys.contains(key)) {
-                errors.add(new RowError(rowNum, "class_teacher_grade", "No active class found for this class teacher assignment.", grade + " / " + stream));
+        String teachingAssignments = trim(row.get("teaching_assignments"));
+        String classTeacherAssignment = trim(row.get("class_teacher_assignment"));
+
+        Set<String> parsedTeachingAssignments = new HashSet<>();
+        if (!teachingAssignments.isEmpty()) {
+            for (String assignment : splitAssignments(teachingAssignments)) {
+                ParsedAssignment parsed = parseAssignment(assignment);
+                parsedTeachingAssignments.add(toNormalizedAssignmentKey(parsed));
+
+                if (!validSubjectNames.contains(parsed.subject())) {
+                    errors.add(new RowError(rowNum, "teaching_assignments", "Subject not found in this school.", parsed.subject()));
+                }
+
+                String classKey = parsed.gradeLevel() + "::" + parsed.streamName();
+                if (!validClassKeys.contains(classKey)) {
+                    errors.add(new RowError(rowNum, "teaching_assignments", "No active class found for this teaching assignment.", assignment));
+                }
+            }
+        }
+
+        if (!classTeacherAssignment.isEmpty()) {
+            ParsedAssignment parsed = parseAssignment(classTeacherAssignment);
+            if (!validSubjectNames.contains(parsed.subject())) {
+                errors.add(new RowError(rowNum, "class_teacher_assignment", "Subject not found in this school.", parsed.subject()));
+            }
+
+            String classKey = parsed.gradeLevel() + "::" + parsed.streamName();
+            if (!validClassKeys.contains(classKey)) {
+                errors.add(new RowError(rowNum, "class_teacher_assignment", "No active class found for this class teacher assignment.", classTeacherAssignment));
+            }
+
+            if (teachingAssignments.isEmpty()) {
+                errors.add(new RowError(rowNum, "class_teacher_assignment", "class_teacher_assignment requires teaching_assignments to be filled.", classTeacherAssignment));
+            } else if (!parsedTeachingAssignments.contains(toNormalizedAssignmentKey(parsed))) {
+                errors.add(new RowError(rowNum, "class_teacher_assignment", "class_teacher_assignment must match one of the imported teaching_assignments.", classTeacherAssignment));
             }
         }
     }
+
+    private void validateTeachingAssignmentFormat(String rawAssignments, int rowNum, String column, List<RowError> errors) {
+        for (String assignment : splitAssignments(rawAssignments)) {
+            try {
+                parseAssignment(assignment);
+            } catch (IllegalArgumentException ex) {
+                errors.add(new RowError(rowNum, column, ex.getMessage(), assignment));
+            }
+        }
+    }
+
+    private List<String> splitAssignments(String rawAssignments) {
+        return Arrays.stream(rawAssignments.split(";"))
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .toList();
+    }
+
+    private ParsedAssignment parseAssignment(String assignment) {
+        String[] parts = assignment.split("\\|", -1);
+        if (parts.length != 3) {
+            throw new IllegalArgumentException("Teaching assignments must use Subject|Grade|Stream format. Leave stream blank as Subject|Grade| when needed.");
+        }
+
+        String subject = parts[0].trim();
+        String gradeLevel = parts[1].trim();
+        String streamName = parts[2].trim();
+
+        if (subject.isEmpty() || gradeLevel.isEmpty()) {
+            throw new IllegalArgumentException("Teaching assignments require both subject and grade.");
+        }
+
+        return new ParsedAssignment(subject, gradeLevel, streamName);
+    }
+
+    private String toNormalizedAssignmentKey(ParsedAssignment assignment) {
+        return assignment.subject().toUpperCase() + "|" + assignment.gradeLevel().toUpperCase() + "|" + assignment.streamName().toUpperCase();
+    }
+
+    private record ParsedAssignment(
+            String subject,
+            String gradeLevel,
+            String streamName
+    ) {}
 
     private void requireNonBlank(Map<String, String> row, int rowNum, String col, List<RowError> errors) {
         if (trim(row.get(col)).isEmpty()) {

@@ -26,6 +26,7 @@ public interface SubjectGroupRepository extends JpaRepository<SubjectGroup, UUID
     Page<SubjectGroup> findAllByTenantId(UUID tenantId, Pageable pageable);
     List<SubjectGroup> findAllByIdInAndTenantId(Set<UUID> ids, UUID tenantId);
     Optional<SubjectGroup> findByIdAndTenantId(UUID id, UUID tenantId);
+    Optional<SubjectGroup> findByNameAndTenantId(String name, UUID tenantId);
     boolean existsByNameAndTenantId(String name, UUID tenantId);
 
     @Query("SELECT sg.name FROM SubjectGroup sg WHERE sg.id = :id AND sg.tenantId = :tenantId")

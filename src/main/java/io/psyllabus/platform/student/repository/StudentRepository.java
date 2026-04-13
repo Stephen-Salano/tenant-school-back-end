@@ -28,6 +28,7 @@ public interface StudentRepository extends JpaRepository<Student, UUID> {
     Optional<Student> findByUserIdAndTenantId(UUID userId, UUID tenantId);
 
     List<Student> findAllByIdInAndTenantId(List<UUID> ids, UUID tenantId);
+    List<Student> findAllByCurrentClassIdAndTenantId(UUID currentClassId, UUID tenantId);
 
     Optional<Student> findByAdmissionNumberAndTenantId(String admissionNumber, UUID tenantId);
 
