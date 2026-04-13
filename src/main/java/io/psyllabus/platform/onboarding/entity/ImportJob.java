@@ -71,7 +71,8 @@ public class ImportJob extends Auditable {
 
     /**
      * Full parsed CSV stored as JSONB to avoid S3 costs.
-     * Cleared once the job reaches a terminal state to reclaim space.
+     * Retained briefly after completion so admins can download the completion report,
+     * then nulled by MaintenanceService after the retention window elapses.
      */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "raw_data", columnDefinition = "jsonb")

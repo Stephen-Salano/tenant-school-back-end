@@ -38,6 +38,9 @@ public interface ImportJobRepository extends JpaRepository<ImportJob, UUID> {
     /** Find jobs stuck in PROCESSING (e.g. after a pod restart) for recovery. */
     List<ImportJob> findAllByStatus(ImportJobStatus status);
 
+    /** Lightweight count query for dashboards and health metrics. */
+    long countByStatus(ImportJobStatus status);
+
     @Query("""
             SELECT j FROM ImportJob j
             WHERE (:status IS NULL OR j.status = :status)

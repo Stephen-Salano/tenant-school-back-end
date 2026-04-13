@@ -113,7 +113,9 @@ public class GlobalExceptionHandler  {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException ex) {
-        log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
+        ex.getMostSpecificCause();
+        String causeType = ex.getMostSpecificCause().getClass().getSimpleName();
+        log.warn("Data integrity violation detected [causeType={}]", causeType);
         ErrorResponse errorDetails = ErrorResponse.of(
                 "A record with this identifier already exists. This may indicate a duplicate entry or a conflicting assignment.",
                 "DATA_INTEGRITY_VIOLATION"
