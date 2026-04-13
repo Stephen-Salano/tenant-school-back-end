@@ -124,9 +124,9 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
         long activeSchools = schoolRepository.countByIsActiveTrue();
         long inactiveSchools = totalSchools - activeSchools;
 
-        long queuedImportJobs = importJobRepository.findAllByStatus(ImportJobStatus.QUEUED).size();
-        long processingImportJobs = importJobRepository.findAllByStatus(ImportJobStatus.PROCESSING).size();
-        long failedImportJobs = importJobRepository.findAllByStatus(ImportJobStatus.FAILED).size();
+        long queuedImportJobs = importJobRepository.countByStatus(ImportJobStatus.QUEUED);
+        long processingImportJobs = importJobRepository.countByStatus(ImportJobStatus.PROCESSING);
+        long failedImportJobs = importJobRepository.countByStatus(ImportJobStatus.FAILED);
 
         return new PlatformKpiResponse(
                 totalSchools,
