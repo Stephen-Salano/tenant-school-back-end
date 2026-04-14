@@ -1,5 +1,7 @@
 package io.psyllabus.platform.platformadmin.services;
 
+import io.psyllabus.platform.audit.enums.AuditAction;
+import io.psyllabus.platform.audit.service.AuditService;
 import io.psyllabus.platform.auth.enums.UserStatus;
 import io.psyllabus.platform.common.exception.DuplicateResourceException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
@@ -57,6 +59,7 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
     private final ImportJobRepository importJobRepository;
     private final PlatformAdminRepository platformAdminRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuditService auditService;
 
     // School Provisioning
 
@@ -174,8 +177,17 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
         School school = schoolRepository.findByIdCrossTenant(schoolId)
                 .orElseThrow(() -> new ResourceNotFoundException("School not found: " + schoolId));
 
+        SchoolStatus previous = school.getStatus();
         school.setStatus(status);
         school = schoolRepository.save(school);
+
+        auditService.log(
+                AuditAction.UPDATE,
+                "SCHOOL",
+                schoolId,
+                String.format("School status changed from %s to %s by platform admin %s", previous, status, adminId)
+        );
+
         return toSummaryResponse(school);
     }
 

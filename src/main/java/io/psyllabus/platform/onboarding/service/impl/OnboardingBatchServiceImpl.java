@@ -11,7 +11,6 @@ import io.psyllabus.platform.academic.service.ClassService;
 import io.psyllabus.platform.academic.service.TeacherAssignmentService;
 import io.psyllabus.platform.audit.enums.AuditAction;
 import io.psyllabus.platform.audit.service.AuditService;
-import io.psyllabus.platform.auth.enums.UserType;
 import io.psyllabus.platform.branch.entities.Branch;
 import io.psyllabus.platform.branch.repository.BranchRepository;
 import io.psyllabus.platform.common.annotation.SystemProcess;
@@ -23,16 +22,12 @@ import io.psyllabus.platform.guardian.enums.RelationshipType;
 import io.psyllabus.platform.guardian.repository.GuardianRepository;
 import io.psyllabus.platform.guardian.repository.StudentGuardianRepository;
 import io.psyllabus.platform.guardian.services.GuardianService;
-import io.psyllabus.platform.messaging.dto.EmailMessage;
-import io.psyllabus.platform.messaging.enums.EmailTemplateType;
-import io.psyllabus.platform.messaging.service.EmailService;
 import io.psyllabus.platform.onboarding.dto.ImportErrorDetail;
 import io.psyllabus.platform.onboarding.dto.ImportRowOutcome;
 import io.psyllabus.platform.onboarding.entity.ImportJob;
+import io.psyllabus.platform.onboarding.event.ImportJobFinalizedEvent;
 import io.psyllabus.platform.onboarding.repository.ImportJobRepository;
 import io.psyllabus.platform.onboarding.service.OnboardingBatchService;
-import io.psyllabus.platform.school.entities.School;
-import io.psyllabus.platform.school.repository.SchoolRepository;
 import io.psyllabus.platform.staff.dto.request.StaffCreateRequest;
 import io.psyllabus.platform.staff.dto.responses.StaffResponse;
 import io.psyllabus.platform.staff.services.StaffService;
@@ -43,6 +38,7 @@ import io.psyllabus.platform.student.enums.StudentStatus;
 import io.psyllabus.platform.student.service.StudentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -81,8 +77,7 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
     private final AcademicTermRepository academicTermRepository;
     private final IdentifierService identifierService;
     private final AuditService auditService;
-    private final EmailService emailService;
-    private final SchoolRepository schoolRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -114,7 +109,11 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
             } catch (Exception ex) {
                 ImportErrorDetail error = toRowError(rowNumber, ex);
                 errors.add(error);
-                outcomes.add(new ImportRowOutcome(rowNumber, "FAILED", normalize(row.get("employee_number")), error.issue()));
+                // Fallback identifier chain for actionable reporting
+                String fallbackId = normalize(row.get("employee_number"));
+                if (fallbackId.isBlank()) fallbackId = normalize(row.get("email"));
+                if (fallbackId.isBlank()) fallbackId = "Row " + rowNumber;
+                outcomes.add(new ImportRowOutcome(rowNumber, "FAILED", fallbackId, error.issue()));
             }
         }
 
@@ -147,7 +146,11 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
             } catch (Exception ex) {
                 ImportErrorDetail error = toRowError(rowNumber, ex);
                 errors.add(error);
-                outcomes.add(new ImportRowOutcome(rowNumber, "FAILED", normalize(row.get("admission_number")), error.issue()));
+                // Fallback identifier chain for actionable reporting
+                String fallbackId = normalize(row.get("admission_number"));
+                if (fallbackId.isBlank()) fallbackId = normalize(row.get("first_name") + " " + row.get("last_name"));
+                if (fallbackId.isBlank() || fallbackId.strip().equals("null null")) fallbackId = "Row " + rowNumber;
+                outcomes.add(new ImportRowOutcome(rowNumber, "FAILED", fallbackId, error.issue()));
             }
         }
 
@@ -169,7 +172,7 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
         job.complete();
         importJobRepository.save(job);
         
-        sendAdminNotification(job);
+        eventPublisher.publishEvent(new ImportJobFinalizedEvent(this, job));
         
         auditService.log(
                 AuditAction.BULK_IMPORT,
@@ -187,48 +190,10 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
         job.fail(reason);
         importJobRepository.save(job);
         
-        sendAdminNotification(job);
+        eventPublisher.publishEvent(new ImportJobFinalizedEvent(this, job));
         
         auditService.log(AuditAction.BULK_IMPORT, IMPORT_JOB_LITERAL, jobId, "Job failed: " + reason);
         return job;
-    }
-    
-    private void sendAdminNotification(ImportJob job) {
-        try {
-            School school = schoolRepository.findById(job.getTenantId())
-                    .orElseThrow(() -> new ResourceNotFoundException("School not found: " + job.getTenantId()));
-            
-            if (school.getEmail() == null || school.getEmail().isBlank()) {
-                log.warn("School admin email not configured for tenant {}, skipping notification", job.getTenantId());
-                return;
-            }
-
-            EmailTemplateType templateType = job.getStatus() == io.psyllabus.platform.onboarding.enums.ImportJobStatus.FAILED
-                    ? EmailTemplateType.IMPORT_FAILED
-                    : EmailTemplateType.IMPORT_COMPLETE_SUMMARY;
-
-            EmailMessage message = new EmailMessage(
-                    UUID.randomUUID().toString(),
-                    job.getTenantId(),
-                    school.getEmail(),
-                    school.getName() + " Admin",
-                    UserType.ADMIN,
-                    templateType,
-                    Map.of(
-                            "successCount", String.valueOf(job.getSuccessRows()),
-                            "failureCount", String.valueOf(job.getErrorRows()),
-                            "totalRows", String.valueOf(job.getTotalRows()),
-                            "jobType", job.getJobType().name(),
-                            "jobId", job.getId().toString(),
-                            "toName", school.getName() + " Admin"
-                    )
-            );
-            
-            emailService.send(message);
-            log.info("Admin notification triggered for import job {} [status={}]", job.getId(), job.getStatus());
-        } catch (Exception ex) {
-            log.error("Failed to send admin notification for job {}", job.getId(), ex);
-        }
     }
 
     private String createStaffFromRow(Map<String, String> row, UUID tenantId) {
