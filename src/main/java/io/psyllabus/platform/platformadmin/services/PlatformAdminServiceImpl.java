@@ -76,7 +76,7 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
         // Stamp provisionedBy on the School entity for the audit trail
         // SchoolServiceImpl cannot do this becuase it has no access to the
         // platform admin's identity - this is a platform-layer concern
-        School school = schoolRepository.findById(base.schoolId())
+        School school = schoolRepository.findByIdCrossTenant(base.schoolId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "School not found after provisioning = this might be a bug in SchoolServiceImpl"
                 ));
@@ -167,7 +167,7 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
     public PlatformImportJobResponse getImportJob(UUID jobId) {
         ImportJob job = importJobRepository.findById(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("Import job not found: " + jobId));
-        String schoolName = schoolRepository.findById(job.getTenantId())
+        String schoolName = schoolRepository.findByIdCrossTenant(job.getTenantId())
                 .map(School::getName)
                 .orElse("Unknown school");
         return toPlatformImportJobResponse(job, schoolName);

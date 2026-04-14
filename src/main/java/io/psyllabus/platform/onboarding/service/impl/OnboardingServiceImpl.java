@@ -11,6 +11,7 @@ import io.psyllabus.platform.common.exception.MessagingException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
 import io.psyllabus.platform.common.exception.ValidationException;
 import io.psyllabus.platform.onboarding.dto.ImportErrorDetail;
+import io.psyllabus.platform.onboarding.dto.ImportRowOutcome;
 import io.psyllabus.platform.onboarding.dto.response.ImportJobStatusResponse;
 import io.psyllabus.platform.onboarding.dto.response.ValidationReport;
 import io.psyllabus.platform.onboarding.entity.ImportJob;
@@ -117,88 +118,30 @@ public class OnboardingServiceImpl implements OnboardingService {
     @Transactional(readOnly = true)
     public byte[] downloadCompletionReportCsv(UUID jobId, UUID tenantId) {
         ImportJob job = findJobOrThrow(jobId, tenantId);
-        if (job.getCompletedAt() == null) {
-            throw new ValidationException("Completion report is only available after the import job finishes.");
-        }
-        if (job.getRawData() == null || job.getRawData().isEmpty()) {
-            throw new ResourceNotFoundException("Completion report data is no longer available for job " + jobId);
-        }
+        validateJobReadyForReport(job);
 
-        Map<Integer, List<ImportErrorDetail>> errorsByRow = new HashMap<>();
-        for (var err : job.getErrorDetails()) {
-            if (err.row() > 0) {
-                errorsByRow.computeIfAbsent(err.row(), ignored -> new ArrayList<>()).add(err);
-            }
-        }
-
-        Map<Integer, String> finalIdentifiersByRow = new HashMap<>();
-        if (job.getRowOutcomes() != null) {
-            for (var outcome : job.getRowOutcomes()) {
-                finalIdentifiersByRow.put(outcome.row(), outcome.finalIdentifier());
-            }
-        }
-
+        Map<Integer, List<ImportErrorDetail>> errorsByRow = mapErrorsByRow(job);
+        Map<Integer, ImportRowOutcome> outcomesByRow = mapOutcomesByRow(job);
+        
         List<Map<String, String>> rows = new ArrayList<>();
         Set<String> dynamicColumns = new LinkedHashSet<>();
-        for (Object rawRow : job.getRawData()) {
-            Map<String, String> row = objectMapper.convertValue(rawRow, new TypeReference<>() {});
-            rows.add(row);
-            dynamicColumns.addAll(row.keySet());
-        }
+        parseRawData(job, rows, dynamicColumns);
 
-        List<String> headers = new ArrayList<>(List.of(
-                "row",
-                "job_type",
-                "status",
-                "final_identifier",
-                "failure_count",
-                "failure_fields",
-                "failure_issues",
-                "failure_values"
-        ));
-        headers.addAll(dynamicColumns);
+        List<String> headers = buildReportHeaders(dynamicColumns);
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream();
              CSVPrinter printer = new CSVPrinter(
                      new OutputStreamWriter(out, StandardCharsets.UTF_8),
                      CSVFormat.DEFAULT.builder().setHeader(headers.toArray(String[]::new)).build()
              )) {
+
             for (int i = 0; i < rows.size(); i++) {
                 int rowNumber = i + 1;
-                Map<String, String> row = rows.get(i);
-                List<io.psyllabus.platform.onboarding.dto.ImportErrorDetail> rowErrors =
-                        errorsByRow.getOrDefault(rowNumber, List.of());
-                String finalIdentifier = finalIdentifiersByRow.getOrDefault(rowNumber, "");
+                Map<String, String> rowData = rows.get(i);
+                List<ImportErrorDetail> rowErrors = errorsByRow.getOrDefault(rowNumber, List.of());
+                ImportRowOutcome outcome = outcomesByRow.get(rowNumber);
 
-                // 1. Determine accurate row status
-                String rowStatus;
-                if (job.getStatus() == ImportJobStatus.FAILED && rowNumber > job.getProcessedRows()) {
-                    rowStatus = "NOT_PROCESSED";
-                } else if (rowErrors.isEmpty()) {
-                    rowStatus = "SUCCESS";
-                } else {
-                    rowStatus = "FAILED";
-                }
-
-                List<String> csvRecordEntry = new ArrayList<>();
-                csvRecordEntry.add(String.valueOf(rowNumber));
-                csvRecordEntry.add(job.getJobType().name());
-                csvRecordEntry.add(rowStatus);
-                // Final identifiers can be user-supplied, so sanitize them
-                csvRecordEntry.add(sanitizeCsvCell(finalIdentifier));
-                csvRecordEntry.add(String.valueOf(rowErrors.size()));
-
-                // SANITIZE the joined strings here
-                csvRecordEntry.add(sanitizeCsvCell(joinRowErrors(rowErrors, ImportErrorDetail::field)));
-                csvRecordEntry.add(sanitizeCsvCell(joinRowErrors(rowErrors, ImportErrorDetail::issue)));
-                csvRecordEntry.add(sanitizeCsvCell(joinRowErrors(rowErrors, ImportErrorDetail::rawValue)));
-
-                for (String column : dynamicColumns) {
-                    String rawValue = row.getOrDefault(column, "");
-                    csvRecordEntry.add(sanitizeCsvCell(rawValue));
-                }
-
-                printer.printRecord(csvRecordEntry);
+                printer.printRecord(buildCsvRecordEntry(job, rowNumber, rowData, rowErrors, outcome, dynamicColumns));
             }
             printer.flush();
             return out.toByteArray();
@@ -206,6 +149,86 @@ public class OnboardingServiceImpl implements OnboardingService {
             log.error("Error building completion report CSV [jobId={}]", jobId, e);
             throw new MessagingException("Failed to generate completion report", e);
         }
+    }
+
+    private void validateJobReadyForReport(ImportJob job) {
+        if (job.getCompletedAt() == null) {
+            throw new ValidationException("Completion report is only available after the import job finishes.");
+        }
+        if (job.getRawData() == null || job.getRawData().isEmpty()) {
+            throw new ResourceNotFoundException("Completion report data is no longer available for job " + job.getId());
+        }
+    }
+
+    private Map<Integer, List<ImportErrorDetail>> mapErrorsByRow(ImportJob job) {
+        Map<Integer, List<ImportErrorDetail>> errorsByRow = new HashMap<>();
+        for (var err : job.getErrorDetails()) {
+            if (err.row() > 0) {
+                errorsByRow.computeIfAbsent(err.row(), ignored -> new ArrayList<>()).add(err);
+            }
+        }
+        return errorsByRow;
+    }
+
+    private Map<Integer, ImportRowOutcome> mapOutcomesByRow(ImportJob job) {
+        Map<Integer, ImportRowOutcome> outcomesByRow = new HashMap<>();
+        if (job.getRowOutcomes() != null) {
+            for (var outcome : job.getRowOutcomes()) {
+                outcomesByRow.put(outcome.row(), outcome);
+            }
+        }
+        return outcomesByRow;
+    }
+
+    private void parseRawData(ImportJob job, List<Map<String, String>> rows, Set<String> dynamicColumns) {
+        for (Object rawRow : job.getRawData()) {
+            Map<String, String> row = objectMapper.convertValue(rawRow, new TypeReference<>() {});
+            rows.add(row);
+            dynamicColumns.addAll(row.keySet());
+        }
+    }
+
+    private List<String> buildReportHeaders(Set<String> dynamicColumns) {
+        List<String> headers = new ArrayList<>(List.of(
+                "row", "job_type", "status", "final_identifier",
+                "failure_count", "failure_fields", "failure_issues", "failure_values"
+        ));
+        headers.addAll(dynamicColumns);
+        return headers;
+    }
+
+    private List<String> buildCsvRecordEntry(
+            ImportJob job, int rowNumber, Map<String, String> rowData,
+            List<ImportErrorDetail> rowErrors, ImportRowOutcome outcome,
+            Set<String> dynamicColumns
+    ) {
+        String rowStatus;
+        String finalIdentifier = "";
+
+        if (job.getStatus() == ImportJobStatus.FAILED && rowNumber > job.getProcessedRows()) {
+            rowStatus = "NOT_PROCESSED";
+        } else if (outcome != null) {
+            rowStatus = outcome.status();
+            finalIdentifier = outcome.finalIdentifier();
+        } else {
+            rowStatus = rowErrors.isEmpty() ? "SUCCESS" : "FAILED";
+        }
+
+        List<String> csvRecordEntry = new ArrayList<>();
+        csvRecordEntry.add(String.valueOf(rowNumber));
+        csvRecordEntry.add(job.getJobType().name());
+        csvRecordEntry.add(rowStatus);
+        csvRecordEntry.add(sanitizeCsvCell(finalIdentifier));
+        csvRecordEntry.add(String.valueOf(rowErrors.size()));
+
+        csvRecordEntry.add(sanitizeCsvCell(joinRowErrors(rowErrors, ImportErrorDetail::field)));
+        csvRecordEntry.add(sanitizeCsvCell(joinRowErrors(rowErrors, ImportErrorDetail::issue)));
+        csvRecordEntry.add(sanitizeCsvCell(joinRowErrors(rowErrors, ImportErrorDetail::rawValue)));
+
+        for (String column : dynamicColumns) {
+            csvRecordEntry.add(sanitizeCsvCell(rowData.getOrDefault(column, "")));
+        }
+        return csvRecordEntry;
     }
 
     @Override
