@@ -202,7 +202,7 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
         }
         if (platformAdminRepository.existsByEmail(request.email())){
             throw new DuplicateResourceException(
-                    "Platform admin email already registered: " + request.email()
+                    "An account with this email already exists "
             );
         }
 

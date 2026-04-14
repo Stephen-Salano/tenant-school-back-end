@@ -10,6 +10,7 @@ import io.psyllabus.platform.common.exception.CsvValidationException;
 import io.psyllabus.platform.common.exception.MessagingException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
 import io.psyllabus.platform.common.exception.ValidationException;
+import io.psyllabus.platform.onboarding.dto.ImportErrorDetail;
 import io.psyllabus.platform.onboarding.dto.response.ImportJobStatusResponse;
 import io.psyllabus.platform.onboarding.dto.response.ValidationReport;
 import io.psyllabus.platform.onboarding.entity.ImportJob;
@@ -97,7 +98,12 @@ public class OnboardingServiceImpl implements OnboardingService {
              CSVPrinter printer = new CSVPrinter(new OutputStreamWriter(out, StandardCharsets.UTF_8),
                      CSVFormat.DEFAULT.builder().setHeader("row", "column", "issue", "raw_value").build())) {
             for (var err : job.getErrorDetails()) {
-                printer.printRecord(err.row(), err.field(), err.issue(), err.rawValue());
+                printer.printRecord(
+                        err.row(),
+                        sanitizeCsvCell(err.field()),
+                        sanitizeCsvCell(err.issue()),
+                        sanitizeCsvCell(err.rawValue())
+                        );
             }
             printer.flush();
             return out.toByteArray();
@@ -118,7 +124,7 @@ public class OnboardingServiceImpl implements OnboardingService {
             throw new ResourceNotFoundException("Completion report data is no longer available for job " + jobId);
         }
 
-        Map<Integer, List<io.psyllabus.platform.onboarding.dto.ImportErrorDetail>> errorsByRow = new HashMap<>();
+        Map<Integer, List<ImportErrorDetail>> errorsByRow = new HashMap<>();
         for (var err : job.getErrorDetails()) {
             if (err.row() > 0) {
                 errorsByRow.computeIfAbsent(err.row(), ignored -> new ArrayList<>()).add(err);
@@ -135,8 +141,7 @@ public class OnboardingServiceImpl implements OnboardingService {
         List<Map<String, String>> rows = new ArrayList<>();
         Set<String> dynamicColumns = new LinkedHashSet<>();
         for (Object rawRow : job.getRawData()) {
-            Map<String, String> row = objectMapper.convertValue(rawRow, new TypeReference<>() {
-            });
+            Map<String, String> row = objectMapper.convertValue(rawRow, new TypeReference<>() {});
             rows.add(row);
             dynamicColumns.addAll(row.keySet());
         }
@@ -165,18 +170,34 @@ public class OnboardingServiceImpl implements OnboardingService {
                         errorsByRow.getOrDefault(rowNumber, List.of());
                 String finalIdentifier = finalIdentifiersByRow.getOrDefault(rowNumber, "");
 
+                // 1. Determine accurate row status
+                String rowStatus;
+                if (job.getStatus() == ImportJobStatus.FAILED && rowNumber > job.getProcessedRows()) {
+                    rowStatus = "NOT_PROCESSED";
+                } else if (rowErrors.isEmpty()) {
+                    rowStatus = "SUCCESS";
+                } else {
+                    rowStatus = "FAILED";
+                }
+
                 List<String> csvRecordEntry = new ArrayList<>();
                 csvRecordEntry.add(String.valueOf(rowNumber));
                 csvRecordEntry.add(job.getJobType().name());
-                csvRecordEntry.add(rowErrors.isEmpty() ? "SUCCESS" : "FAILED");
-                csvRecordEntry.add(finalIdentifier);
+                csvRecordEntry.add(rowStatus);
+                // Final identifiers can be user-supplied, so sanitize them
+                csvRecordEntry.add(sanitizeCsvCell(finalIdentifier));
                 csvRecordEntry.add(String.valueOf(rowErrors.size()));
-                csvRecordEntry.add(joinRowErrors(rowErrors, io.psyllabus.platform.onboarding.dto.ImportErrorDetail::field));
-                csvRecordEntry.add(joinRowErrors(rowErrors, io.psyllabus.platform.onboarding.dto.ImportErrorDetail::issue));
-                csvRecordEntry.add(joinRowErrors(rowErrors, io.psyllabus.platform.onboarding.dto.ImportErrorDetail::rawValue));
+
+                // SANITIZE the joined strings here
+                csvRecordEntry.add(sanitizeCsvCell(joinRowErrors(rowErrors, ImportErrorDetail::field)));
+                csvRecordEntry.add(sanitizeCsvCell(joinRowErrors(rowErrors, ImportErrorDetail::issue)));
+                csvRecordEntry.add(sanitizeCsvCell(joinRowErrors(rowErrors, ImportErrorDetail::rawValue)));
+
                 for (String column : dynamicColumns) {
-                    csvRecordEntry.add(row.getOrDefault(column, ""));
+                    String rawValue = row.getOrDefault(column, "");
+                    csvRecordEntry.add(sanitizeCsvCell(rawValue));
                 }
+
                 printer.printRecord(csvRecordEntry);
             }
             printer.flush();
@@ -317,5 +338,15 @@ public class OnboardingServiceImpl implements OnboardingService {
                 .distinct()
                 .reduce((left, right) -> left + " | " + right)
                 .orElse("");
+    }
+
+    private String sanitizeCsvCell(String value) {
+        if (value == null) return "";
+        String trimmed = value.strip();
+        if (trimmed.startsWith("=") || trimmed.startsWith("+")
+                || trimmed.startsWith("-") || trimmed.startsWith("@")) {
+            return "'" + trimmed; // prefix with apostrophe — standard defense
+        }
+        return trimmed;
     }
 }
