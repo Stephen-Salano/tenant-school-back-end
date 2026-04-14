@@ -44,7 +44,7 @@ public class GuardianServiceImpl implements  GuardianService{
     @Override
     @CacheEvict(value = "userClaims", key = "#result.userId")
     public GuardianResponse createGuardian(GuardianCreateRequest request) {
-        log.info("Creating guardian: {}", request.email());
+        log.info("Creating new guardian record");
 
         UUID tenantId = TenantContext.getCurrentTenantId();
 
