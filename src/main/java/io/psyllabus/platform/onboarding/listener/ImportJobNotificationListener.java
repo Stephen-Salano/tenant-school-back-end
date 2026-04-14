@@ -38,7 +38,7 @@ public class ImportJobNotificationListener {
         log.info("Handling finalized job notification [jobId={}, status={}]", job.getId(), job.getStatus());
 
         try {
-            School school = schoolRepository.findById(job.getTenantId())
+            School school = schoolRepository.findByIdCrossTenant(job.getTenantId())
                     .orElseThrow(() -> new ResourceNotFoundException("School not found: " + job.getTenantId()));
 
             if (school.getEmail() == null || school.getEmail().isBlank()) {
