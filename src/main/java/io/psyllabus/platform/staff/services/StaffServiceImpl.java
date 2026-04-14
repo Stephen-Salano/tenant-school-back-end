@@ -19,6 +19,7 @@ import io.psyllabus.platform.staff.repository.StaffRepository;
 import io.psyllabus.platform.staff.service.mapper.StaffMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,7 @@ public class StaffServiceImpl implements StaffService {
     private final StaffMapper staffMapper;
 
     @Override
+    @CacheEvict(value = "userClaims", key = "#result.userId")
     public StaffResponse createStaff(StaffCreateRequest request) {
         log.info("Creating staff: {}", request.employeeNumber());
 
@@ -92,16 +94,18 @@ public class StaffServiceImpl implements StaffService {
     }
 
     @Override
-    public void assignSubjectGroup(UUID staffId, UUID subjectGroupId) {
+    @CacheEvict(value = "userClaims", key = "#result.userId")
+    public StaffResponse assignSubjectGroup(UUID staffId, UUID subjectGroupId) {
         UUID tenantId = TenantContext.getCurrentTenantId();
 
         Staff staff = staffRepository.findByIdAndTenantId(staffId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException(STAFF_NOT_FOUND));
 
         staff.setSubjectGroupId(subjectGroupId);
-        staffRepository.save(staff);
+        staff = staffRepository.save(staff);
 
         log.info("Assigned staff {} to subject group {}", staffId, subjectGroupId);
+        return staffMapper.toResponse(staff);
     }
 
     @Override
@@ -132,6 +136,7 @@ public class StaffServiceImpl implements StaffService {
     }
 
     @Override
+    @CacheEvict(value = "userClaims", key = "#result.userId")
     public StaffResponse updateStatus(UUID staffId, UpdateStaffStatusRequest request) {
         UUID tenantId = TenantContext.getCurrentTenantId();
         Staff staff = staffRepository.findByIdAndTenantId(staffId, tenantId)

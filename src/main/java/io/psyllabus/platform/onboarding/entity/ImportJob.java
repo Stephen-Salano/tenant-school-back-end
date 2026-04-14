@@ -2,6 +2,7 @@ package io.psyllabus.platform.onboarding.entity;
 
 import io.psyllabus.platform.common.audit.Auditable;
 import io.psyllabus.platform.onboarding.dto.ImportErrorDetail;
+import io.psyllabus.platform.onboarding.dto.ImportRowOutcome;
 import io.psyllabus.platform.onboarding.enums.ImportJobStatus;
 import io.psyllabus.platform.onboarding.enums.ImportJobType;
 import jakarta.persistence.*;
@@ -69,6 +70,11 @@ public class ImportJob extends Auditable {
     @Column(name = "error_details", columnDefinition = "jsonb")
     private List<ImportErrorDetail> errorDetails = new ArrayList<>();
 
+    /** JSONB array of per-row outcomes (success/fail with final identifiers). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "row_outcomes", columnDefinition = "jsonb")
+    private List<ImportRowOutcome> rowOutcomes = new ArrayList<>();
+
     /**
      * Full parsed CSV stored as JSONB to avoid S3 costs.
      * Retained briefly after completion so admins can download the completion report,
@@ -107,16 +113,18 @@ public class ImportJob extends Auditable {
     }
 
     /**
-     * Append errors from a just-processed batch and advance the progress counters.
+     * Append errors and outcomes from a just-processed batch and advance the progress counters.
      *
      * @param batchSuccesses number of rows persisted successfully in this batch
      * @param batchErrors     errors encountered in this batch
+     * @param batchOutcomes   outcomes (success/fail) for all rows in the batch
      */
-    public void recordBatchResult(int batchSuccesses, List<ImportErrorDetail> batchErrors) {
+    public void recordBatchResult(int batchSuccesses, List<ImportErrorDetail> batchErrors, List<ImportRowOutcome> batchOutcomes) {
         this.successRows += batchSuccesses;
         this.errorRows += batchErrors.size();
         this.processedRows += batchSuccesses + batchErrors.size(); // key line: checkpoint
         this.errorDetails.addAll(batchErrors);
+        this.rowOutcomes.addAll(batchOutcomes);
     }
 
     /** Transition to a terminal status and stamp completion time. */

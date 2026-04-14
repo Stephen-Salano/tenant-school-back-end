@@ -132,6 +132,22 @@ public class PlatformAdminController extends BaseController {
     }
 
     /**
+     * Update a school's status (ACTIVE, SUSPENDED, DEACTIVATED).
+     */
+    @PatchMapping("/schools/{schoolId}/status")
+    @PreAuthorize("hasRole('PLATFORM_ADMIN')")
+    @Operation(summary = "Update school status", description = "Transition school status (ACTIVE, SUSPENDED, DEACTIVATED)")
+    public ResponseEntity<ApiResponse<SchoolSummaryResponse>> updateSchoolStatus(
+            @PathVariable UUID schoolId,
+            @RequestParam io.psyllabus.platform.school.enums.SchoolStatus status,
+            Authentication authentication
+    ) {
+        UUID adminId = extractPlatformAdminId(authentication);
+        log.info("Update school status: schoolId={}, status={}, adminId={}", schoolId, status, adminId);
+        return ok(platformAdminService.updateSchoolStatus(schoolId, status, adminId), "School status updated");
+    }
+
+    /**
      * Create a new platform administrator.
      *
      * <p>Only existing platform admins can create other platform admins.

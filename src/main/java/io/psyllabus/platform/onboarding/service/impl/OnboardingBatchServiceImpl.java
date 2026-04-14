@@ -11,6 +11,7 @@ import io.psyllabus.platform.academic.service.ClassService;
 import io.psyllabus.platform.academic.service.TeacherAssignmentService;
 import io.psyllabus.platform.audit.enums.AuditAction;
 import io.psyllabus.platform.audit.service.AuditService;
+import io.psyllabus.platform.auth.enums.UserType;
 import io.psyllabus.platform.branch.entities.Branch;
 import io.psyllabus.platform.branch.repository.BranchRepository;
 import io.psyllabus.platform.common.annotation.SystemProcess;
@@ -22,10 +23,16 @@ import io.psyllabus.platform.guardian.enums.RelationshipType;
 import io.psyllabus.platform.guardian.repository.GuardianRepository;
 import io.psyllabus.platform.guardian.repository.StudentGuardianRepository;
 import io.psyllabus.platform.guardian.services.GuardianService;
+import io.psyllabus.platform.messaging.dto.EmailMessage;
+import io.psyllabus.platform.messaging.enums.EmailTemplateType;
+import io.psyllabus.platform.messaging.service.EmailService;
 import io.psyllabus.platform.onboarding.dto.ImportErrorDetail;
+import io.psyllabus.platform.onboarding.dto.ImportRowOutcome;
 import io.psyllabus.platform.onboarding.entity.ImportJob;
 import io.psyllabus.platform.onboarding.repository.ImportJobRepository;
 import io.psyllabus.platform.onboarding.service.OnboardingBatchService;
+import io.psyllabus.platform.school.entities.School;
+import io.psyllabus.platform.school.repository.SchoolRepository;
 import io.psyllabus.platform.staff.dto.request.StaffCreateRequest;
 import io.psyllabus.platform.staff.dto.responses.StaffResponse;
 import io.psyllabus.platform.staff.services.StaffService;
@@ -74,6 +81,8 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
     private final AcademicTermRepository academicTermRepository;
     private final IdentifierService identifierService;
     private final AuditService auditService;
+    private final EmailService emailService;
+    private final SchoolRepository schoolRepository;
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -92,20 +101,24 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
     public BatchResult processStaffBatch(UUID jobId, UUID tenantId, List<Map<String, String>> rows) {
         ImportJob job = findJob(jobId, tenantId);
         List<ImportErrorDetail> errors = new ArrayList<>();
+        List<ImportRowOutcome> outcomes = new ArrayList<>();
         int successes = 0;
 
         for (int offset = 0; offset < rows.size(); offset++) {
             Map<String, String> row = rows.get(offset);
             int rowNumber = job.getProcessedRows() + offset + 1;
             try {
-                createStaffFromRow(row, tenantId);
+                String identifier = createStaffFromRow(row, tenantId);
                 successes++;
+                outcomes.add(new ImportRowOutcome(rowNumber, "SUCCESS", identifier, "Created successfully"));
             } catch (Exception ex) {
-                errors.add(toRowError(rowNumber, ex));
+                ImportErrorDetail error = toRowError(rowNumber, ex);
+                errors.add(error);
+                outcomes.add(new ImportRowOutcome(rowNumber, "FAILED", normalize(row.get("employee_number")), error.issue()));
             }
         }
 
-        job.recordBatchResult(successes, errors);
+        job.recordBatchResult(successes, errors, outcomes);
         importJobRepository.save(job);
         auditService.log(
                 AuditAction.BULK_IMPORT,
@@ -113,7 +126,7 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
                 jobId,
                 "Staff batch processed: size=" + rows.size() + ", success=" + successes + ", errors=" + errors.size()
         );
-        return new BatchResult(successes, errors);
+        return new BatchResult(successes, errors, outcomes);
     }
 
     @Override
@@ -121,20 +134,24 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
     public BatchResult processStudentBatch(UUID jobId, UUID tenantId, List<Map<String, String>> rows) {
         ImportJob job = findJob(jobId, tenantId);
         List<ImportErrorDetail> errors = new ArrayList<>();
+        List<ImportRowOutcome> outcomes = new ArrayList<>();
         int successes = 0;
 
         for (int offset = 0; offset < rows.size(); offset++) {
             Map<String, String> row = rows.get(offset);
             int rowNumber = job.getProcessedRows() + offset + 1;
             try {
-                createStudentAndGuardiansFromRow(row, tenantId);
+                String identifier = createStudentAndGuardiansFromRow(row, tenantId);
                 successes++;
+                outcomes.add(new ImportRowOutcome(rowNumber, "SUCCESS", identifier, "Enrolled successfully"));
             } catch (Exception ex) {
-                errors.add(toRowError(rowNumber, ex));
+                ImportErrorDetail error = toRowError(rowNumber, ex);
+                errors.add(error);
+                outcomes.add(new ImportRowOutcome(rowNumber, "FAILED", normalize(row.get("admission_number")), error.issue()));
             }
         }
 
-        job.recordBatchResult(successes, errors);
+        job.recordBatchResult(successes, errors, outcomes);
         importJobRepository.save(job);
         auditService.log(
                 AuditAction.BULK_IMPORT,
@@ -142,7 +159,7 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
                 jobId,
                 "Student batch processed: size=" + rows.size() + ", success=" + successes + ", errors=" + errors.size()
         );
-        return new BatchResult(successes, errors);
+        return new BatchResult(successes, errors, outcomes);
     }
 
     @Override
@@ -151,6 +168,9 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
         ImportJob job = findJob(jobId, tenantId);
         job.complete();
         importJobRepository.save(job);
+        
+        sendAdminNotification(job);
+        
         auditService.log(
                 AuditAction.BULK_IMPORT,
                 IMPORT_JOB_LITERAL,
@@ -166,11 +186,52 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
         ImportJob job = findJob(jobId, tenantId);
         job.fail(reason);
         importJobRepository.save(job);
+        
+        sendAdminNotification(job);
+        
         auditService.log(AuditAction.BULK_IMPORT, IMPORT_JOB_LITERAL, jobId, "Job failed: " + reason);
         return job;
     }
+    
+    private void sendAdminNotification(ImportJob job) {
+        try {
+            School school = schoolRepository.findById(job.getTenantId())
+                    .orElseThrow(() -> new ResourceNotFoundException("School not found: " + job.getTenantId()));
+            
+            if (school.getEmail() == null || school.getEmail().isBlank()) {
+                log.warn("School admin email not configured for tenant {}, skipping notification", job.getTenantId());
+                return;
+            }
 
-    private void createStaffFromRow(Map<String, String> row, UUID tenantId) {
+            EmailTemplateType templateType = job.getStatus() == io.psyllabus.platform.onboarding.enums.ImportJobStatus.FAILED
+                    ? EmailTemplateType.IMPORT_FAILED
+                    : EmailTemplateType.IMPORT_COMPLETE_SUMMARY;
+
+            EmailMessage message = new EmailMessage(
+                    UUID.randomUUID().toString(),
+                    job.getTenantId(),
+                    school.getEmail(),
+                    school.getName() + " Admin",
+                    UserType.ADMIN,
+                    templateType,
+                    Map.of(
+                            "successCount", String.valueOf(job.getSuccessRows()),
+                            "failureCount", String.valueOf(job.getErrorRows()),
+                            "totalRows", String.valueOf(job.getTotalRows()),
+                            "jobType", job.getJobType().name(),
+                            "jobId", job.getId().toString(),
+                            "toName", school.getName() + " Admin"
+                    )
+            );
+            
+            emailService.send(message);
+            log.info("Admin notification triggered for import job {} [status={}]", job.getId(), job.getStatus());
+        } catch (Exception ex) {
+            log.error("Failed to send admin notification for job {}", job.getId(), ex);
+        }
+    }
+
+    private String createStaffFromRow(Map<String, String> row, UUID tenantId) {
         String employeeNumber = normalize(row.get("employee_number"));
         if (employeeNumber.isBlank()) {
             employeeNumber = identifierService.generateStaffId(tenantId);
@@ -197,6 +258,7 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
         }
 
         createImportedTeachingAssignments(created.id(), subjectGroupId, row, tenantId);
+        return employeeNumber;
     }
 
     private void createImportedTeachingAssignments(UUID staffId, UUID subjectGroupId, Map<String, String> row, UUID tenantId) {
@@ -254,7 +316,7 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
         }
     }
 
-    private void createStudentAndGuardiansFromRow(Map<String, String> row, UUID tenantId) {
+    private String createStudentAndGuardiansFromRow(Map<String, String> row, UUID tenantId) {
         String admissionNumber = normalize(row.get("admission_number"));
         if (admissionNumber.isBlank()) {
             admissionNumber = identifierService.generateStudentId(tenantId);
@@ -302,6 +364,7 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
             );
             linkGuardianToStudent(studentResponse.id(), guardian2, tenantId);
         }
+        return admissionNumber;
     }
 
     private Guardian getOrCreateGuardian(

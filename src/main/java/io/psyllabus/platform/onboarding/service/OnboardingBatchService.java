@@ -1,6 +1,7 @@
 package io.psyllabus.platform.onboarding.service;
 
 import io.psyllabus.platform.onboarding.dto.ImportErrorDetail;
+import io.psyllabus.platform.onboarding.dto.ImportRowOutcome;
 import io.psyllabus.platform.onboarding.entity.ImportJob;
 
 import java.util.List;
@@ -27,6 +28,7 @@ public interface OnboardingBatchService {
 
     record BatchResult(
             int successCount,
-            List<ImportErrorDetail> errors
+            List<ImportErrorDetail> errors,
+            List<ImportRowOutcome> outcomes
     ) {}
 }

@@ -17,6 +17,7 @@ import io.psyllabus.platform.school.dto.request.SchoolCreateRequest;
 import io.psyllabus.platform.school.dto.responses.SchoolOnboardResponse;
 import io.psyllabus.platform.school.dto.responses.SchoolSummaryResponse;
 import io.psyllabus.platform.school.entities.School;
+import io.psyllabus.platform.school.enums.SchoolStatus;
 import io.psyllabus.platform.school.repository.SchoolRepository;
 import io.psyllabus.platform.school.service.SchoolService;
 import lombok.RequiredArgsConstructor;
@@ -121,7 +122,7 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
     @Transactional(readOnly = true)
     public PlatformKpiResponse getDashboardKpis() {
         long totalSchools = schoolRepository.count();
-        long activeSchools = schoolRepository.countByIsActiveTrue();
+        long activeSchools = schoolRepository.countByStatus(SchoolStatus.ACTIVE);
         long inactiveSchools = totalSchools - activeSchools;
 
         long queuedImportJobs = importJobRepository.countByStatus(ImportJobStatus.QUEUED);
@@ -168,6 +169,17 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
     }
 
     @Override
+    public SchoolSummaryResponse updateSchoolStatus(UUID schoolId, SchoolStatus status, UUID adminId) {
+        log.info("Platform admin {} updating school {} status to {}", adminId, schoolId, status);
+        School school = schoolRepository.findByIdCrossTenant(schoolId)
+                .orElseThrow(() -> new ResourceNotFoundException("School not found: " + schoolId));
+
+        school.setStatus(status);
+        school = schoolRepository.save(school);
+        return toSummaryResponse(school);
+    }
+
+    @Override
     public PlatformAdminResponse createPlatformAdmin(PlatformAdminCreateRequest request) {
         log.info("Creating platform admin: username={}", request.username());
 
@@ -211,7 +223,7 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
                 school.getName(),
                 school.getEmail(),
                 school.getPlan(),
-                school.getIsActive(),
+                school.getStatus(),
                 school.getSubdomainPrefix(),
                 school.getCustomDomain(),
                 school.getCreatedAt(),

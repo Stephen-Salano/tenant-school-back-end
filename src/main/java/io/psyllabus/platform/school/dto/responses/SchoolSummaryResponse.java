@@ -1,5 +1,6 @@
 package io.psyllabus.platform.school.dto.responses;
 
+import io.psyllabus.platform.school.enums.SchoolStatus;
 import io.psyllabus.platform.subscription.enums.PlanType;
 
 import java.time.LocalDateTime;
@@ -15,7 +16,7 @@ import java.util.UUID;
  * @param schoolName      name of the school
  * @param contactEmail    school's primary contact email
  * @param planType        current subscription plan
- * @param isActive        whether the school is currently active
+ * @param status          current status of the school
  * @param subdomainPrefix subdomain slug, or {@code null} if using a custom domain
  * @param customDomain    custom domain, or {@code null} if using subdomain
  * @param provisionedAt   when the school was provisioned
@@ -26,7 +27,7 @@ public record SchoolSummaryResponse(
         String schoolName,
         String contactEmail,
         PlanType planType,
-        boolean isActive,
+        SchoolStatus status,
         String subdomainPrefix,
         String customDomain,
         LocalDateTime provisionedAt,

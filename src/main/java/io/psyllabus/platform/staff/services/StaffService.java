@@ -22,8 +22,9 @@ public interface StaffService {
      * Assign staff to a subject group (department equivalent)
      * @param staffId the staff members ID number
      * @param subjectGroupId subject group Id number
+     * @return the updated staff response
      */
-    void assignSubjectGroup(UUID staffId, UUID subjectGroupId);
+    StaffResponse assignSubjectGroup(UUID staffId, UUID subjectGroupId);
 
     /**
      * Find a staff by employee number

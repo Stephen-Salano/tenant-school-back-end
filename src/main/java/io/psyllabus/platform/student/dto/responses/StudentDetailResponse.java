@@ -18,6 +18,7 @@ import java.util.UUID;
  */
 public record StudentDetailResponse(
         UUID id,
+        UUID userId,
         String admissionNumber,
         String firstName,
         String lastName,
