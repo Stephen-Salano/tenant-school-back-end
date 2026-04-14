@@ -1,6 +1,8 @@
 package io.psyllabus.platform.student.service;
 
 
+import io.psyllabus.platform.audit.enums.AuditAction;
+import io.psyllabus.platform.audit.service.AuditService;
 import io.psyllabus.platform.auth.dto.request.RegisterRequest;
 import io.psyllabus.platform.auth.dto.responses.UserResponse;
 import io.psyllabus.platform.auth.enums.AccessScope;
@@ -14,6 +16,7 @@ import io.psyllabus.platform.student.dto.request.StudentCreateRequest;
 import io.psyllabus.platform.student.dto.responses.StudentDetailResponse;
 import io.psyllabus.platform.student.dto.responses.StudentResponse;
 import io.psyllabus.platform.student.entities.Student;
+import io.psyllabus.platform.student.enums.StudentStatus;
 import io.psyllabus.platform.student.repository.StudentRepository;
 import io.psyllabus.platform.student.service.mapper.StudentMapper;
 import lombok.RequiredArgsConstructor;
@@ -38,9 +41,10 @@ public class StudentServiceImpl implements StudentService {
     private final StudentRepository studentRepository;
     private final AuthService authService;
     private final StudentMapper studentMapper;
+    private final AuditService auditService;
 
     @Override
-    @CacheEvict(value = "userClaims", key = "#result.userId")
+    @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
     public StudentResponse enrollStudent(StudentCreateRequest request) {
         log.info("Enrolling student: {}", request.admissionNumber());
 
@@ -87,6 +91,13 @@ public class StudentServiceImpl implements StudentService {
 
         log.info("Student enrolled: {}", student.getAdmissionNumber());
 
+        auditService.log(
+                AuditAction.ENROLLMENT,
+                "STUDENT",
+                student.getId(),
+                "New student enrolled and linked to user account"
+        );
+
         return studentMapper.toResponse(student);
     }
 
@@ -103,7 +114,7 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
-    @CacheEvict(value = "userClaims", key = "#result.userId")
+    @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
     public StudentResponse assignClass(UUID studentId, UUID classId) {
         UUID tenantId = TenantContext.getCurrentTenantId();
 
@@ -115,6 +126,14 @@ public class StudentServiceImpl implements StudentService {
         student = studentRepository.save(student);
 
         log.info("Assigned student {} to class {}", studentId, classId);
+
+        auditService.log(
+                AuditAction.UPDATE,
+                "STUDENT",
+                studentId,
+                String.format("Assigned student to class %s", classId)
+        );
+
         return studentMapper.toResponse(student);
     }
 
@@ -148,12 +167,13 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
-    @CacheEvict(value = "userClaims", key = "#result.userId")
+    @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
     public StudentResponse updateStatus(UUID studentId, io.psyllabus.platform.student.enums.StudentStatus status) {
         UUID tenantId = TenantContext.getCurrentTenantId();
         Student student = studentRepository.findByIdAndTenantId(studentId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException(STUDENT_NOT_FOUND));
 
+        StudentStatus previous = student.getCurrentStatus();
         student.setCurrentStatus(status);
         
         // Nullify class if no longer enrolled to prevent inflated stats
@@ -164,6 +184,14 @@ public class StudentServiceImpl implements StudentService {
         }
 
         Student saved = studentRepository.save(student);
+
+        auditService.log(
+                AuditAction.UPDATE,
+                "STUDENT",
+                studentId,
+                String.format("Status changed from %s to %s", previous, status)
+        );
+
         return studentMapper.toResponse(saved);
     }
 }

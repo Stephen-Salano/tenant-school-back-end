@@ -1,5 +1,7 @@
 package io.psyllabus.platform.staff.services;
 
+import io.psyllabus.platform.audit.enums.AuditAction;
+import io.psyllabus.platform.audit.service.AuditService;
 import io.psyllabus.platform.auth.dto.request.RegisterRequest;
 import io.psyllabus.platform.auth.dto.responses.UserResponse;
 import io.psyllabus.platform.auth.enums.AccessScope;
@@ -38,9 +40,10 @@ public class StaffServiceImpl implements StaffService {
     private final StaffRepository staffRepository;
     private final AuthService authService;
     private final StaffMapper staffMapper;
+    private final AuditService auditService;
 
     @Override
-    @CacheEvict(value = "userClaims", key = "#result.userId")
+    @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
     public StaffResponse createStaff(StaffCreateRequest request) {
         log.info("Creating new staff record for employee: {}", request.employeeNumber());
 
@@ -90,11 +93,19 @@ public class StaffServiceImpl implements StaffService {
         staff = staffRepository.save(staff);
 
         log.info("Staff created: {}", staff.getEmployeeNumber());
+
+        auditService.log(
+                AuditAction.CREATE,
+                "STAFF",
+                staff.getId(),
+                "New staff member created and linked to user account"
+        );
+
         return staffMapper.toResponse(staff);
     }
 
     @Override
-    @CacheEvict(value = "userClaims", key = "#result.userId")
+    @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
     public StaffResponse assignSubjectGroup(UUID staffId, UUID subjectGroupId) {
         UUID tenantId = TenantContext.getCurrentTenantId();
 
@@ -105,6 +116,14 @@ public class StaffServiceImpl implements StaffService {
         staff = staffRepository.save(staff);
 
         log.info("Assigned staff {} to subject group {}", staffId, subjectGroupId);
+
+        auditService.log(
+                AuditAction.UPDATE,
+                "STAFF",
+                staffId,
+                String.format("Assigned staff to subject group %s", subjectGroupId)
+        );
+
         return staffMapper.toResponse(staff);
     }
 
@@ -136,7 +155,7 @@ public class StaffServiceImpl implements StaffService {
     }
 
     @Override
-    @CacheEvict(value = "userClaims", key = "#result.userId")
+    @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
     public StaffResponse updateStatus(UUID staffId, UpdateStaffStatusRequest request) {
         UUID tenantId = TenantContext.getCurrentTenantId();
         Staff staff = staffRepository.findByIdAndTenantId(staffId, tenantId)
@@ -147,6 +166,14 @@ public class StaffServiceImpl implements StaffService {
         staff = staffRepository.save(staff);
         log.info("Staff {} status: {} -> {} (reason: {})",
                 staff.getEmployeeNumber(), previous, request.status(), request.reason());
+
+        auditService.log(
+                AuditAction.EMPLOYMENT_CHANGE,
+                "STAFF",
+                staffId,
+                String.format("Status changed from %s to %s. Reason: %s", previous, request.status(), request.reason())
+        );
+
         return staffMapper.toResponse(staff);
     }
 }

@@ -1,5 +1,7 @@
 package io.psyllabus.platform.guardian.services;
 
+import io.psyllabus.platform.audit.enums.AuditAction;
+import io.psyllabus.platform.audit.service.AuditService;
 import io.psyllabus.platform.auth.dto.request.RegisterRequest;
 import io.psyllabus.platform.auth.dto.responses.UserResponse;
 import io.psyllabus.platform.auth.enums.AccessScope;
@@ -33,6 +35,7 @@ public class GuardianServiceImpl implements  GuardianService{
     private final GuardianRepository guardianRepository;
     private final StudentGuardianRepository studentGuardianRepository;
     private final AuthService authService;
+    private final AuditService auditService;
 
     @Value("${platform.default-passwords.guardian:Parent@123}")
     private String guardianTempPassword;
@@ -42,7 +45,7 @@ public class GuardianServiceImpl implements  GuardianService{
      */
 
     @Override
-    @CacheEvict(value = "userClaims", key = "#result.userId")
+    @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
     public GuardianResponse createGuardian(GuardianCreateRequest request) {
         log.info("Creating new guardian record");
 
@@ -86,11 +89,19 @@ public class GuardianServiceImpl implements  GuardianService{
 
         guardian = guardianRepository.save(guardian);
         log.info("Guardian created: {}", guardian.getEmail());
+
+        auditService.log(
+                AuditAction.CREATE,
+                "GUARDIAN",
+                guardian.getId(),
+                "New guardian created and linked to user account"
+        );
+
         return mapToResponse(guardian);
     }
 
     @Override
-    @CacheEvict(value = "userClaims", key = "#result.userId")
+    @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
     public GuardianResponse linkToStudent(UUID guardianId, UUID studentId) {
         UUID tenantId = TenantContext.getCurrentTenantId();
 
@@ -118,11 +129,19 @@ public class GuardianServiceImpl implements  GuardianService{
         studentGuardianRepository.save(link);
 
         log.info("Link guardian {} to student {}", guardianId , studentId);
+
+        auditService.log(
+                AuditAction.UPDATE,
+                "GUARDIAN_RELATIONSHIP",
+                guardianId,
+                String.format("Linked guardian to student %s", studentId)
+        );
+
         return mapToResponse(guardian);
     }
 
     @Override
-    @CacheEvict(value = "userClaims", key = "#result.userId")
+    @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
     public GuardianResponse unlinkFromStudent(UUID guardianId, UUID studentId) {
         UUID tenantId = TenantContext.getCurrentTenantId();
 
@@ -134,6 +153,14 @@ public class GuardianServiceImpl implements  GuardianService{
         );
 
         log.info(" Unlinked guardian {} from student {}", guardianId, studentId);
+
+        auditService.log(
+                AuditAction.UPDATE,
+                "GUARDIAN_RELATIONSHIP",
+                guardianId,
+                String.format("Unlinked guardian from student %s", studentId)
+        );
+
         return mapToResponse(guardian);
     }
 

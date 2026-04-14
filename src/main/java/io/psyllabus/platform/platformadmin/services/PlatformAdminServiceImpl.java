@@ -126,6 +126,8 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
     public PlatformKpiResponse getDashboardKpis() {
         long totalSchools = schoolRepository.count();
         long activeSchools = schoolRepository.countByStatus(SchoolStatus.ACTIVE);
+        long suspendedSchools = schoolRepository.countByStatus(SchoolStatus.SUSPENDED);
+        long deactivatedSchools = schoolRepository.countByStatus(SchoolStatus.DEACTIVATED);
         long inactiveSchools = totalSchools - activeSchools;
 
         long queuedImportJobs = importJobRepository.countByStatus(ImportJobStatus.QUEUED);
@@ -136,6 +138,8 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
                 totalSchools,
                 activeSchools,
                 inactiveSchools,
+                suspendedSchools,
+                deactivatedSchools,
                 queuedImportJobs,
                 processingImportJobs,
                 failedImportJobs
