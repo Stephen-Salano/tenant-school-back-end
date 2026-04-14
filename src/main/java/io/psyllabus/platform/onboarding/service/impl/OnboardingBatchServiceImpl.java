@@ -218,10 +218,6 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
                 branchId
         ));
 
-        if (subjectGroupId != null) {
-            staffService.assignSubjectGroup(created.id(), subjectGroupId);
-        }
-
         createImportedTeachingAssignments(created.id(), subjectGroupId, row, tenantId);
         return employeeNumber;
     }
