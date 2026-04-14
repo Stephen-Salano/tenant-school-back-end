@@ -29,15 +29,18 @@ public class StaffImportListener {
     @RabbitListener(queues = RabbitMQConstants.STAFF_IMPORT_QUEUE)
     public void handle(OnboardingJobPayload payload) {
         UUID jobId = payload.jobId();
-        ImportJob snapshot = importJobRepository.findById(jobId)
-                .orElseThrow(() -> new IllegalArgumentException("Staff import job not found: " + jobId));
+        UUID tenantId = payload.tenantId();
 
-        tenantExecutionService.runInTenant(snapshot.getTenantId(), () -> processJob(jobId, snapshot.getTenantId()));
+        tenantExecutionService.runInTenant(tenantId, () -> {
+            ImportJob snapshot = importJobRepository.findByIdAndTenantId(jobId, tenantId)
+                    .orElseThrow(() -> new IllegalArgumentException("Staff import job not found: " + jobId));
+            processJob(jobId, tenantId, snapshot);
+        });
     }
 
-    private void processJob(UUID jobId, UUID tenantId) {
+    private void processJob(UUID jobId, UUID tenantId, ImportJob started) {
         try {
-            ImportJob started = onboardingBatchService.markProcessing(jobId, tenantId);
+            started = onboardingBatchService.markProcessing(jobId, tenantId);
             if (started.getStatus() == io.psyllabus.platform.onboarding.enums.ImportJobStatus.FAILED
                     || started.getStatus() == io.psyllabus.platform.onboarding.enums.ImportJobStatus.DONE
                     || started.getStatus() == io.psyllabus.platform.onboarding.enums.ImportJobStatus.COMPLETED_WITH_ERRORS) {

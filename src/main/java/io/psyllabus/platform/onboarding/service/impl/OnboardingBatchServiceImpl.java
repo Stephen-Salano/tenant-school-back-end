@@ -148,8 +148,12 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
                 errors.add(error);
                 // Fallback identifier chain for actionable reporting
                 String fallbackId = normalize(row.get("admission_number"));
-                if (fallbackId.isBlank()) fallbackId = normalize(row.get("first_name") + " " + row.get("last_name"));
-                if (fallbackId.isBlank() || fallbackId.strip().equals("null null")) fallbackId = "Row " + rowNumber;
+                if (fallbackId.isBlank()) {
+                    String firstName = normalize(row.get("first_name"));
+                    String lastName = normalize(row.get("last_name"));
+                    fallbackId = (firstName + " " + lastName).strip();
+                }
+                if (fallbackId.isBlank()) fallbackId = "Row " + rowNumber;
                 outcomes.add(new ImportRowOutcome(rowNumber, "FAILED", fallbackId, error.issue()));
             }
         }
