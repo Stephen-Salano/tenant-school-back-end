@@ -206,7 +206,7 @@ public class OnboardingServiceImpl implements OnboardingService {
         String routingKey = job.getJobType() == ImportJobType.STUDENT_BULK_IMPORT ? 
                 RabbitMQConstants.STUDENT_IMPORT_ROUTING_KEY : RabbitMQConstants.STAFF_IMPORT_ROUTING_KEY;
         
-        rabbitTemplate.convertAndSend(RabbitMQConstants.ONBOARDING_EXCHANGE, routingKey, new OnboardingJobPayload(job.getId()));
+        rabbitTemplate.convertAndSend(RabbitMQConstants.ONBOARDING_EXCHANGE, routingKey, new OnboardingJobPayload(job.getId(), tenantId));
 
         log.info("Job re-queued [jobId={}, tenantId={}]", jobId, tenantId);
         auditService.log(AuditAction.BULK_IMPORT, IMPORT_JOB_LITERAL, jobId, "Job re-queued for retry");
@@ -244,7 +244,7 @@ public class OnboardingServiceImpl implements OnboardingService {
         job.setRawData(new ArrayList<>(rows));
         importJobRepository.save(job);
 
-        rabbitTemplate.convertAndSend(RabbitMQConstants.ONBOARDING_EXCHANGE, routingKey, new OnboardingJobPayload(job.getId()));
+        rabbitTemplate.convertAndSend(RabbitMQConstants.ONBOARDING_EXCHANGE, routingKey, new OnboardingJobPayload(job.getId(), job.getTenantId()));
 
         log.info("Import job queued [jobId={}, type={}, rows={}, tenantId={}]", job.getId(), jobType, rows.size(), tenantId);
         auditService.log(AuditAction.BULK_IMPORT, IMPORT_JOB_LITERAL, job.getId(), "QUEUED " + rows.size() + " " + jobType.name() + " rows");
