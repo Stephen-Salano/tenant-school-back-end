@@ -15,13 +15,15 @@ public interface GuardianService {
 
     /**
      * Link guardian to student
+     * @return the updated guardian response
      */
-    void linkToStudent(UUID guardianId, UUID studentId);
+    GuardianResponse linkToStudent(UUID guardianId, UUID studentId);
 
     /**
      * Unlink guardian from student
+     * @return the updated guardian response
      */
-    void unlinkFromStudent(UUID guardianId, UUID studentId);
+    GuardianResponse unlinkFromStudent(UUID guardianId, UUID studentId);
 
     /**
      * Find guardian by email

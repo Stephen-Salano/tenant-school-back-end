@@ -23,8 +23,9 @@ public interface StudentService {
 
     /**
      * Assign student to class
+     * @return the updated student response
      */
-    void assignClass(UUID studentId, UUID classId);
+    StudentResponse assignClass(UUID studentId, UUID classId);
 
     /**
      * Find student by admission number

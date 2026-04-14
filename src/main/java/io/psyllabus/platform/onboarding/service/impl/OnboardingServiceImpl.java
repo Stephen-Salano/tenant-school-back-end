@@ -125,6 +125,13 @@ public class OnboardingServiceImpl implements OnboardingService {
             }
         }
 
+        Map<Integer, String> finalIdentifiersByRow = new HashMap<>();
+        if (job.getRowOutcomes() != null) {
+            for (var outcome : job.getRowOutcomes()) {
+                finalIdentifiersByRow.put(outcome.row(), outcome.finalIdentifier());
+            }
+        }
+
         List<Map<String, String>> rows = new ArrayList<>();
         Set<String> dynamicColumns = new LinkedHashSet<>();
         for (Object rawRow : job.getRawData()) {
@@ -138,6 +145,7 @@ public class OnboardingServiceImpl implements OnboardingService {
                 "row",
                 "job_type",
                 "status",
+                "final_identifier",
                 "failure_count",
                 "failure_fields",
                 "failure_issues",
@@ -155,11 +163,13 @@ public class OnboardingServiceImpl implements OnboardingService {
                 Map<String, String> row = rows.get(i);
                 List<io.psyllabus.platform.onboarding.dto.ImportErrorDetail> rowErrors =
                         errorsByRow.getOrDefault(rowNumber, List.of());
+                String finalIdentifier = finalIdentifiersByRow.getOrDefault(rowNumber, "");
 
                 List<String> csvRecordEntry = new ArrayList<>();
                 csvRecordEntry.add(String.valueOf(rowNumber));
                 csvRecordEntry.add(job.getJobType().name());
                 csvRecordEntry.add(rowErrors.isEmpty() ? "SUCCESS" : "FAILED");
+                csvRecordEntry.add(finalIdentifier);
                 csvRecordEntry.add(String.valueOf(rowErrors.size()));
                 csvRecordEntry.add(joinRowErrors(rowErrors, io.psyllabus.platform.onboarding.dto.ImportErrorDetail::field));
                 csvRecordEntry.add(joinRowErrors(rowErrors, io.psyllabus.platform.onboarding.dto.ImportErrorDetail::issue));

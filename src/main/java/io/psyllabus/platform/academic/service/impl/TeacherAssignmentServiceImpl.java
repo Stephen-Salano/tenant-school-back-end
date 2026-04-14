@@ -19,6 +19,7 @@ import io.psyllabus.platform.staff.entities.Staff;
 import io.psyllabus.platform.staff.repository.StaffRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +43,7 @@ public class TeacherAssignmentServiceImpl implements TeacherAssignmentService {
     private final TeacherAssignmentMapper assignmentMapper;
 
     @Override
+    @CacheEvict(value = "userClaims", key = "#result.userId")
     public TeacherAssignmentResponse assignTeacher(TeacherAssignmentCreateRequest request) {
         UUID tenantId = TenantContext.getCurrentTenantId();
 

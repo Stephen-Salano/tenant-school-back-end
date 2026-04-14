@@ -14,6 +14,7 @@ import java.util.UUID;
  */
 public record StaffDetailResponse (
         UUID id,
+        UUID userId,
         String employeeNumber,
         String firstName,
         String lastName,

@@ -28,6 +28,7 @@ import io.psyllabus.platform.student.repository.StudentRepository;
 import io.psyllabus.platform.student.service.mapper.StudentMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.CacheManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -57,6 +58,7 @@ public class StudentServiceImpl implements StudentService {
     private final CacheManager cacheManager;
 
     @Override
+    @CacheEvict(value = "userClaims", key = "#result.userId")
     public StudentResponse enrollStudent(StudentCreateRequest request) {
         log.info("Enrolling student: {}", request.admissionNumber());
 
@@ -123,7 +125,8 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
-    public void assignClass(UUID studentId, UUID classId) {
+    @CacheEvict(value = "userClaims", key = "#result.userId")
+    public StudentResponse assignClass(UUID studentId, UUID classId) {
         UUID tenantId = TenantContext.getCurrentTenantId();
 
         Student student = studentRepository.findByIdAndTenantId(studentId, tenantId)
@@ -133,9 +136,10 @@ public class StudentServiceImpl implements StudentService {
                 .orElseThrow(() -> new ResourceNotFoundException(CLASS_NOT_FOUND + classId));
 
         student.setCurrentClassId(classId);
-        studentRepository.save(student);
+        student = studentRepository.save(student);
 
         log.info("Assigned student {} to class {}", studentId, classId);
+        return studentMapper.toResponse(student);
     }
 
     @Override
@@ -176,6 +180,7 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
+    @CacheEvict(value = "userClaims", key = "#result.userId")
     public StudentResponse updateStatus(UUID studentId, io.psyllabus.platform.student.enums.StudentStatus status) {
         UUID tenantId = TenantContext.getCurrentTenantId();
         Student student = studentRepository.findByIdAndTenantId(studentId, tenantId)

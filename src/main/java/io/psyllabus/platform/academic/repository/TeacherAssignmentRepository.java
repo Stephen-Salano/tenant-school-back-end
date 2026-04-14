@@ -20,7 +20,7 @@ public interface TeacherAssignmentRepository extends JpaRepository<TeacherAssign
 
     @Query("""
         SELECT new io.psyllabus.platform.academic.dto.response.TeacherAssignmentResponse(
-            ta.id, ta.staffId, CONCAT(s.firstName, ' ', s.lastName), 
+            ta.id, ta.staffId, s.userId, CONCAT(s.firstName, ' ', s.lastName), 
             ta.classId, sc.name, ta.subjectId, sub.name, 
             ta.academicTermId, term.name, ta.isClassTeacher, 
             ta.lessonsPerWeek, ta.status, ta.createdAt, ta.updatedAt
@@ -36,7 +36,7 @@ public interface TeacherAssignmentRepository extends JpaRepository<TeacherAssign
 
     @Query("""
         SELECT new io.psyllabus.platform.academic.dto.response.TeacherAssignmentResponse(
-            ta.id, ta.staffId, CONCAT(s.firstName, ' ', s.lastName), 
+            ta.id, ta.staffId, s.userId, CONCAT(s.firstName, ' ', s.lastName), 
             ta.classId, sc.name, ta.subjectId, sub.name, 
             ta.academicTermId, term.name, ta.isClassTeacher, 
             ta.lessonsPerWeek, ta.status, ta.createdAt, ta.updatedAt

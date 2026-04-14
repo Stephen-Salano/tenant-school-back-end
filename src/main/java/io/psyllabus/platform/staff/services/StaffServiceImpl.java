@@ -1,24 +1,15 @@
 package io.psyllabus.platform.staff.services;
 
-import io.psyllabus.platform.academic.repository.SubjectGroupRepository;
 import io.psyllabus.platform.auth.dto.request.RegisterRequest;
 import io.psyllabus.platform.auth.dto.responses.UserResponse;
-import io.psyllabus.platform.auth.entities.User;
 import io.psyllabus.platform.auth.enums.AccessScope;
-import io.psyllabus.platform.auth.enums.UserStatus;
 import io.psyllabus.platform.auth.enums.UserType;
-import io.psyllabus.platform.auth.repository.UserRepository;
 import io.psyllabus.platform.auth.services.AuthService;
-import io.psyllabus.platform.audit.enums.AuditAction;
-import io.psyllabus.platform.audit.service.AuditService;
-import io.psyllabus.platform.branch.repository.BranchRepository;
 import io.psyllabus.platform.common.dto.PageResponse;
 import io.psyllabus.platform.common.exception.DuplicateResourceException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
-import io.psyllabus.platform.common.exception.ValidationException;
 import io.psyllabus.platform.common.util.TenantContext;
 import io.psyllabus.platform.staff.dto.request.StaffCreateRequest;
-import io.psyllabus.platform.staff.dto.request.StaffUpdateRequest;
 import io.psyllabus.platform.staff.dto.request.UpdateStaffStatusRequest;
 import io.psyllabus.platform.staff.dto.responses.StaffDetailResponse;
 import io.psyllabus.platform.staff.dto.responses.StaffResponse;
@@ -28,6 +19,7 @@ import io.psyllabus.platform.staff.repository.StaffRepository;
 import io.psyllabus.platform.staff.service.mapper.StaffMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.CacheManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -56,6 +48,7 @@ public class StaffServiceImpl implements StaffService {
     private final CacheManager cacheManager;
 
     @Override
+    @CacheEvict(value = "userClaims", key = "#result.userId")
     public StaffResponse createStaff(StaffCreateRequest request) {
         log.info("Creating staff: {}", request.employeeNumber());
 
@@ -116,7 +109,8 @@ public class StaffServiceImpl implements StaffService {
     }
 
     @Override
-    public void assignSubjectGroup(UUID staffId, UUID subjectGroupId) {
+    @CacheEvict(value = "userClaims", key = "#result.userId")
+    public StaffResponse assignSubjectGroup(UUID staffId, UUID subjectGroupId) {
         UUID tenantId = TenantContext.getCurrentTenantId();
 
         Staff staff = staffRepository.findByIdAndTenantId(staffId, tenantId)
@@ -126,9 +120,10 @@ public class StaffServiceImpl implements StaffService {
                 .orElseThrow(() -> new ResourceNotFoundException(SUBJECT_GROUP_NOT_FOUND + subjectGroupId));
 
         staff.setSubjectGroupId(subjectGroupId);
-        staffRepository.save(staff);
+        staff = staffRepository.save(staff);
 
         log.info("Assigned staff {} to subject group {}", staffId, subjectGroupId);
+        return staffMapper.toResponse(staff);
     }
 
     @Override
@@ -159,6 +154,7 @@ public class StaffServiceImpl implements StaffService {
     }
 
     @Override
+    @CacheEvict(value = "userClaims", key = "#result.userId")
     public StaffResponse updateStatus(UUID staffId, UpdateStaffStatusRequest request) {
         UUID tenantId = TenantContext.getCurrentTenantId();
         Staff staff = staffRepository.findByIdAndTenantId(staffId, tenantId)

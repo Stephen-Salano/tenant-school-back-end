@@ -17,6 +17,7 @@ import io.psyllabus.platform.guardian.repository.StudentGuardianRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +42,7 @@ public class GuardianServiceImpl implements  GuardianService{
      */
 
     @Override
+    @CacheEvict(value = "userClaims", key = "#result.userId")
     public GuardianResponse createGuardian(GuardianCreateRequest request) {
         log.info("Creating guardian: {}", request.email());
 
@@ -88,7 +90,8 @@ public class GuardianServiceImpl implements  GuardianService{
     }
 
     @Override
-    public void linkToStudent(UUID guardianId, UUID studentId) {
+    @CacheEvict(value = "userClaims", key = "#result.userId")
+    public GuardianResponse linkToStudent(UUID guardianId, UUID studentId) {
         UUID tenantId = TenantContext.getCurrentTenantId();
 
         // Verify that the guardian does exist
@@ -115,17 +118,23 @@ public class GuardianServiceImpl implements  GuardianService{
         studentGuardianRepository.save(link);
 
         log.info("Link guardian {} to student {}", guardianId , studentId);
+        return mapToResponse(guardian);
     }
 
     @Override
-    public void unlinkFromStudent(UUID guardianId, UUID studentId) {
+    @CacheEvict(value = "userClaims", key = "#result.userId")
+    public GuardianResponse unlinkFromStudent(UUID guardianId, UUID studentId) {
         UUID tenantId = TenantContext.getCurrentTenantId();
+
+        Guardian guardian = guardianRepository.findByIdAndTenantId(guardianId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Guardian not found"));
 
         studentGuardianRepository.deleteByStudentIdAndGuardianIdAndTenantId(
                 studentId, guardianId, tenantId
         );
 
         log.info(" Unlinked guardian {} from student {}", guardianId, studentId);
+        return mapToResponse(guardian);
     }
 
     @Override
@@ -160,6 +169,7 @@ public class GuardianServiceImpl implements  GuardianService{
     private GuardianResponse mapToResponse(Guardian guardian) {
         return new GuardianResponse(
                 guardian.getId(),
+                guardian.getUserId(),
                 guardian.getFirstName(),
                 guardian.getLastName(),
                 guardian.getPhone(),
