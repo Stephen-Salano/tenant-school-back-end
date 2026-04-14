@@ -1,8 +1,10 @@
 package io.psyllabus.platform.onboarding.service;
 
 import io.psyllabus.platform.onboarding.dto.ImportErrorDetail;
+import io.psyllabus.platform.onboarding.dto.ImportRowOutcome;
 import io.psyllabus.platform.onboarding.entity.ImportJob;
 import io.psyllabus.platform.onboarding.enums.ImportJobStatus;
+import io.psyllabus.platform.onboarding.enums.ImportJobType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -15,7 +17,7 @@ import java.util.UUID;
 public interface ImportJobService {
 
     /** Create a new job in QUEUED state. */
-    ImportJob createJob(UUID tenantId, io.psyllabus.platform.onboarding.enums.ImportJobType type, int totalRows, List<Object> rawData);
+    ImportJob createJob(UUID tenantId, ImportJobType type, int totalRows, List<Object> rawData);
 
     /** Fetch a single job; tenant-scoped. */
     ImportJob getJob(UUID jobId, UUID tenantId);
@@ -23,8 +25,7 @@ public interface ImportJobService {
     /** Paginated history of jobs for a tenant. */
     Page<ImportJob> getTenantJobs(UUID tenantId, Pageable pageable);
 
-    /** Update job progress from a listener batch. */
-    ImportJob updateProgress(UUID jobId, UUID tenantId, int batchSuccesses, List<ImportErrorDetail> batchErrors);
+    ImportJob updateProgress(UUID jobId, UUID tenantId, int batchSuccesses, List<ImportErrorDetail> batchErrors, List<ImportRowOutcome> batchOutcomes);
 
     /** Transition job to terminal success/partial state. */
     void completeJob(UUID jobId, UUID tenantId);
