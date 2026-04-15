@@ -38,6 +38,7 @@ import io.psyllabus.platform.student.enums.StudentStatus;
 import io.psyllabus.platform.student.service.StudentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -63,7 +64,9 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
     public static final String LAST_NAME = "last_name";
     public static final String FIRST_NAME = "first_name";
     public static final String EMAIL = "email";
+
     // Add this field to call the proxy methods
+    @Autowired
     @Lazy
     private OnboardingBatchService self;
 

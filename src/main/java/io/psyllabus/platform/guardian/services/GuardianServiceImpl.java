@@ -32,7 +32,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 @Transactional
-public class GuardianServiceImpl implements  GuardianService{
+public class GuardianServiceImpl implements GuardianService {
 
     private final GuardianRepository guardianRepository;
     private final StudentGuardianRepository studentGuardianRepository;
@@ -55,11 +55,11 @@ public class GuardianServiceImpl implements  GuardianService{
         UUID tenantId = TenantContext.getCurrentTenantId();
 
         // check for duplicate email
-        if (guardianRepository.existsByEmailAndTenantId(request.email(), tenantId)){
+        if (guardianRepository.existsByEmailAndTenantId(request.email(), tenantId)) {
             throw new DuplicateResourceException(" Email already exists");
         }
         // Check for duplicate phone
-        if (guardianRepository.existsByPhoneAndTenantId(request.phone(), tenantId)){
+        if (guardianRepository.existsByPhoneAndTenantId(request.phone(), tenantId)) {
             throw new DuplicateResourceException("Phone number already exists");
         }
 
@@ -129,7 +129,7 @@ public class GuardianServiceImpl implements  GuardianService{
         // Check if link already exists
         if (studentGuardianRepository.existsByStudentIdAndGuardianIdAndTenantId(
                 studentId, guardianId, tenantId
-        )){
+        )) {
             throw new DuplicateResourceException("Guardian already linked to this student");
         }
 
@@ -145,41 +145,42 @@ public class GuardianServiceImpl implements  GuardianService{
 
         studentGuardianRepository.save(link);
 
-        log.info("Link guardian {} to student {}", guardianId , studentId);
+        log.info("Link guardian {} to student {}", guardianId, studentId);
 
         auditService.log(
                 AuditAction.UPDATE,
                 "GUARDIAN_RELATIONSHIP",
                 guardianId,
                 String.format("Linked guardian to student %s", studentId)
-                );
+        );
 
-                return guardianMapper.toResponse(guardian);
-                }
+        return guardianMapper.toResponse(guardian);
+    }
 
-                @Override
-                @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
-                public GuardianResponse unlinkFromStudent(UUID guardianId, UUID studentId) {
-                UUID tenantId = TenantContext.getCurrentTenantId();
 
-                Guardian guardian = guardianRepository.findByIdAndTenantId(guardianId, tenantId)
+    @Override
+    @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
+    public GuardianResponse unlinkFromStudent(UUID guardianId, UUID studentId) {
+        UUID tenantId = TenantContext.getCurrentTenantId();
+
+        Guardian guardian = guardianRepository.findByIdAndTenantId(guardianId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Guardian not found"));
 
-                studentGuardianRepository.deleteByStudentIdAndGuardianIdAndTenantId(
+        studentGuardianRepository.deleteByStudentIdAndGuardianIdAndTenantId(
                 studentId, guardianId, tenantId
-                );
+        );
 
-                log.info(" Unlinked guardian {} from student {}", guardianId, studentId);
+        log.info(" Unlinked guardian {} from student {}", guardianId, studentId);
 
-                auditService.log(
+        auditService.log(
                 AuditAction.UPDATE,
                 "GUARDIAN_RELATIONSHIP",
                 guardianId,
                 String.format("Unlinked guardian from student %s", studentId)
-                );
+        );
 
-                return guardianMapper.toResponse(guardian);
-                }
+        return guardianMapper.toResponse(guardian);
+    }
 
 
     @Override

@@ -5,7 +5,6 @@ import io.psyllabus.platform.common.config.RabbitMQConstants;
 import io.psyllabus.platform.common.service.TenantExecutionService;
 import io.psyllabus.platform.onboarding.entity.ImportJob;
 import io.psyllabus.platform.onboarding.enums.ImportJobStatus;
-import io.psyllabus.platform.onboarding.repository.ImportJobRepository;
 import io.psyllabus.platform.onboarding.service.OnboardingBatchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +22,6 @@ import java.util.UUID;
 public class StaffImportListener {
     private static final int BATCH_SIZE = 50;
 
-    private final ImportJobRepository importJobRepository;
     private final TenantExecutionService tenantExecutionService;
     private final OnboardingBatchService onboardingBatchService;
 
