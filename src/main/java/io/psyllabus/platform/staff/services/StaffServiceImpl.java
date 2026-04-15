@@ -36,6 +36,7 @@ import java.util.UUID;
 public class StaffServiceImpl implements StaffService {
 
     private static final String STAFF_NOT_FOUND = "Staff not found";
+    public static final String STAFF = "STAFF";
 
     private final StaffRepository staffRepository;
     private final AuthService authService;
@@ -92,11 +93,11 @@ public class StaffServiceImpl implements StaffService {
 
         staff = staffRepository.save(staff);
 
-        log.info("Staff created: {}", staff.getEmployeeNumber());
+        log.info("Staff created: {}", staff.getId());
 
         auditService.log(
                 AuditAction.CREATE,
-                "STAFF",
+                STAFF,
                 staff.getId(),
                 "New staff member created and linked to user account"
         );
@@ -119,7 +120,7 @@ public class StaffServiceImpl implements StaffService {
 
         auditService.log(
                 AuditAction.UPDATE,
-                "STAFF",
+                STAFF,
                 staffId,
                 String.format("Assigned staff to subject group %s", subjectGroupId)
         );
@@ -165,11 +166,11 @@ public class StaffServiceImpl implements StaffService {
         staff.setEmploymentStatus(request.status());
         staff = staffRepository.save(staff);
         log.info("Staff {} status: {} -> {} (reason: {})",
-                staff.getEmployeeNumber(), previous, request.status(), request.reason());
+                staff.getId(), previous, request.status(), request.reason());
 
         auditService.log(
                 AuditAction.EMPLOYMENT_CHANGE,
-                "STAFF",
+                STAFF,
                 staffId,
                 String.format("Status changed from %s to %s. Reason: %s", previous, request.status(), request.reason())
         );

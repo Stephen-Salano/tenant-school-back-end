@@ -37,6 +37,7 @@ import java.util.UUID;
 public class StudentServiceImpl implements StudentService {
 
     private static final String STUDENT_NOT_FOUND = "Student not found";
+    public static final String STUDENT = "STUDENT";
 
     private final StudentRepository studentRepository;
     private final AuthService authService;
@@ -89,11 +90,11 @@ public class StudentServiceImpl implements StudentService {
 
         student = studentRepository.save(student);
 
-        log.info("Student enrolled: {}", student.getAdmissionNumber());
+        log.info("Student enrolled");
 
         auditService.log(
                 AuditAction.ENROLLMENT,
-                "STUDENT",
+                STUDENT,
                 student.getId(),
                 "New student enrolled and linked to user account"
         );
@@ -129,7 +130,7 @@ public class StudentServiceImpl implements StudentService {
 
         auditService.log(
                 AuditAction.UPDATE,
-                "STUDENT",
+                STUDENT,
                 studentId,
                 String.format("Assigned student to class %s", classId)
         );
@@ -179,7 +180,7 @@ public class StudentServiceImpl implements StudentService {
         // Nullify class if no longer enrolled to prevent inflated stats
         if (status == io.psyllabus.platform.student.enums.StudentStatus.TRANSFERRED || 
             status == io.psyllabus.platform.student.enums.StudentStatus.GRADUATED) {
-            log.info("Student {} moved to status {}, nulling currentClassId", student.getAdmissionNumber(), status);
+            log.info("Student {} moved to status {}, nulling currentClassId", student.getId(), status);
             student.setCurrentClassId(null);
         }
 
@@ -187,7 +188,7 @@ public class StudentServiceImpl implements StudentService {
 
         auditService.log(
                 AuditAction.UPDATE,
-                "STUDENT",
+                STUDENT,
                 studentId,
                 String.format("Status changed from %s to %s", previous, status)
         );
