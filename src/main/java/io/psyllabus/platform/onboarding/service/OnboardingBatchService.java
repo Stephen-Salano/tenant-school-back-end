@@ -18,6 +18,10 @@ public interface OnboardingBatchService {
 
     ImportJob markProcessing(UUID jobId, UUID tenantId);
 
+    String processOneStaffRow(Map<String, String> row, UUID tenantId);
+
+    String processOneStudentRow(Map<String, String> row, UUID tenantId);
+
     BatchResult processStaffBatch(UUID jobId, UUID tenantId, List<Map<String, String>> rows);
 
     BatchResult processStudentBatch(UUID jobId, UUID tenantId, List<Map<String, String>> rows);

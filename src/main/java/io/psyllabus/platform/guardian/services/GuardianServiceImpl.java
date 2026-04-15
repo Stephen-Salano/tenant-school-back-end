@@ -90,25 +90,30 @@ public class GuardianServiceImpl implements  GuardianService{
         );
 
         return guardianMapper.toResponse(guardian);
-        }
+    }
 
 
     private @NonNull RegisterRequest getRegisterRequest(GuardianCreateRequest request) {
         boolean hasEmail = request.email() != null && !request.email().isBlank();
-        String username = hasEmail ? request.email() : request.phone();
-        String userEmail = hasEmail ? request.email() :  (request.phone() + "@noemail.psyllabus.internal");
 
-        // Create user account
+        // Use email as username if available; otherwise, use phone with a prefix
+        // Prefixing helps avoid collisions and clearly identifies the source
+        String username = hasEmail ? request.email() : "G-" + request.phone();
+
+        // Auth services often have NOT NULL constraints on email.
+        // If no email exists, provide a consistent internal placeholder.
+        String userEmail = hasEmail ? request.email() : (request.phone() + "@noemail.psyllabus.internal");
+
         return new RegisterRequest(
-            username, // Username  = email
-            userEmail,
-            guardianTempPassword, // default password = phone number
-            request.firstName(),
-            request.lastName(),
-            request.phone(),
-            UserType.PARENT,
-            null, // guardians don't have a branch scope
-            AccessScope.SCHOOL
+                username,
+                userEmail,
+                guardianTempPassword,
+                request.firstName(),
+                request.lastName(),
+                request.phone(),
+                UserType.PARENT,
+                null,
+                AccessScope.SCHOOL
         );
     }
 
