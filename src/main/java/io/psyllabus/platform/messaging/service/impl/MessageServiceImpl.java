@@ -1,5 +1,7 @@
 package io.psyllabus.platform.messaging.service.impl;
 
+import io.psyllabus.platform.audit.enums.AuditAction;
+import io.psyllabus.platform.audit.service.AuditService;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
 import io.psyllabus.platform.messaging.dto.request.MessageBoardRequest;
 import io.psyllabus.platform.messaging.dto.response.MessageResponse;
@@ -8,6 +10,7 @@ import io.psyllabus.platform.messaging.enums.MessageAudience;
 import io.psyllabus.platform.messaging.enums.MessageType;
 import io.psyllabus.platform.messaging.repository.MessageRepository;
 import io.psyllabus.platform.messaging.service.MessageService;
+import io.psyllabus.platform.messaging.service.mapper.MessageMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -24,7 +27,10 @@ import java.util.UUID;
 public class MessageServiceImpl implements MessageService {
 
     private static final String MESSAGE_NOT_FOUND = "Message not found: ";
+    public static final String MESSAGE = "MESSAGE";
     private final MessageRepository messageRepository;
+    private final MessageMapper messageMapper;
+    private final AuditService auditService;
 
     @Override
     public MessageResponse postNotice(UUID tenantId, MessageBoardRequest request) {
@@ -40,14 +46,17 @@ public class MessageServiceImpl implements MessageService {
         
         message = messageRepository.save(message);
         log.info("Notice posted: id={}, tenant={}, audience={}", message.getId(), tenantId, message.getTargetAudience());
-        return mapToResponse(message);
+        
+        auditService.log(AuditAction.CREATE, MESSAGE, message.getId(), "Posted new notice: " + message.getTitle());
+        
+        return messageMapper.toResponse(message);
     }
 
     @Override
     @Transactional(readOnly = true)
     public MessageResponse getMessage(UUID id, UUID tenantId) {
         return messageRepository.findByIdAndTenantId(id, tenantId)
-                .map(this::mapToResponse)
+                .map(messageMapper::toResponse)
                 .orElseThrow(() -> new ResourceNotFoundException(MESSAGE_NOT_FOUND + id));
     }
 
@@ -55,14 +64,14 @@ public class MessageServiceImpl implements MessageService {
     @Transactional(readOnly = true)
     public Page<MessageResponse> getBoard(UUID tenantId, MessageAudience audience, Pageable pageable) {
         return messageRepository.findBoardNotices(tenantId, audience, pageable)
-                .map(this::mapToResponse);
+                .map(messageMapper::toResponse);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<MessageResponse> getAllMessages(UUID tenantId, Pageable pageable) {
         return messageRepository.findAllByTenantIdAndTypeOrderByCreatedAtDesc(tenantId, MessageType.NOTICE, pageable)
-                .map(this::mapToResponse);
+                .map(messageMapper::toResponse);
     }
 
     @Override
@@ -76,7 +85,12 @@ public class MessageServiceImpl implements MessageService {
         message.setType(request.type());
         message.setAttachmentUrl(request.attachmentUrl());
         
-        return mapToResponse(messageRepository.save(message));
+        Message saved = messageRepository.save(message);
+        log.info("Notice updated: id={}, tenant={}", id, tenantId);
+
+        auditService.log(AuditAction.UPDATE, MESSAGE, id, "Updated notice: " + saved.getTitle());
+
+        return messageMapper.toResponse(saved);
     }
 
     @Override
@@ -87,13 +101,7 @@ public class MessageServiceImpl implements MessageService {
         message.setActive(false); // Soft delete
         messageRepository.save(message);
         log.info("Message deleted (soft): id={}, tenant={}", id, tenantId);
-    }
 
-    private MessageResponse mapToResponse(Message m) {
-        return new MessageResponse(
-                m.getId(), m.getType(), m.getTargetAudience(),
-                m.getTitle(), m.getContent(), m.getAttachmentUrl(),
-                m.getRecipientIdentifier(), m.getCreatedAt()
-        );
+        auditService.log(AuditAction.DELETE, MESSAGE, id, "Deleted message: " + message.getTitle());
     }
 }

@@ -1,5 +1,6 @@
 package io.psyllabus.platform.branch.entities;
 
+import io.psyllabus.platform.branch.enums.BranchStatus;
 import io.psyllabus.platform.common.audit.Auditable;
 import jakarta.persistence.*;
 import lombok.*;
@@ -46,7 +47,8 @@ public class Branch extends Auditable {
     @Builder.Default
     private boolean isMainBranch = false;
 
-    @Column(name = "is_active", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
     @Builder.Default
-    private boolean isActive = true;
+    private BranchStatus status = BranchStatus.ACTIVE;
 }

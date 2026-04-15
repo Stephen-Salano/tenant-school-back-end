@@ -1,5 +1,6 @@
 package io.psyllabus.platform.academic.entities;
 
+import io.psyllabus.platform.academic.enums.AcademicStatus;
 import io.psyllabus.platform.common.audit.Auditable;
 import jakarta.persistence.*;
 import lombok.*;
@@ -67,7 +68,8 @@ public class Subject extends Auditable {
     @Column(name = "pass_mark")
     private Integer passMark;
 
-    @Column(name = "is_active", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
     @Builder.Default
-    private boolean isActive = true;
+    private AcademicStatus status = AcademicStatus.ACTIVE;
 }

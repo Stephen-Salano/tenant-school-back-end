@@ -27,7 +27,7 @@ public interface TeacherAssignmentMapper {
     @Mapping(target = "subjectName", source = "subject.name")
     @Mapping(target = "academicTermId", source = "assignment.academicTermId")
     @Mapping(target = "academicTermName", source = "term.name")
-    @Mapping(target = "isClassTeacher", source = "assignment.isClassTeacher")
+    @Mapping(target = "isClassTeacher", source = "assignment.classTeacher")
     @Mapping(target = "lessonsPerWeek", source = "assignment.lessonsPerWeek")
     @Mapping(target = "status", source = "assignment.status")
     @Mapping(target = "createdAt", source = "assignment.createdAt")
