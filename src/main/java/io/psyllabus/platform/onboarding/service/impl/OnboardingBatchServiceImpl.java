@@ -39,6 +39,7 @@ import io.psyllabus.platform.student.service.StudentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,6 +59,13 @@ import java.util.UUID;
 @Slf4j
 @SystemProcess
 public class OnboardingBatchServiceImpl implements OnboardingBatchService {
+
+    public static final String LAST_NAME = "last_name";
+    public static final String FIRST_NAME = "first_name";
+    public static final String EMAIL = "email";
+    // Add this field to call the proxy methods
+    @Lazy
+    private OnboardingBatchService self;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final String IMPORT_JOB_LITERAL = "IMPORT_JOB";
@@ -103,7 +111,7 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
             Map<String, String> row = rows.get(offset);
             int rowNumber = job.getProcessedRows() + offset + 1;
             try {
-                String identifier = createStaffFromRow(row, tenantId);
+                String identifier = self.processOneStaffRow(row, tenantId);
                 successes++;
                 outcomes.add(new ImportRowOutcome(rowNumber, "SUCCESS", identifier, "Created successfully"));
             } catch (Exception ex) {
@@ -111,7 +119,7 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
                 errors.add(error);
                 // Fallback identifier chain for actionable reporting
                 String fallbackId = normalize(row.get("employee_number"));
-                if (fallbackId.isBlank()) fallbackId = normalize(row.get("email"));
+                if (fallbackId.isBlank()) fallbackId = normalize(row.get(EMAIL));
                 if (fallbackId.isBlank()) fallbackId = "Row " + rowNumber;
                 outcomes.add(new ImportRowOutcome(rowNumber, "FAILED", fallbackId, error.issue()));
             }
@@ -140,7 +148,7 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
             Map<String, String> row = rows.get(offset);
             int rowNumber = job.getProcessedRows() + offset + 1;
             try {
-                String identifier = createStudentAndGuardiansFromRow(row, tenantId);
+                String identifier = self.processOneStudentRow(row, tenantId);
                 successes++;
                 outcomes.add(new ImportRowOutcome(rowNumber, "SUCCESS", identifier, "Enrolled successfully"));
             } catch (Exception ex) {
@@ -149,8 +157,8 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
                 // Fallback identifier chain for actionable reporting
                 String fallbackId = normalize(row.get("admission_number"));
                 if (fallbackId.isBlank()) {
-                    String firstName = normalize(row.get("first_name"));
-                    String lastName = normalize(row.get("last_name"));
+                    String firstName = normalize(row.get(FIRST_NAME));
+                    String lastName = normalize(row.get(LAST_NAME));
                     fallbackId = (firstName + " " + lastName).strip();
                 }
                 if (fallbackId.isBlank()) fallbackId = "Row " + rowNumber;
@@ -211,9 +219,9 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
 
         StaffResponse created = staffService.createStaff(new StaffCreateRequest(
                 employeeNumber,
-                required(row, "first_name"),
-                required(row, "last_name"),
-                required(row, "email").toLowerCase(Locale.ROOT),
+                required(row, FIRST_NAME),
+                required(row, LAST_NAME),
+                required(row, EMAIL).toLowerCase(Locale.ROOT),
                 normalize(row.get("phone")),
                 subjectGroupId,
                 parseDate(required(row, "hire_date")),
@@ -292,11 +300,11 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
 
         StudentResponse studentResponse = studentService.enrollStudent(new StudentCreateRequest(
                 admissionNumber,
-                required(row, "first_name"),
-                required(row, "last_name"),
+                required(row, FIRST_NAME),
+                required(row, LAST_NAME),
                 parseDate(required(row, "date_of_birth")),
                 Gender.valueOf(required(row, "gender").toUpperCase(Locale.ROOT)),
-                blankToNull(normalize(row.get("email"))),
+                blankToNull(normalize(row.get(EMAIL))),
                 blankToNull(normalize(row.get("phone"))),
                 branchId,
                 schoolClass.getId(),
@@ -473,5 +481,17 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
                     && gradeLevel.equalsIgnoreCase(other.gradeLevel)
                     && streamName.equalsIgnoreCase(other.streamName);
         }
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public String processOneStaffRow(Map<String, String> row, UUID tenantId) {
+        return createStaffFromRow(row, tenantId);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public String processOneStudentRow(Map<String, String> row, UUID tenantId) {
+        return createStudentAndGuardiansFromRow(row, tenantId);
     }
 }
