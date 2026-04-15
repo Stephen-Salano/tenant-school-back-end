@@ -46,7 +46,7 @@ public class StaffServiceImpl implements StaffService {
     @Override
     @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
     public StaffResponse createStaff(StaffCreateRequest request) {
-        log.info("Creating new staff record for employee: {}", request.employeeNumber());
+        log.info("Creating new staff record");
 
         UUID tenantId = TenantContext.getCurrentTenantId();
 
