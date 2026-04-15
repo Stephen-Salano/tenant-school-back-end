@@ -24,7 +24,6 @@ public class StudentImportListener {
 
     private static final int BATCH_SIZE = 50;
 
-    private final ImportJobRepository importJobRepository;
     private final TenantExecutionService tenantExecutionService;
     private final OnboardingBatchService onboardingBatchService;
 
