@@ -238,12 +238,16 @@ public class OnboardingServiceImpl implements OnboardingService {
             throw new ValidationException("Only FAILED jobs can be re-queued. Current status: " + job.getStatus());
         }
 
+        if (job.getRawData() == null || job.getRawData().isEmpty()) {
+            throw new ValidationException("Raw data has been cleared for this job. Re-upload the CSV to create a new import job.");
+        }
+
         job.setStatus(ImportJobStatus.QUEUED);
         job.setProcessedRows(0);
         job.setSuccessRows(0);
         job.setErrorRows(0);
-        job.getErrorDetails().clear();
-        job.getRowOutcomes().clear();
+        job.setErrorDetails(new ArrayList<>());
+        job.setRowOutcomes(new ArrayList<>());
         job.setCompletedAt(null);
         importJobRepository.save(job);
 

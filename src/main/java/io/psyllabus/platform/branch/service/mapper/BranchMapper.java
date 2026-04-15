@@ -13,9 +13,9 @@ import org.mapstruct.MappingConstants;
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface BranchMapper {
 
-    @Mapping(target = "adminName", source = "adminName")
+    @Mapping(target = "branchAdminName", source = "adminName")
     BranchResponse toResponse(Branch branch, String adminName);
 
-    @Mapping(target = "adminName", source = "adminName")
+    @Mapping(target = "branchAdminName", source = "adminName")
     BranchDetailResponse toDetailResponse(Branch branch, String adminName);
 }

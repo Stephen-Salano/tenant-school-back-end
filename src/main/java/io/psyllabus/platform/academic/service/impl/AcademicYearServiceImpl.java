@@ -8,6 +8,9 @@ import io.psyllabus.platform.academic.entities.AcademicYear;
 import io.psyllabus.platform.academic.repository.AcademicTermRepository;
 import io.psyllabus.platform.academic.repository.AcademicYearRepository;
 import io.psyllabus.platform.academic.service.AcademicYearService;
+import io.psyllabus.platform.academic.service.mapper.AcademicYearMapper;
+import io.psyllabus.platform.audit.enums.AuditAction;
+import io.psyllabus.platform.audit.service.AuditService;
 import io.psyllabus.platform.common.dto.PageResponse;
 import io.psyllabus.platform.common.exception.DuplicateResourceException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
@@ -40,8 +43,11 @@ import java.util.UUID;
 @Transactional
 public class AcademicYearServiceImpl implements AcademicYearService {
 
+    public static final String ACADEMIC_YEAR = "ACADEMIC_YEAR";
     private final AcademicYearRepository academicYearRepository;
     private final AcademicTermRepository academicTermRepository;
+    private final AcademicYearMapper academicYearMapper;
+    private final AuditService auditService;
 
     // ── Create ────────────────────────────────────────────────────────────────
 
@@ -65,7 +71,10 @@ public class AcademicYearServiceImpl implements AcademicYearService {
 
         AcademicYear saved = academicYearRepository.save(year);
         log.info("Academic year created: id={} name={} tenant={}", saved.getId(), saved.getName(), tenantId);
-        return mapToResponse(saved);
+
+        auditService.log(AuditAction.ACADEMIC_SETUP, ACADEMIC_YEAR, saved.getId(), "Created academic year: " + saved.getName());
+
+        return academicYearMapper.toResponse(saved);
     }
 
     // ── Read ──────────────────────────────────────────────────────────────────
@@ -84,7 +93,7 @@ public class AcademicYearServiceImpl implements AcademicYearService {
         UUID tenantId = TenantContext.getCurrentTenantId();
         AcademicYear year = academicYearRepository.findByTenantIdAndIsCurrentTrue(tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("No current academic year set for this school"));
-        return mapToResponse(year);
+        return academicYearMapper.toResponse(year);
     }
 
     @Override
@@ -93,7 +102,7 @@ public class AcademicYearServiceImpl implements AcademicYearService {
         UUID tenantId = TenantContext.getCurrentTenantId();
         return PageResponse.from(
                 academicYearRepository.findAllByTenantId(tenantId, pageable)
-                        .map(this::mapToResponse)
+                        .map(academicYearMapper::toResponse)
         );
     }
 
@@ -129,7 +138,10 @@ public class AcademicYearServiceImpl implements AcademicYearService {
         AcademicYear saved = academicYearRepository.save(year);
 
         log.info("Current academic year set: id={} name={} tenant={}", yearId, year.getName(), tenantId);
-        return mapToResponse(saved);
+
+        auditService.log(AuditAction.ACADEMIC_SETUP, ACADEMIC_YEAR, yearId, "Set as current academic year: " + year.getName());
+
+        return academicYearMapper.toResponse(saved);
     }
 
     @Override
@@ -156,7 +168,10 @@ public class AcademicYearServiceImpl implements AcademicYearService {
 
         AcademicYear saved = academicYearRepository.save(year);
         log.info("Academic year updated: id={} tenant={}", id, tenantId);
-        return mapToResponse(saved);
+
+        auditService.log(AuditAction.UPDATE, ACADEMIC_YEAR, id, "Updated academic year details: " + saved.getName());
+
+        return academicYearMapper.toResponse(saved);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -174,18 +189,6 @@ public class AcademicYearServiceImpl implements AcademicYearService {
         if (!start.isBefore(end)) {
             throw new ValidationException("Start date must be before end date");
         }
-    }
-
-    private AcademicYearResponse mapToResponse(AcademicYear year) {
-        return new AcademicYearResponse(
-                year.getId(),
-                year.getName(),
-                year.getStartDate(),
-                year.getEndDate(),
-                year.isCurrent(),
-                year.getCreatedAt(),
-                year.getUpdatedAt()
-        );
     }
 
     private AcademicYearDetailResponse mapToDetailResponse(AcademicYear year) {

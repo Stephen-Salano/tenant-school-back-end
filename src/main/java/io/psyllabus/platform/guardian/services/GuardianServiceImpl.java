@@ -16,8 +16,10 @@ import io.psyllabus.platform.guardian.entities.Guardian;
 import io.psyllabus.platform.guardian.entities.StudentGuardian;
 import io.psyllabus.platform.guardian.repository.GuardianRepository;
 import io.psyllabus.platform.guardian.repository.StudentGuardianRepository;
+import io.psyllabus.platform.guardian.service.mapper.GuardianMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
@@ -36,6 +38,7 @@ public class GuardianServiceImpl implements  GuardianService{
     private final StudentGuardianRepository studentGuardianRepository;
     private final AuthService authService;
     private final AuditService auditService;
+    private final GuardianMapper guardianMapper;
 
     @Value("${platform.default-passwords.guardian:Parent@123}")
     private String guardianTempPassword;
@@ -60,18 +63,7 @@ public class GuardianServiceImpl implements  GuardianService{
             throw new DuplicateResourceException("Phone number already exists");
         }
 
-        // Create user account
-        RegisterRequest userRequest = new RegisterRequest(
-            request.email(), // Username  = email
-                request.email(),
-                guardianTempPassword, // default password = phone number
-                request.firstName(),
-                request.lastName(),
-                request.phone(),
-                UserType.PARENT,
-                null, // guardians don't have a branch scope
-                AccessScope.SCHOOL
-        );
+        RegisterRequest userRequest = getRegisterRequest(request);
 
         UserResponse userResponse = authService.register(userRequest);
 
@@ -97,7 +89,27 @@ public class GuardianServiceImpl implements  GuardianService{
                 "New guardian created and linked to user account"
         );
 
-        return mapToResponse(guardian);
+        return guardianMapper.toResponse(guardian);
+        }
+
+
+    private @NonNull RegisterRequest getRegisterRequest(GuardianCreateRequest request) {
+        boolean hasEmail = request.email() != null && !request.email().isBlank();
+        String username = hasEmail ? request.email() : request.phone();
+        String userEmail = hasEmail ? request.email() :  (request.phone() + "@noemail.psyllabus.internal");
+
+        // Create user account
+        return new RegisterRequest(
+            username, // Username  = email
+            userEmail,
+            guardianTempPassword, // default password = phone number
+            request.firstName(),
+            request.lastName(),
+            request.phone(),
+            UserType.PARENT,
+            null, // guardians don't have a branch scope
+            AccessScope.SCHOOL
+        );
     }
 
     @Override
@@ -135,41 +147,42 @@ public class GuardianServiceImpl implements  GuardianService{
                 "GUARDIAN_RELATIONSHIP",
                 guardianId,
                 String.format("Linked guardian to student %s", studentId)
-        );
+                );
 
-        return mapToResponse(guardian);
-    }
+                return guardianMapper.toResponse(guardian);
+                }
 
-    @Override
-    @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
-    public GuardianResponse unlinkFromStudent(UUID guardianId, UUID studentId) {
-        UUID tenantId = TenantContext.getCurrentTenantId();
+                @Override
+                @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
+                public GuardianResponse unlinkFromStudent(UUID guardianId, UUID studentId) {
+                UUID tenantId = TenantContext.getCurrentTenantId();
 
-        Guardian guardian = guardianRepository.findByIdAndTenantId(guardianId, tenantId)
+                Guardian guardian = guardianRepository.findByIdAndTenantId(guardianId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Guardian not found"));
 
-        studentGuardianRepository.deleteByStudentIdAndGuardianIdAndTenantId(
+                studentGuardianRepository.deleteByStudentIdAndGuardianIdAndTenantId(
                 studentId, guardianId, tenantId
-        );
+                );
 
-        log.info(" Unlinked guardian {} from student {}", guardianId, studentId);
+                log.info(" Unlinked guardian {} from student {}", guardianId, studentId);
 
-        auditService.log(
+                auditService.log(
                 AuditAction.UPDATE,
                 "GUARDIAN_RELATIONSHIP",
                 guardianId,
                 String.format("Unlinked guardian from student %s", studentId)
-        );
+                );
 
-        return mapToResponse(guardian);
-    }
+                return guardianMapper.toResponse(guardian);
+                }
+
 
     @Override
     @Transactional(readOnly = true)
     public GuardianResponse findByEmail(String email, UUID tenantId) {
         Guardian guardian = guardianRepository.findByEmailAndTenantId(email, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException(" Guardian not found"));
-        return mapToResponse(guardian);
+        return guardianMapper.toResponse(guardian);
     }
 
     @Override
@@ -189,19 +202,8 @@ public class GuardianServiceImpl implements  GuardianService{
         // Batch fetch guardians to avoid N+1
         return guardianRepository.findByIdInAndTenantId(guardianIds, tenantId)
                 .stream()
-                .map(this::mapToResponse)
+                .map(guardianMapper::toResponse)
                 .toList();
     }
 
-    private GuardianResponse mapToResponse(Guardian guardian) {
-        return new GuardianResponse(
-                guardian.getId(),
-                guardian.getUserId(),
-                guardian.getFirstName(),
-                guardian.getLastName(),
-                guardian.getPhone(),
-                guardian.getEmail(),
-                guardian.getRelationshipType()
-        );
-    }
 }

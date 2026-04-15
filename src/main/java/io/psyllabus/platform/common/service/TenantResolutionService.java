@@ -2,6 +2,7 @@ package io.psyllabus.platform.common.service;
 
 import io.psyllabus.platform.common.exception.TenantNotFoundException;
 import io.psyllabus.platform.school.entities.School;
+import io.psyllabus.platform.school.enums.SchoolStatus;
 import io.psyllabus.platform.school.repository.SchoolRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +33,7 @@ public class TenantResolutionService {
                         "School not found for subdomain: " + subdomainPrefix
                 ));
 
-        if (!school.getIsActive()) {
+        if (school.getStatus() != SchoolStatus.ACTIVE) {
             throw new TenantNotFoundException("School is inactive: " + subdomainPrefix);
         }
 
@@ -55,7 +56,7 @@ public class TenantResolutionService {
                         "School not found for custom domain: " + customDomain
                 ));
 
-        if (!school.getIsActive()) {
+        if (school.getStatus() != SchoolStatus.ACTIVE) {
             throw new TenantNotFoundException("School is inactive: " + customDomain);
         }
 
@@ -78,7 +79,7 @@ public class TenantResolutionService {
                         "School not found for ID: " + tenantId
                 ));
 
-        if (!school.getIsActive()) {
+        if (school.getStatus() != SchoolStatus.ACTIVE) {
             throw new TenantNotFoundException("School is inactive: " + tenantId);
         }
 

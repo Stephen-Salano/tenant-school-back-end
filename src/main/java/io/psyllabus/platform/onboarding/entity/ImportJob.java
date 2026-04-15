@@ -123,7 +123,11 @@ public class ImportJob extends Auditable {
         this.successRows += batchSuccesses;
         this.errorRows += batchErrors.size();
         this.processedRows += batchSuccesses + batchErrors.size(); // key line: checkpoint
+
+        if (this.errorDetails == null) this.errorDetails = new ArrayList<>();
         this.errorDetails.addAll(batchErrors);
+
+        if (this.rowOutcomes == null) this.rowOutcomes = new ArrayList<>();
         this.rowOutcomes.addAll(batchOutcomes);
     }
 
@@ -137,6 +141,7 @@ public class ImportJob extends Auditable {
     public void fail(String reason) {
         this.status = ImportJobStatus.FAILED;
         this.completedAt = LocalDateTime.now();
+        if (this.errorDetails == null) this.errorDetails = new ArrayList<>();
         this.errorDetails.add(new ImportErrorDetail(0, null, reason, null));
     }
 }
