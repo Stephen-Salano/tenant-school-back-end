@@ -22,6 +22,7 @@ import io.psyllabus.platform.school.dto.responses.SchoolOnboardResponse;
 import io.psyllabus.platform.school.dto.responses.SchoolProfileResponse;
 import io.psyllabus.platform.school.entities.School;
 import io.psyllabus.platform.school.entities.SchoolProfile;
+import io.psyllabus.platform.school.enums.SchoolStatus;
 import io.psyllabus.platform.school.repository.SchoolProfileRepository;
 import io.psyllabus.platform.school.repository.SchoolRepository;
 import io.psyllabus.platform.subscription.entity.Subscription;
@@ -413,7 +414,7 @@ public class SchoolServiceImpl implements SchoolService{
                 school.getPhone(),
                 school.getAddress(),
                 school.getPlan(),
-                school.getStatus() == io.psyllabus.platform.school.enums.SchoolStatus.ACTIVE,
+                school.getStatus(),
                 general,
                 academic,
                 enrollment,
