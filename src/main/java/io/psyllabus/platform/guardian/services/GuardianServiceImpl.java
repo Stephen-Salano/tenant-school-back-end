@@ -80,7 +80,7 @@ public class GuardianServiceImpl implements  GuardianService{
                 .build();
 
         guardian = guardianRepository.save(guardian);
-        log.info("Guardian created: {}", guardian.getEmail());
+        log.info("Guardian created");
 
         auditService.log(
                 AuditAction.CREATE,

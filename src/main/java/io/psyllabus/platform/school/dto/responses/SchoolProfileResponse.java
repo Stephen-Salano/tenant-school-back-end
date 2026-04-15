@@ -2,6 +2,7 @@ package io.psyllabus.platform.school.dto.responses;
 
 import io.psyllabus.platform.school.enums.CurriculumType;
 import io.psyllabus.platform.school.enums.GenderPolicy;
+import io.psyllabus.platform.school.enums.SchoolStatus;
 import io.psyllabus.platform.school.enums.SchoolType;
 import io.psyllabus.platform.subscription.enums.PlanType;
 
@@ -31,7 +32,7 @@ public record SchoolProfileResponse(
         String phone,
         String address,
         PlanType plan,
-        boolean isActive,
+        SchoolStatus status,
 
         // ── SchoolProfile tab sections (null until admin configures each tab) ─
         GeneralSection general,

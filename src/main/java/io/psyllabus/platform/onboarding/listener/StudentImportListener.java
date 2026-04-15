@@ -4,6 +4,7 @@ import io.psyllabus.platform.common.annotation.SystemProcess;
 import io.psyllabus.platform.common.config.RabbitMQConstants;
 import io.psyllabus.platform.common.service.TenantExecutionService;
 import io.psyllabus.platform.onboarding.entity.ImportJob;
+import io.psyllabus.platform.onboarding.enums.ImportJobStatus;
 import io.psyllabus.platform.onboarding.repository.ImportJobRepository;
 import io.psyllabus.platform.onboarding.service.OnboardingBatchService;
 import lombok.RequiredArgsConstructor;
@@ -32,19 +33,21 @@ public class StudentImportListener {
         UUID jobId = payload.jobId();
         UUID tenantId = payload.tenantId();
 
-        tenantExecutionService.runInTenant(tenantId, () -> {
-            ImportJob snapshot = importJobRepository.findByIdAndTenantId(jobId, tenantId)
-                    .orElseThrow(() -> new IllegalArgumentException("Student import job not found: " + jobId));
-            processJob(jobId, tenantId, snapshot);
-        });
+        tenantExecutionService.runInTenant(tenantId, () ->
+            // Removed redundant repository fetch
+            processJob(jobId, tenantId)
+        );
     }
 
-    private void processJob(UUID jobId, UUID tenantId, ImportJob started) {
+    // Removed the ImportJob parameter
+    private void processJob(UUID jobId, UUID tenantId) {
         try {
-            started = onboardingBatchService.markProcessing(jobId, tenantId);
-            if (started.getStatus() == io.psyllabus.platform.onboarding.enums.ImportJobStatus.FAILED
-                    || started.getStatus() == io.psyllabus.platform.onboarding.enums.ImportJobStatus.DONE
-                    || started.getStatus() == io.psyllabus.platform.onboarding.enums.ImportJobStatus.COMPLETED_WITH_ERRORS) {
+            // markProcessing handles the fetch
+            ImportJob started = onboardingBatchService.markProcessing(jobId, tenantId);
+
+            if (started.getStatus() == ImportJobStatus.FAILED
+                    || started.getStatus() == ImportJobStatus.DONE
+                    || started.getStatus() == ImportJobStatus.COMPLETED_WITH_ERRORS) {
                 log.info("Skipping student import job in terminal state [jobId={}, status={}]", jobId, started.getStatus());
                 return;
             }
