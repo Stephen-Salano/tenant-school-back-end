@@ -7,6 +7,7 @@ import io.psyllabus.platform.academic.dto.response.ClassEnrollmentStatsResponse;
 import io.psyllabus.platform.academic.dto.response.ClassResponse;
 import io.psyllabus.platform.academic.entities.SchoolClass;
 import io.psyllabus.platform.academic.entities.TeacherAssignment;
+import io.psyllabus.platform.academic.enums.AcademicStatus;
 import io.psyllabus.platform.academic.enums.AssignmentStatus;
 import io.psyllabus.platform.academic.repository.AcademicYearRepository;
 import io.psyllabus.platform.academic.repository.SchoolClassRepository;
@@ -103,7 +104,7 @@ public class ClassServiceImpl implements ClassService {
                 .academicYearId(request.academicYearId())
                 .branchId(request.branchId())
                 .maxCapacity(request.maxCapacity())
-                .isActive(true)
+                .status(AcademicStatus.ACTIVE)
                 .build();
 
         SchoolClass saved = schoolClassRepository.save(schoolClass);

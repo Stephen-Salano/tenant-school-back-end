@@ -99,7 +99,7 @@ public interface PlatformAdminService {
      * @param adminId  the platform admin performing the update (for auditing)
      * @return updated school summary
      */
-    SchoolSummaryResponse updateSchoolStatus(UUID schoolId, io.psyllabus.platform.school.enums.SchoolStatus status, UUID adminId);
+    SchoolSummaryResponse updateSchoolStatus(UUID schoolId, io.psyllabus.platform.school.enums.SchoolStatus status, String reason, UUID adminId);
 
     /**
      * Create a new platform-level administrator.

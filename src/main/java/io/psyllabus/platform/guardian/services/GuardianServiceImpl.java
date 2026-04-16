@@ -55,7 +55,7 @@ public class GuardianServiceImpl implements GuardianService {
         UUID tenantId = TenantContext.getCurrentTenantId();
 
         // check for duplicate email
-        if (guardianRepository.existsByEmailAndTenantId(request.email(), tenantId)) {
+        if (request.email() != null && !request.email().isBlank() && guardianRepository.existsByEmailAndTenantId(request.email(), tenantId)) {
             throw new DuplicateResourceException(" Email already exists");
         }
         // Check for duplicate phone
@@ -67,17 +67,14 @@ public class GuardianServiceImpl implements GuardianService {
 
         UserResponse userResponse = authService.register(userRequest);
 
-        // Create Guardian record
-        Guardian guardian = Guardian.builder()
-                .tenantId(tenantId)
-                .userId(userResponse.id())
-                .firstName(request.firstName())
-                .lastName(request.lastName())
-                .phone(request.phone())
-                .email(request.email())
-                .relationshipType(request.relationshipType())
-                .isFeepayer(request.isFeePayer() != null ? request.isFeePayer() : true)
-                .build();
+        // Create Guardian record using mapper
+        Guardian guardian = guardianMapper.toEntity(request);
+        guardian.setTenantId(tenantId);
+        guardian.setUserId(userResponse.id());
+        
+        if (guardian.getIsFeepayer() == null) {
+            guardian.setIsFeepayer(true);
+        }
 
         guardian = guardianRepository.save(guardian);
         log.info("Guardian created");

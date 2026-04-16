@@ -48,6 +48,6 @@ Gemini.MD
 .gemini
 .junie
 .mvn
-API-alignments.md
-expected-api-structure.md
-MEMORY.md
+#API-alignments.md
+#expected-api-structure.md
+#MEMORY.md

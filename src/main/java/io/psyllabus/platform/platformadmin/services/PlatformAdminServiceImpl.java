@@ -174,8 +174,8 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
     }
 
     @Override
-    public SchoolSummaryResponse updateSchoolStatus(UUID schoolId, SchoolStatus status, UUID adminId) {
-        log.info("Platform admin {} updating school {} status to {}", adminId, schoolId, status);
+    public SchoolSummaryResponse updateSchoolStatus(UUID schoolId, SchoolStatus status, String reason, UUID adminId) {
+        log.info("Platform admin {} updating school {} status to {} with reason: '{}'", adminId, schoolId, status, reason);
         School school = schoolRepository.findByIdCrossTenant(schoolId)
                 .orElseThrow(() -> new ResourceNotFoundException("School not found: " + schoolId));
 
@@ -187,7 +187,7 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
                 AuditAction.UPDATE,
                 "SCHOOL",
                 schoolId,
-                String.format("School status changed from %s to %s by platform admin %s", previous, status, adminId)
+                String.format("School status changed from %s to %s by platform admin %s. Reason: %s", previous, status, adminId, reason)
         );
 
         return toSummaryResponse(school);

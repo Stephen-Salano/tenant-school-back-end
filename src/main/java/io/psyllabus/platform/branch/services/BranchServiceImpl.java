@@ -13,6 +13,7 @@ import io.psyllabus.platform.branch.dto.request.BranchCreateRequest;
 import io.psyllabus.platform.branch.dto.responses.BranchDetailResponse;
 import io.psyllabus.platform.branch.dto.responses.BranchResponse;
 import io.psyllabus.platform.branch.entities.Branch;
+import io.psyllabus.platform.branch.enums.BranchStatus;
 import io.psyllabus.platform.branch.repository.BranchRepository;
 import io.psyllabus.platform.branch.service.mapper.BranchMapper;
 import io.psyllabus.platform.common.constants.FeatureConstants;
@@ -92,7 +93,7 @@ public class BranchServiceImpl implements BranchService {
                 .code(request.code().toUpperCase())
                 .address(request.address())
                 .phone(request.phone())
-                .isActive(true)
+                .status(BranchStatus.ACTIVE)
                 .isMainBranch(false)
                 .build();
         branch = branchRepository.save(branch);
@@ -157,7 +158,7 @@ public class BranchServiceImpl implements BranchService {
         return branches.stream()
                 .map(b -> branchMapper.toResponse(b, adminNames.getOrDefault(b.getBranchAdminId(), 
                         b.getBranchAdminId() == null ? "Unassigned" : "Unknown Admin")))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -187,7 +188,7 @@ public class BranchServiceImpl implements BranchService {
             throw new ValidationException("The Main Campus cannot be deactivated.");
         }
 
-        branch.setActive(active);
+        branch.setStatus(active ? BranchStatus.ACTIVE : BranchStatus.INACTIVE);
         branchRepository.save(branch);
         
         auditService.log(AuditAction.UPDATE, "BRANCH", branchId, "Status updated to active=" + active);

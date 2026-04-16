@@ -86,21 +86,11 @@ public class StaffServiceImpl implements StaffService {
 
         UserResponse userResponse = authService.register(userRequest);
 
-        // Create Staff record
-        Staff staff = Staff.builder()
-                .tenantId(tenantId)
-                .userId(userResponse.id())
-                .employeeNumber(request.employeeNumber())
-                .firstName(request.firstName())
-                .lastName(request.lastName())
-                .email(request.email())
-                .phone(request.phone())
-                .subjectGroupId(request.subjectGroupId())
-                .hireDate(request.hireDate())
-                .qualification(request.qualification())
-                .specialization(request.specialization())
-                .employmentStatus(EmploymentStatus.ACTIVE)
-                .build();
+        // Create Staff record using mapper
+        Staff staff = staffMapper.toEntity(request);
+        staff.setTenantId(tenantId);
+        staff.setUserId(userResponse.id());
+        staff.setEmploymentStatus(EmploymentStatus.ACTIVE);
 
         staff = staffRepository.save(staff);
 
