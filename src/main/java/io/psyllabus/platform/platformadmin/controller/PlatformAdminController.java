@@ -12,6 +12,7 @@ import io.psyllabus.platform.platformadmin.dto.responses.PlatformKpiResponse;
 import io.psyllabus.platform.platformadmin.entities.PlatformAdmin;
 import io.psyllabus.platform.platformadmin.services.PlatformAdminService;
 import io.psyllabus.platform.school.dto.request.SchoolCreateRequest;
+import io.psyllabus.platform.school.dto.request.SchoolStatusUpdateRequest;
 import io.psyllabus.platform.school.dto.responses.SchoolOnboardResponse;
 import io.psyllabus.platform.school.dto.responses.SchoolSummaryResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -131,20 +132,17 @@ public class PlatformAdminController extends BaseController {
         return ok(platformAdminService.getImportJob(jobId), "Import job retrieved");
     }
 
-    /**
-     * Update a school's status (ACTIVE, SUSPENDED, DEACTIVATED).
-     */
     @PatchMapping("/schools/{schoolId}/status")
     @PreAuthorize("hasRole('PLATFORM_ADMIN')")
     @Operation(summary = "Update school status", description = "Transition school status (ACTIVE, SUSPENDED, DEACTIVATED)")
     public ResponseEntity<ApiResponse<SchoolSummaryResponse>> updateSchoolStatus(
             @PathVariable UUID schoolId,
-            @RequestParam io.psyllabus.platform.school.enums.SchoolStatus status,
+            @Valid @RequestBody SchoolStatusUpdateRequest request,
             Authentication authentication
     ) {
         UUID adminId = extractPlatformAdminId(authentication);
-        log.info("Update school status: schoolId={}, status={}, adminId={}", schoolId, status, adminId);
-        return ok(platformAdminService.updateSchoolStatus(schoolId, status, adminId), "School status updated");
+        log.info("Update school status: schoolId={}, status={}, reason='{}', adminId={}", schoolId, request.status(), request.reason(), adminId);
+        return ok(platformAdminService.updateSchoolStatus(schoolId, request.status(), request.reason(), adminId), "School status updated");
     }
 
     /**

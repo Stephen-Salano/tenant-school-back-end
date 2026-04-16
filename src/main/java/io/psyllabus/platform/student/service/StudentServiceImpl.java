@@ -73,20 +73,11 @@ public class StudentServiceImpl implements StudentService {
 
         UserResponse userResponse = authService.register(userRequest);
 
-        // Create Student record
-        Student student = Student.builder()
-                .tenantId(tenantId)
-                .userId(userResponse.id())
-                .admissionNumber(request.admissionNumber())
-                .firstName(request.firstName())
-                .lastName(request.lastName())
-                .dateOfBirth(request.dateOfBirth())
-                .gender(request.gender())
-                .currentClassId(request.classId())
-                .admissionDate(LocalDate.now())
-                .currentStatus(request.status())
-                .medicalConditions(request.medicalConditions())
-                .build();
+        // Create Student record using mapper
+        Student student = studentMapper.toEntity(request);
+        student.setTenantId(tenantId);
+        student.setUserId(userResponse.id());
+        student.setAdmissionDate(LocalDate.now());
 
         student = studentRepository.save(student);
 
