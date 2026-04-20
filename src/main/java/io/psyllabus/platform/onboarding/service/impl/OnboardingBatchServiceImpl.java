@@ -17,6 +17,7 @@ import io.psyllabus.platform.common.annotation.SystemProcess;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
 import io.psyllabus.platform.common.service.IdentifierService;
 import io.psyllabus.platform.guardian.dto.request.GuardianCreateRequest;
+import io.psyllabus.platform.guardian.dto.responses.GuardianResponse;
 import io.psyllabus.platform.guardian.entities.Guardian;
 import io.psyllabus.platform.guardian.enums.RelationshipType;
 import io.psyllabus.platform.guardian.repository.GuardianRepository;
@@ -24,8 +25,10 @@ import io.psyllabus.platform.guardian.repository.StudentGuardianRepository;
 import io.psyllabus.platform.guardian.services.GuardianService;
 import io.psyllabus.platform.onboarding.dto.ImportErrorDetail;
 import io.psyllabus.platform.onboarding.dto.ImportRowOutcome;
+import io.psyllabus.platform.onboarding.entity.ImportBatchOutcome;
 import io.psyllabus.platform.onboarding.entity.ImportJob;
 import io.psyllabus.platform.onboarding.event.ImportJobFinalizedEvent;
+import io.psyllabus.platform.onboarding.repository.ImportBatchOutcomeRepository;
 import io.psyllabus.platform.onboarding.repository.ImportJobRepository;
 import io.psyllabus.platform.onboarding.service.OnboardingBatchService;
 import io.psyllabus.platform.staff.dto.request.StaffCreateRequest;
@@ -64,6 +67,7 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
     public static final String LAST_NAME = "last_name";
     public static final String FIRST_NAME = "first_name";
     public static final String EMAIL = "email";
+    public static final String FAILED = "FAILED";
 
     // Add this field to call the proxy methods
     @Autowired
@@ -124,7 +128,7 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
                 String fallbackId = normalize(row.get("employee_number"));
                 if (fallbackId.isBlank()) fallbackId = normalize(row.get(EMAIL));
                 if (fallbackId.isBlank()) fallbackId = "Row " + rowNumber;
-                outcomes.add(new ImportRowOutcome(rowNumber, "FAILED", fallbackId, error.issue()));
+                outcomes.add(new ImportRowOutcome(rowNumber, FAILED, fallbackId, error.issue()));
             }
         }
 
@@ -164,7 +168,7 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
                     fallbackId = (firstName + " " + lastName).strip();
                 }
                 if (fallbackId.isBlank()) fallbackId = "Row " + rowNumber;
-                outcomes.add(new ImportRowOutcome(rowNumber, "FAILED", fallbackId, error.issue()));
+                outcomes.add(new ImportRowOutcome(rowNumber, FAILED, fallbackId, error.issue()));
             }
         }
         extracted(jobId, successes, errors, job, outcomes);
@@ -177,19 +181,36 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
         return new BatchResult(successes, errors, outcomes);
     }
 
+    private final ImportBatchOutcomeRepository outcomeRepository;
+
     private void extracted(UUID jobId, int successes, List<ImportErrorDetail> errors, ImportJob job, List<ImportRowOutcome> outcomes) {
         importJobRepository.incrementCounters(jobId, successes + errors.size(), successes, errors.size());
 
-        // Only update JSONB fields in entity
-        if (job.getErrorDetails() == null) job.setErrorDetails(new ArrayList<>());
-        job.getErrorDetails().addAll(errors);
+        List<ImportBatchOutcome> batchOutcomes = new ArrayList<>();
 
-        if (job.getRowOutcomes() == null) job.setRowOutcomes(new ArrayList<>());
-        job.getRowOutcomes().addAll(outcomes);
+        for (ImportErrorDetail error : errors) {
+            batchOutcomes.add(ImportBatchOutcome.builder()
+                    .jobId(jobId)
+                    .rowNumber(error.row())
+                    .status(FAILED)
+                    .identifier(null) // Should be mapped from context if needed
+                    .message(error.issue())
+                    .rawValue(error.rawValue())
+                    .build());
+        }
 
-        importJobRepository.save(job);
+        for (ImportRowOutcome outcome : outcomes) {
+            batchOutcomes.add(ImportBatchOutcome.builder()
+                    .jobId(jobId)
+                    .rowNumber(outcome.row())
+                    .status(outcome.status())
+                    .identifier(outcome.finalIdentifier())
+                    .message(outcome.message())
+                    .build());
+        }
+
+        outcomeRepository.saveAll(batchOutcomes);
     }
-
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ImportJob finalizeJob(UUID jobId, UUID tenantId) {
@@ -214,9 +235,9 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
         ImportJob job = findJob(jobId, tenantId);
         job.fail(reason);
         importJobRepository.save(job);
-        
+
         eventPublisher.publishEvent(new ImportJobFinalizedEvent(this, job));
-        
+
         auditService.log(AuditAction.BULK_IMPORT, IMPORT_JOB_LITERAL, jobId, "Job failed: " + reason);
         return job;
     }
@@ -376,7 +397,7 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
             return existingByPhone.get();
         }
 
-        guardianService.createGuardian(new GuardianCreateRequest(
+        GuardianResponse created = guardianService.createGuardian(new GuardianCreateRequest(
                 firstName,
                 lastName,
                 normalizedPhone,
@@ -385,12 +406,8 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
                 true
         ));
 
-        if (normalizedEmail != null) {
-            return guardianRepository.findByEmailAndTenantId(normalizedEmail, tenantId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Guardian was created but could not be reloaded by email."));
-        }
-        return guardianRepository.findByPhoneAndTenantId(normalizedPhone, tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Guardian was created but could not be reloaded by phone."));
+        return guardianRepository.findByIdAndTenantId(created.id(), tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Guardian created but not found."));
     }
 
     private void linkGuardianToStudent(UUID studentId, Guardian guardian, UUID tenantId) {
