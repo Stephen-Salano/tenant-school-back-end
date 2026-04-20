@@ -57,6 +57,22 @@ public interface ImportJobRepository extends JpaRepository<ImportJob, UUID> {
             Pageable pageable
     );
 
+    /** Atomic counter update to prevent race conditions during batch processing. */
+    @Modifying
+    @Query("""
+            UPDATE ImportJob j SET 
+                j.processedRows = j.processedRows + :count, 
+                j.successRows = j.successRows + :successes, 
+                j.errorRows = j.errorRows + :errors 
+            WHERE j.id = :jobId
+           """)
+    void incrementCounters(
+            @Param("jobId") UUID jobId, 
+            @Param("count") int count, 
+            @Param("successes") int successes, 
+            @Param("errors") int errors
+    );
+
     /** Bulk-null rawData for completed jobs older than N hours — run via @Scheduled cleaner. */
     @Modifying
     @Query(value = """

@@ -40,7 +40,7 @@ public class AuditserviceImpl implements AuditService {
                 .action(action)
                 .entityType(entityType)
                 .entityId(entityId)
-                .details(details)
+                .details(details != null ? details : "N/A")
                 .build();
 
         auditLogRepository.save(auditLog);

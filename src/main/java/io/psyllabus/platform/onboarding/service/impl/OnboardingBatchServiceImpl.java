@@ -128,8 +128,7 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
             }
         }
 
-        job.recordBatchResult(successes, errors, outcomes);
-        importJobRepository.save(job);
+        extracted(jobId, successes, errors, job, outcomes);
         auditService.log(
                 AuditAction.BULK_IMPORT,
                 IMPORT_JOB_LITERAL,
@@ -168,9 +167,7 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
                 outcomes.add(new ImportRowOutcome(rowNumber, "FAILED", fallbackId, error.issue()));
             }
         }
-
-        job.recordBatchResult(successes, errors, outcomes);
-        importJobRepository.save(job);
+        extracted(jobId, successes, errors, job, outcomes);
         auditService.log(
                 AuditAction.BULK_IMPORT,
                 IMPORT_JOB_LITERAL,
@@ -180,15 +177,28 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
         return new BatchResult(successes, errors, outcomes);
     }
 
+    private void extracted(UUID jobId, int successes, List<ImportErrorDetail> errors, ImportJob job, List<ImportRowOutcome> outcomes) {
+        importJobRepository.incrementCounters(jobId, successes + errors.size(), successes, errors.size());
+
+        // Only update JSONB fields in entity
+        if (job.getErrorDetails() == null) job.setErrorDetails(new ArrayList<>());
+        job.getErrorDetails().addAll(errors);
+
+        if (job.getRowOutcomes() == null) job.setRowOutcomes(new ArrayList<>());
+        job.getRowOutcomes().addAll(outcomes);
+
+        importJobRepository.save(job);
+    }
+
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ImportJob finalizeJob(UUID jobId, UUID tenantId) {
         ImportJob job = findJob(jobId, tenantId);
         job.complete();
         importJobRepository.save(job);
-        
+
         eventPublisher.publishEvent(new ImportJobFinalizedEvent(this, job));
-        
+
         auditService.log(
                 AuditAction.BULK_IMPORT,
                 IMPORT_JOB_LITERAL,
