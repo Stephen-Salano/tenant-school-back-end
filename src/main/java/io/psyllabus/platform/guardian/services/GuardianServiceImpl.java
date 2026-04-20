@@ -88,18 +88,15 @@ public class GuardianServiceImpl implements GuardianService {
 
         return guardianMapper.toResponse(guardian);
     }
-
-
     private @NonNull RegisterRequest getRegisterRequest(GuardianCreateRequest request) {
+        UUID tenantId = TenantContext.getCurrentTenantId();
         boolean hasEmail = request.email() != null && !request.email().isBlank();
 
-        // Use email as username if available; otherwise, use phone with a prefix
-        // Prefixing helps avoid collisions and clearly identifies the source
-        String username = hasEmail ? request.email() : "G-" + request.phone();
+        // Use email as username if available; otherwise, use phone with tenantId prefix to guarantee uniqueness
+        String username = hasEmail ? request.email() : ("G-" + tenantId + "-" + request.phone());
 
-        // Auth services often have NOT NULL constraints on email.
-        // If no email exists, provide a consistent internal placeholder.
-        String userEmail = hasEmail ? request.email() : (request.phone() + "@noemail.psyllabus.internal");
+        // Use email if available; otherwise, provide a tenant-namespaced placeholder email
+        String userEmail = hasEmail ? request.email() : (tenantId + "+" + request.phone() + "@noemail.psyllabus.internal");
 
         return new RegisterRequest(
                 username,
