@@ -36,6 +36,7 @@
 	</properties>
 
 	<repositories>
+		<!-- Required for Africa's Talking Java SDK (com.github.AfricasTalkingLtd.africastalking-java) -->
 		<repository>
 			<id>jitpack.io</id>
 			<url>https://jitpack.io</url>
