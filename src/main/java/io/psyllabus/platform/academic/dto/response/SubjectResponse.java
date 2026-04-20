@@ -1,5 +1,7 @@
 package io.psyllabus.platform.academic.dto.response;
 
+import io.psyllabus.platform.academic.enums.AcademicStatus;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -16,7 +18,7 @@ public record SubjectResponse(
     String subjectCategoryName,
     Integer maxScore,
     Integer passMark,
-    boolean isActive,
+    AcademicStatus status,
     LocalDateTime createdAt,
     LocalDateTime updatedAt
 ) {}
