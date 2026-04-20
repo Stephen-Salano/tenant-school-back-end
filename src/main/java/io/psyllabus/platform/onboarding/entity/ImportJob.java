@@ -36,6 +36,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
+@org.hibernate.annotations.DynamicUpdate
 public class ImportJob extends Auditable {
 
     @Id

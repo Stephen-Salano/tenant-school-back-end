@@ -243,7 +243,22 @@ public class OnboardingServiceImpl implements OnboardingService {
         }
 
         job.setStatus(ImportJobStatus.QUEUED);
-        job.getErrorDetails().removeIf(error -> error.row() == 0);
+        job.setProcessedRows(0);
+        job.setSuccessRows(0);
+        job.setErrorRows(0);
+        
+        if (job.getErrorDetails() != null) {
+            job.getErrorDetails().clear();
+        } else {
+            job.setErrorDetails(new ArrayList<>());
+        }
+
+        if (job.getRowOutcomes() != null) {
+            job.getRowOutcomes().clear();
+        } else {
+            job.setRowOutcomes(new ArrayList<>());
+        }
+
         job.setCompletedAt(null);
         importJobRepository.save(job);
 
