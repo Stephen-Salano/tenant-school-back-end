@@ -60,7 +60,7 @@ public class StudentServiceImpl implements StudentService {
     @Override
     @CacheEvict(value = "userClaims", key = "#result.userId")
     public StudentResponse enrollStudent(StudentCreateRequest request) {
-        log.info("Enrolling student: {}", request.admissionNumber());
+        log.info("Enrolling student" );
 
         UUID tenantId = TenantContext.getCurrentTenantId();
 
