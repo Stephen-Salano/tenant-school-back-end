@@ -87,6 +87,13 @@ public class ImportJob extends Auditable {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    @PostLoad
+    public void ensureCollectionsInitialized() {
+        if (this.errorDetails == null) this.errorDetails = new ArrayList<>();
+        if (this.rowOutcomes == null) this.rowOutcomes = new ArrayList<>();
+        if (this.rawData == null) this.rawData = new ArrayList<>();
+    }
+
     // ── Factory ──────────────────────────────────────────────────────────────
 
     /**

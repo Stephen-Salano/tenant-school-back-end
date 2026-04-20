@@ -5,6 +5,7 @@ import io.psyllabus.platform.audit.service.AuditService;
 import io.psyllabus.platform.auth.enums.UserStatus;
 import io.psyllabus.platform.common.exception.DuplicateResourceException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
+import io.psyllabus.platform.common.exception.ValidationException;
 import io.psyllabus.platform.onboarding.entity.ImportJob;
 import io.psyllabus.platform.onboarding.enums.ImportJobStatus;
 import io.psyllabus.platform.onboarding.enums.ImportJobType;
@@ -180,6 +181,9 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
                 .orElseThrow(() -> new ResourceNotFoundException("School not found: " + schoolId));
 
         SchoolStatus previous = school.getStatus();
+        if (previous == SchoolStatus.DEACTIVATED && status == SchoolStatus.ACTIVE) {
+            throw new ValidationException("A DEACTIVATED school cannot be directly reactivated. Create a new school instead.");
+        }
         school.setStatus(status);
         school = schoolRepository.save(school);
 
