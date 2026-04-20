@@ -366,6 +366,10 @@ public class OnboardingServiceImpl implements OnboardingService {
     private String sanitizeCsvCell(String value) {
         if (value == null) return "";
         String trimmed = value.strip();
+        // If the value is purely numeric, don't escape it even if it starts with a dash
+        if (trimmed.matches("-?\\d+")) {
+            return trimmed;
+        }
         if (trimmed.startsWith("=") || trimmed.startsWith("+")
                 || trimmed.startsWith("-") || trimmed.startsWith("@")) {
             return "'" + trimmed; // prefix with apostrophe — standard defense
