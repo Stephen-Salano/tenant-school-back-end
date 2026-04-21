@@ -132,11 +132,29 @@ public class ImportJob extends Auditable {
         this.errorRows += batchErrors.size();
         this.processedRows += batchSuccesses + batchErrors.size(); // key line: checkpoint
 
-        if (this.errorDetails == null) this.errorDetails = new ArrayList<>();
-        this.errorDetails.addAll(batchErrors);
+        appendOutcomes(batchErrors, batchOutcomes);
+    }
 
-        if (this.rowOutcomes == null) this.rowOutcomes = new ArrayList<>();
-        this.rowOutcomes.addAll(batchOutcomes);
+    /**
+     * Append only the outcomes and errors without touching numeric counters.
+     * Used by async listeners that update counters atomically via repository but still
+     * need to populate JSONB detail columns for reporting.
+     *
+     * <p>Reassigns the lists to new instances to ensure Hibernate's reference-equality
+     * based dirty checking detects the change for @DynamicUpdate.</p>
+     */
+    public void appendOutcomes(List<ImportErrorDetail> batchErrors, List<ImportRowOutcome> batchOutcomes) {
+        if (batchErrors != null && !batchErrors.isEmpty()) {
+            List<ImportErrorDetail> newErrors = new ArrayList<>(this.errorDetails != null ? this.errorDetails : new ArrayList<>());
+            newErrors.addAll(batchErrors);
+            this.errorDetails = newErrors;
+        }
+
+        if (batchOutcomes != null && !batchOutcomes.isEmpty()) {
+            List<ImportRowOutcome> newOutcomes = new ArrayList<>(this.rowOutcomes != null ? this.rowOutcomes : new ArrayList<>());
+            newOutcomes.addAll(batchOutcomes);
+            this.rowOutcomes = newOutcomes;
+        }
     }
 
     /** Transition to a terminal status and stamp completion time. */
