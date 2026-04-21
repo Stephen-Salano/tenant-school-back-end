@@ -186,6 +186,10 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
     private void extracted(UUID jobId, int successes, List<ImportErrorDetail> errors, ImportJob job, List<ImportRowOutcome> outcomes) {
         importJobRepository.incrementCounters(jobId, successes + errors.size(), successes, errors.size());
 
+        // Also append to the ImportJob entity itself for the completion report (which still reads from JSONB)
+        job.appendOutcomes(errors, outcomes);
+        importJobRepository.save(job);
+
         List<ImportBatchOutcome> batchOutcomes = new ArrayList<>();
 
         for (ImportErrorDetail error : errors) {
@@ -394,7 +398,17 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
 
         Optional<Guardian> existingByPhone = guardianRepository.findByPhoneAndTenantId(normalizedPhone, tenantId);
         if (existingByPhone.isPresent()) {
-            return existingByPhone.get();
+            Guardian g = existingByPhone.get();
+            // Critical check: system enforces unique phones, but we must not silently link 
+            // the same phone to a different person with a different name.
+            if (!g.getFirstName().equalsIgnoreCase(normalize(firstName)) || 
+                !g.getLastName().equalsIgnoreCase(normalize(lastName))) {
+                throw new io.psyllabus.platform.common.exception.ValidationException(
+                    String.format("Phone number %s is already registered to another person (%s %s)", 
+                        normalizedPhone, g.getFirstName(), g.getLastName())
+                );
+            }
+            return g;
         }
 
         GuardianResponse created = guardianService.createGuardian(new GuardianCreateRequest(
@@ -406,6 +420,7 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
                 true
         ));
 
+        // Refetch by ID (L1 cache usually hits here)
         return guardianRepository.findByIdAndTenantId(created.id(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Guardian created but not found."));
     }

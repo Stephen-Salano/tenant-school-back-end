@@ -4,6 +4,7 @@ import io.psyllabus.platform.auth.enums.UserType;
 import io.psyllabus.platform.auth.repository.UserRepository;
 import io.psyllabus.platform.common.filter.JwtAuthFilter;
 import io.psyllabus.platform.common.filter.PlatformKeyFilter;
+import io.psyllabus.platform.common.filter.SuspensionFilter;
 import io.psyllabus.platform.common.util.TenantContext;
 import io.psyllabus.platform.platformadmin.common.filter.PlatformAdminAuthFilter;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,7 @@ public class SecurityConfig {
     private final CorsConfigurationSource corsConfigurationSource;
     private final PlatformKeyFilter platformKeyFilter;
     private final PlatformAdminAuthFilter platformAdminAuthFilter;
+    private final SuspensionFilter suspensionFilter;
     /**
      * Public endpoints — no JWT required.
      *
@@ -130,7 +132,8 @@ public class SecurityConfig {
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(platformKeyFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(platformAdminAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(suspensionFilter, JwtAuthFilter.class);
 
         return http.build();
     }
