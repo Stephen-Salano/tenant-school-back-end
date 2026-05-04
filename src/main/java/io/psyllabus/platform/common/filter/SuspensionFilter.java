@@ -26,24 +26,27 @@ public class SuspensionFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain)
             throws ServletException, IOException {
-        
+
         UUID tenantId = TenantContext.getCurrentTenantId();
         if (tenantId != null) {
-            schoolRepository.findById(tenantId).ifPresent(school -> {
-                if (school.getStatus() == SchoolStatus.SUSPENDED) {
-                    log.warn("Access denied: School {} is suspended", tenantId);
+            schoolRepository.findByIdCrossTenant(tenantId).ifPresent(school -> {
+                if (school.getStatus() == SchoolStatus.SUSPENDED || school.getStatus() == SchoolStatus.DEACTIVATED) {
+                    log.warn("Access denied: School {} is {}", tenantId, school.getStatus());
                     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("text/plain;charset=UTF-8");
                     try {
-                        response.getWriter().write("School is suspended. Please contact support.");
+                        response.getWriter().write("School access is currently unavailable. Please contact support.");
                     } catch (IOException e) {
-                        log.error("Failed to write suspension response", e);
+                        log.error("Failed to write school status response", e);
                     }
                 }
             });
+
+            if (response.isCommitted() || response.getStatus() == HttpServletResponse.SC_FORBIDDEN) {
+                return;
+            }
         }
-        
-        if (!response.isCommitted()) {
-            filterChain.doFilter(request, response);
-        }
+
+        filterChain.doFilter(request, response);
     }
 }
