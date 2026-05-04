@@ -27,4 +27,20 @@ public final class RabbitMQConstants {
     public static final String STAFF_IMPORT_QUEUE = "psyllabus.onboarding.staff-import";
     public static final String STAFF_IMPORT_DLQ = "psyllabus.onboarding.staff-import.dlq";
     public static final String STAFF_IMPORT_ROUTING_KEY = "onboarding.staff";
+
+    // ── Assignments exchange (Direct) ─────────────────────────────────────
+    public static final String ASSIGNMENT_EXCHANGE = "psyllabus.assignments";
+    public static final String ASSIGNMENT_DLX = "psyllabus.assignments.dlx";
+
+    public static final String ASSIGNMENT_PUBLISHED_QUEUE = "psyllabus.assignments.published";
+    public static final String ASSIGNMENT_PUBLISHED_DLQ = "psyllabus.assignments.published.dlq";
+    public static final String ASSIGNMENT_PUBLISHED_KEY = "assignment.published";
+
+    public static final String SUBMISSION_RECEIVED_QUEUE = "psyllabus.assignments.submission.received";
+    public static final String SUBMISSION_RECEIVED_DLQ = "psyllabus.assignments.submission.received.dlq";
+    public static final String SUBMISSION_RECEIVED_KEY = "assignment.submission.received";
+
+    public static final String SUBMISSION_GRADED_QUEUE = "psyllabus.assignments.submission.graded";
+    public static final String SUBMISSION_GRADED_DLQ = "psyllabus.assignments.submission.graded.dlq";
+    public static final String SUBMISSION_GRADED_KEY = "assignment.submission.graded";
 }
