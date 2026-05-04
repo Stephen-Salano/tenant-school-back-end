@@ -44,30 +44,32 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     public void enrollStudent(UUID classId, UUID studentId) {
         UUID tenantId = TenantContext.getCurrentTenantId();
 
-        // 1. Verify existence and tenant ownership
         Student student = studentRepository.findByIdAndTenantId(studentId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found: " + studentId));
 
         SchoolClass schoolClass = classRepository.findByIdAndTenantId(classId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Class not found: " + classId));
 
-        // 2. Check if already enrolled
-        if (enrollmentRepository.existsByStudentIdAndClassIdAndTenantId(studentId, classId, tenantId)) {
+        if (enrollmentRepository.existsByStudentIdAndClassIdAndTenantIdAndIsActiveTrue(studentId, classId, tenantId)) {
             throw new DuplicateResourceException("Student is already enrolled in this class");
         }
 
-        // 3. Create enrollment
-        StudentClassEnrollment enrollment = StudentClassEnrollment.builder()
-                .tenantId(tenantId)
-                .studentId(studentId)
-                .classId(classId)
-                .academicYearId(schoolClass.getAcademicYearId())
-                .isActive(true)
-                .build();
+        StudentClassEnrollment enrollment = enrollmentRepository.findByStudentIdAndClassIdAndTenantId(studentId, classId, tenantId)
+                .map(existing -> {
+                    existing.setAcademicYearId(schoolClass.getAcademicYearId());
+                    existing.setActive(true);
+                    return existing;
+                })
+                .orElseGet(() -> StudentClassEnrollment.builder()
+                        .tenantId(tenantId)
+                        .studentId(studentId)
+                        .classId(classId)
+                        .academicYearId(schoolClass.getAcademicYearId())
+                        .isActive(true)
+                        .build());
 
         enrollmentRepository.save(enrollment);
 
-        // 4. Synchronize student.currentClassId for convenience
         student.setCurrentClassId(classId);
         studentRepository.save(student);
 
@@ -105,33 +107,11 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     public PageResponse<StudentResponse> listEnrolledStudents(UUID classId, Pageable pageable) {
         UUID tenantId = TenantContext.getCurrentTenantId();
 
-        // Check if class exists
-        if (!classRepository.existsById(classId)) {
-            throw new ResourceNotFoundException("Class not found");
-        }
+        classRepository.findByIdAndTenantId(classId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Class not found"));
 
-        List<UUID> studentIds = enrollmentRepository.findAllByClassIdAndTenantIdAndIsActiveTrue(classId, tenantId)
-                .stream()
-                .map(StudentClassEnrollment::getStudentId)
-                .toList();
-
-        // Note: this approach loses pagination on the join if not careful.
-        // For Phase 0 MVP, we return the full list if pageable is default, 
-        // or we need a proper query in studentRepository.
-        
-        // Better: Query studentRepository directly
-        Page<Student> studentPage = studentRepository.findByTenantId(tenantId, pageable); // This is NOT filtered by class
-        
-        // Correct way for Phase 0:
-        List<Student> students = studentRepository.findAllByCurrentClassIdAndTenantId(classId, tenantId);
-        // Map to response
-        List<StudentResponse> responses = students.stream().map(studentMapper::toResponse).toList();
-        
-        // Re-wrap in PageResponse (even if single page for now)
-        return new PageResponse<>(
-                responses,
-                0, responses.size(), responses.size(), 1, true
-        );
+        Page<Student> studentPage = studentRepository.findAllEnrolledByClassIdAndTenantId(classId, tenantId, pageable);
+        return PageResponse.from(studentPage.map(studentMapper::toResponse));
     }
 
     @Override
@@ -145,7 +125,9 @@ public class EnrollmentServiceImpl implements EnrollmentService {
                 .map(StudentClassEnrollment::getClassId)
                 .toList();
 
-        List<SchoolClass> classes = classRepository.findAllById(classIds); // Basic fetch
+        List<SchoolClass> classes = classIds.isEmpty()
+                ? List.of()
+                : classRepository.findAllByIdInAndTenantId(classIds, tenantId);
 
         return new PageResponse<>(
                 classes.stream().map(classMapper::toResponse).toList(),

@@ -194,7 +194,7 @@ public class ClassServiceImpl implements ClassService {
         SchoolClass sc = schoolClassRepository.findByIdAndTenantId(classId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException(CLASS_NOT_FOUND + classId));
 
-        int enrolled = (int) studentRepository.countByCurrentClassIdAndTenantIdAndStatus(classId, tenantId, StudentStatus.ACTIVE);
+        int enrolled = (int) studentRepository.countByCurrentClassIdAndTenantIdAndCurrentStatus(classId, tenantId, StudentStatus.ACTIVE);
         int available = sc.getMaxCapacity() != null ? Math.max(0, sc.getMaxCapacity() - enrolled) : 0;
 
         // Fetch class teacher if any
@@ -224,7 +224,7 @@ public class ClassServiceImpl implements ClassService {
         SchoolClass sc = schoolClassRepository.findByIdAndTenantId(classId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException(CLASS_NOT_FOUND + classId));
 
-        int enrolled = (int) studentRepository.countByCurrentClassIdAndTenantIdAndStatus(classId, tenantId, StudentStatus.ACTIVE);
+        int enrolled = (int) studentRepository.countByCurrentClassIdAndTenantIdAndCurrentStatus(classId, tenantId, StudentStatus.ACTIVE);
         int available = sc.getMaxCapacity() != null ? Math.max(0, sc.getMaxCapacity() - enrolled) : 0;
 
         return new ClassEnrollmentStatsResponse(classId, sc.getName(), enrolled, sc.getMaxCapacity(), available);

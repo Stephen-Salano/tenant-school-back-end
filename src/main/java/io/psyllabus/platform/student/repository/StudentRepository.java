@@ -30,6 +30,18 @@ public interface StudentRepository extends JpaRepository<Student, UUID> {
     List<Student> findAllByIdInAndTenantId(List<UUID> ids, UUID tenantId);
     List<Student> findAllByCurrentClassIdAndTenantId(UUID currentClassId, UUID tenantId);
 
+    @Query("""
+        SELECT s
+        FROM Student s
+        JOIN StudentClassEnrollment e
+          ON e.studentId = s.id
+         AND e.tenantId = s.tenantId
+        WHERE e.classId = :classId
+          AND e.tenantId = :tenantId
+          AND e.isActive = true
+    """)
+    Page<Student> findAllEnrolledByClassIdAndTenantId(@Param("classId") UUID classId, @Param("tenantId") UUID tenantId, Pageable pageable);
+
     Optional<Student> findByAdmissionNumberAndTenantId(String admissionNumber, UUID tenantId);
 
     boolean existsByAdmissionNumberAndTenantId(String admissionNumber, UUID tenantId);
@@ -47,5 +59,5 @@ public interface StudentRepository extends JpaRepository<Student, UUID> {
      * @param status the student status (usually ACTIVE)
      * @return number of students whose currentClassId and status matches
      */
-    long countByCurrentClassIdAndTenantIdAndStatus(UUID currentClassId, UUID tenantId, io.psyllabus.platform.student.enums.StudentStatus status);
+    long countByCurrentClassIdAndTenantIdAndCurrentStatus(UUID currentClassId, UUID tenantId, io.psyllabus.platform.student.enums.StudentStatus status);
 }
