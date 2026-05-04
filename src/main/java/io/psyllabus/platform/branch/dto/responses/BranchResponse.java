@@ -1,5 +1,7 @@
 package io.psyllabus.platform.branch.dto.responses;
 
+import io.psyllabus.platform.branch.enums.BranchStatus;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -15,7 +17,7 @@ public record BranchResponse(
     UUID branchAdminId,
     String branchAdminName,
     boolean isMainBranch,
-    boolean isActive,
+    BranchStatus status,
     LocalDateTime createdAt
 ) {
 }

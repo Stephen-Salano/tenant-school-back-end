@@ -6,11 +6,15 @@ import io.psyllabus.platform.academic.dto.response.ClassEnrollmentStatsResponse;
 import io.psyllabus.platform.academic.dto.response.ClassResponse;
 import io.psyllabus.platform.academic.entities.SchoolClass;
 import io.psyllabus.platform.academic.entities.TeacherAssignment;
+import io.psyllabus.platform.academic.enums.AcademicStatus;
 import io.psyllabus.platform.academic.enums.AssignmentStatus;
 import io.psyllabus.platform.academic.repository.AcademicYearRepository;
 import io.psyllabus.platform.academic.repository.SchoolClassRepository;
 import io.psyllabus.platform.academic.repository.TeacherAssignmentRepository;
 import io.psyllabus.platform.academic.service.ClassService;
+import io.psyllabus.platform.academic.service.mapper.ClassMapper;
+import io.psyllabus.platform.audit.enums.AuditAction;
+import io.psyllabus.platform.audit.service.AuditService;
 import io.psyllabus.platform.common.dto.PageResponse;
 import io.psyllabus.platform.common.exception.DuplicateResourceException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
@@ -67,6 +71,8 @@ public class ClassServiceImpl implements ClassService {
     private final StudentRepository studentRepository;
     private final AcademicYearRepository academicYearRepository;
     private final StaffRepository staffRepository;
+    private final ClassMapper classMapper;
+    private final AuditService auditService;
 
     // ── Create ────────────────────────────────────────────────────────────────
 
@@ -111,13 +117,15 @@ public class ClassServiceImpl implements ClassService {
                 .academicYearId(request.academicYearId())
                 .branchId(request.branchId())
                 .maxCapacity(request.maxCapacity())
-                .isActive(true)
+                .status(AcademicStatus.ACTIVE)
                 .build();
 
         SchoolClass saved = schoolClassRepository.save(schoolClass);
         log.info("Class created: id={} name={} stream={} tenant={}", saved.getId(), saved.getName(), saved.getStreamName(), tenantId);
 
-        return mapToResponse(saved);
+        auditService.log(AuditAction.ACADEMIC_SETUP, "CLASS", saved.getId(), "Created class: " + saved.getName());
+
+        return classMapper.toResponse(saved);
     }
 
     // ── Class Teacher Assignment ───────────────────────────────────────────────
@@ -163,6 +171,8 @@ public class ClassServiceImpl implements ClassService {
 
         teacherAssignmentRepository.saveAll(toSave);
         log.info("Class teacher assigned: staffId={} classId={} assignmentId={} tenant={}", staffId, classId, target.getId(), tenantId);
+
+        auditService.log(AuditAction.ACADEMIC_SETUP, "CLASS", classId, "Assigned class teacher: " + staffId);
     }
 
     // ── Read ──────────────────────────────────────────────────────────────────
@@ -173,7 +183,7 @@ public class ClassServiceImpl implements ClassService {
         UUID tenantId = TenantContext.getCurrentTenantId();
         return PageResponse.from(
                 schoolClassRepository.findAllByAcademicYearIdAndTenantId(yearId, tenantId, pageable)
-                        .map(this::mapToResponse)
+                        .map(classMapper::toResponse)
         );
     }
 
@@ -231,21 +241,6 @@ public class ClassServiceImpl implements ClassService {
 
     // ── Mappers ───────────────────────────────────────────────────────────────
 
-    private ClassResponse mapToResponse(SchoolClass sc) {
-        return new ClassResponse(
-                sc.getId(),
-                sc.getName(),
-                sc.getGradeLevel(),
-                sc.getStreamName(),
-                sc.getAcademicYearId(),
-                sc.getBranchId(),
-                sc.getMaxCapacity(),
-                sc.isActive(),
-                sc.getCreatedAt(),
-                sc.getUpdatedAt()
-        );
-    }
-
     private ClassDetailResponse mapToDetailResponse(SchoolClass sc, int enrolled, int available, UUID teacherId, String teacherName) {
         return new ClassDetailResponse(
                 sc.getId(),
@@ -255,7 +250,7 @@ public class ClassServiceImpl implements ClassService {
                 sc.getAcademicYearId(),
                 sc.getBranchId(),
                 sc.getMaxCapacity(),
-                sc.isActive(),
+                sc.getStatus(),
                 enrolled,
                 available,
                 teacherId,

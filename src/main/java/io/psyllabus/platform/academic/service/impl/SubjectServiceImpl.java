@@ -3,10 +3,14 @@ package io.psyllabus.platform.academic.service.impl;
 import io.psyllabus.platform.academic.dto.request.SubjectCreateRequest;
 import io.psyllabus.platform.academic.dto.response.SubjectResponse;
 import io.psyllabus.platform.academic.entities.Subject;
+import io.psyllabus.platform.academic.enums.AcademicStatus;
 import io.psyllabus.platform.academic.repository.SubjectCategoryRepository;
 import io.psyllabus.platform.academic.repository.SubjectGroupRepository;
 import io.psyllabus.platform.academic.repository.SubjectRepository;
 import io.psyllabus.platform.academic.service.SubjectService;
+import io.psyllabus.platform.academic.service.mapper.SubjectMapper;
+import io.psyllabus.platform.audit.enums.AuditAction;
+import io.psyllabus.platform.audit.service.AuditService;
 import io.psyllabus.platform.common.dto.PageResponse;
 import io.psyllabus.platform.common.exception.DuplicateResourceException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
@@ -31,6 +35,8 @@ public class SubjectServiceImpl implements SubjectService {
     private final SubjectRepository subjectRepository;
     private final SubjectGroupRepository subjectGroupRepository;
     private final SubjectCategoryRepository subjectCategoryRepository;
+    private final SubjectMapper subjectMapper;
+    private final AuditService auditService;
 
     @Override
     public SubjectResponse createSubject(SubjectCreateRequest request) {
@@ -62,13 +68,15 @@ public class SubjectServiceImpl implements SubjectService {
                 .subjectCategoryId(request.subjectCategoryId())
                 .maxScore(request.maxScore())
                 .passMark(request.passMark())
-                .isActive(true)
+                .status(AcademicStatus.ACTIVE)
                 .build();
 
         Subject saved = subjectRepository.save(subject);
         log.info("Subject created: id={} name={} code={} tenant={}", saved.getId(), saved.getName(), saved.getCode(), tenantId);
 
-        return mapToResponse(saved);
+        auditService.log(AuditAction.ACADEMIC_SETUP, "SUBJECT", saved.getId(), "Created subject: " + saved.getName());
+
+        return subjectMapper.toResponse(saved);
     }
 
     @Override
@@ -77,7 +85,7 @@ public class SubjectServiceImpl implements SubjectService {
         UUID tenantId = TenantContext.getCurrentTenantId();
         return PageResponse.from(
                 subjectRepository.findAllByTenantId(tenantId, pageable)
-                        .map(this::mapToResponse)
+                        .map(subjectMapper::toResponse)
         );
     }
 
@@ -87,21 +95,6 @@ public class SubjectServiceImpl implements SubjectService {
         UUID tenantId = TenantContext.getCurrentTenantId();
         Subject subject = subjectRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Subject not found: " + id));
-        return mapToResponse(subject);
-    }
-
-    private SubjectResponse mapToResponse(Subject subject) {
-        return new SubjectResponse(
-                subject.getId(),
-                subject.getName(),
-                subject.getCode(),
-                subject.getSubjectGroupId(),
-                subject.getSubjectCategoryId(),
-                subject.getMaxScore(),
-                subject.getPassMark(),
-                subject.isActive(),
-                subject.getCreatedAt(),
-                subject.getUpdatedAt()
-        );
+        return subjectMapper.toResponse(subject);
     }
 }

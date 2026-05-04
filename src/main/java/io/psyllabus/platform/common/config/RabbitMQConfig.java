@@ -83,6 +83,16 @@ public class RabbitMQConfig {
         return ExchangeBuilder.directExchange(NOTIFICATIONS_DLX).durable(true).build();
     }
 
+    @Bean
+    public DirectExchange assignmentsExchange() {
+        return ExchangeBuilder.directExchange(ASSIGNMENT_EXCHANGE).durable(true).build();
+    }
+
+    @Bean
+    public DirectExchange assignmentsDLX() {
+        return ExchangeBuilder.directExchange(ASSIGNMENT_DLX).durable(true).build();
+    }
+
     // ══════════════════════════════════════════════════════════════════════
     // QUEUES & BINDINGS: ONBOARDING (SM4)
     // ══════════════════════════════════════════════════════════════════════
@@ -181,5 +191,78 @@ public class RabbitMQConfig {
     @Bean
     public Binding smsDlqBinding() {
         return BindingBuilder.bind(smsDLQ()).to(notificationsDLX()).with(SMS_DLQ);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // QUEUES & BINDINGS: ASSIGNMENTS (SM5)
+    // ══════════════════════════════════════════════════════════════════════
+
+    @Bean
+    public Queue assignmentPublishedQueue() {
+        return QueueBuilder.durable(ASSIGNMENT_PUBLISHED_QUEUE)
+                .withArgument(X_DEAD_LETTER_EXCHANGE, ASSIGNMENT_DLX)
+                .withArgument(X_DEAD_LETTER_ROUTING_KEY, ASSIGNMENT_PUBLISHED_DLQ)
+                .build();
+    }
+
+    @Bean
+    public Queue assignmentPublishedDLQ() {
+        return new Queue(ASSIGNMENT_PUBLISHED_DLQ);
+    }
+
+    @Bean
+    public Binding assignmentPublishedBinding() {
+        return BindingBuilder.bind(assignmentPublishedQueue()).to(assignmentsExchange()).with(ASSIGNMENT_PUBLISHED_KEY);
+    }
+
+    @Bean
+    public Binding assignmentPublishedDlqBinding() {
+        return BindingBuilder.bind(assignmentPublishedDLQ()).to(assignmentsDLX()).with(ASSIGNMENT_PUBLISHED_DLQ);
+    }
+
+    @Bean
+    public Queue submissionReceivedQueue() {
+        return QueueBuilder.durable(SUBMISSION_RECEIVED_QUEUE)
+                .withArgument(X_DEAD_LETTER_EXCHANGE, ASSIGNMENT_DLX)
+                .withArgument(X_DEAD_LETTER_ROUTING_KEY, SUBMISSION_RECEIVED_DLQ)
+                .build();
+    }
+
+    @Bean
+    public Queue submissionReceivedDLQ() {
+        return new Queue(SUBMISSION_RECEIVED_DLQ);
+    }
+
+    @Bean
+    public Binding submissionReceivedBinding() {
+        return BindingBuilder.bind(submissionReceivedQueue()).to(assignmentsExchange()).with(SUBMISSION_RECEIVED_KEY);
+    }
+
+    @Bean
+    public Binding submissionReceivedDlqBinding() {
+        return BindingBuilder.bind(submissionReceivedDLQ()).to(assignmentsDLX()).with(SUBMISSION_RECEIVED_DLQ);
+    }
+
+    @Bean
+    public Queue submissionGradedQueue() {
+        return QueueBuilder.durable(SUBMISSION_GRADED_QUEUE)
+                .withArgument(X_DEAD_LETTER_EXCHANGE, ASSIGNMENT_DLX)
+                .withArgument(X_DEAD_LETTER_ROUTING_KEY, SUBMISSION_GRADED_DLQ)
+                .build();
+    }
+
+    @Bean
+    public Queue submissionGradedDLQ() {
+        return new Queue(SUBMISSION_GRADED_DLQ);
+    }
+
+    @Bean
+    public Binding submissionGradedBinding() {
+        return BindingBuilder.bind(submissionGradedQueue()).to(assignmentsExchange()).with(SUBMISSION_GRADED_KEY);
+    }
+
+    @Bean
+    public Binding submissionGradedDlqBinding() {
+        return BindingBuilder.bind(submissionGradedDLQ()).to(assignmentsDLX()).with(SUBMISSION_GRADED_DLQ);
     }
 }

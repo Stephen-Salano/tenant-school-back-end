@@ -1,6 +1,7 @@
 package io.psyllabus.platform.school.repository;
 
 import io.psyllabus.platform.school.entities.School;
+import io.psyllabus.platform.school.enums.SchoolStatus;
 import io.psyllabus.platform.subscription.enums.PlanType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -65,11 +66,11 @@ public interface SchoolRepository extends JpaRepository<School, UUID> {
     long countByPlan(PlanType plan);
 
     /**
-     * Count active schools
+     * Count schools by status
      * Used for business metrics
-     * @return count of active schools
+     * @return count of schools with given status
      */
-    long countByIsActiveTrue();
+    long countByStatus(SchoolStatus status);
 
     Page<School> findAllByOrderByCreatedAtDesc(Pageable pageable);
 

@@ -9,6 +9,7 @@ import java.util.UUID;
  */
 public record GuardianResponse(
         UUID id,
+        UUID userId,
         String firstName,
         String lastName,
         String phone,

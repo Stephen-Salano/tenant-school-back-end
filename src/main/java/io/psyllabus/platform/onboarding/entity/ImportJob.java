@@ -2,6 +2,7 @@ package io.psyllabus.platform.onboarding.entity;
 
 import io.psyllabus.platform.common.audit.Auditable;
 import io.psyllabus.platform.onboarding.dto.ImportErrorDetail;
+import io.psyllabus.platform.onboarding.dto.ImportRowOutcome;
 import io.psyllabus.platform.onboarding.enums.ImportJobStatus;
 import io.psyllabus.platform.onboarding.enums.ImportJobType;
 import jakarta.persistence.*;
@@ -35,6 +36,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
+@org.hibernate.annotations.DynamicUpdate
 public class ImportJob extends Auditable {
 
     @Id
@@ -69,6 +71,11 @@ public class ImportJob extends Auditable {
     @Column(name = "error_details", columnDefinition = "jsonb")
     private List<ImportErrorDetail> errorDetails = new ArrayList<>();
 
+    /** JSONB array of per-row outcomes (success/fail with final identifiers). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "row_outcomes", columnDefinition = "jsonb")
+    private List<ImportRowOutcome> rowOutcomes = new ArrayList<>();
+
     /**
      * Full parsed CSV stored as JSONB to avoid S3 costs.
      * Retained briefly after completion so admins can download the completion report,
@@ -80,6 +87,13 @@ public class ImportJob extends Auditable {
 
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
+
+    @PostLoad
+    public void ensureCollectionsInitialized() {
+        if (this.errorDetails == null) this.errorDetails = new ArrayList<>();
+        if (this.rowOutcomes == null) this.rowOutcomes = new ArrayList<>();
+        if (this.rawData == null) this.rawData = new ArrayList<>();
+    }
 
     // ── Factory ──────────────────────────────────────────────────────────────
 
@@ -107,16 +121,40 @@ public class ImportJob extends Auditable {
     }
 
     /**
-     * Append errors from a just-processed batch and advance the progress counters.
+     * Append errors and outcomes from a just-processed batch and advance the progress counters.
      *
      * @param batchSuccesses number of rows persisted successfully in this batch
      * @param batchErrors     errors encountered in this batch
+     * @param batchOutcomes   outcomes (success/fail) for all rows in the batch
      */
-    public void recordBatchResult(int batchSuccesses, List<ImportErrorDetail> batchErrors) {
+    public void recordBatchResult(int batchSuccesses, List<ImportErrorDetail> batchErrors, List<ImportRowOutcome> batchOutcomes) {
         this.successRows += batchSuccesses;
         this.errorRows += batchErrors.size();
         this.processedRows += batchSuccesses + batchErrors.size(); // key line: checkpoint
-        this.errorDetails.addAll(batchErrors);
+
+        appendOutcomes(batchErrors, batchOutcomes);
+    }
+
+    /**
+     * Append only the outcomes and errors without touching numeric counters.
+     * Used by async listeners that update counters atomically via repository but still
+     * need to populate JSONB detail columns for reporting.
+     *
+     * <p>Reassigns the lists to new instances to ensure Hibernate's reference-equality
+     * based dirty checking detects the change for @DynamicUpdate.</p>
+     */
+    public void appendOutcomes(List<ImportErrorDetail> batchErrors, List<ImportRowOutcome> batchOutcomes) {
+        if (batchErrors != null && !batchErrors.isEmpty()) {
+            List<ImportErrorDetail> newErrors = new ArrayList<>(this.errorDetails != null ? this.errorDetails : new ArrayList<>());
+            newErrors.addAll(batchErrors);
+            this.errorDetails = newErrors;
+        }
+
+        if (batchOutcomes != null && !batchOutcomes.isEmpty()) {
+            List<ImportRowOutcome> newOutcomes = new ArrayList<>(this.rowOutcomes != null ? this.rowOutcomes : new ArrayList<>());
+            newOutcomes.addAll(batchOutcomes);
+            this.rowOutcomes = newOutcomes;
+        }
     }
 
     /** Transition to a terminal status and stamp completion time. */
@@ -129,6 +167,7 @@ public class ImportJob extends Auditable {
     public void fail(String reason) {
         this.status = ImportJobStatus.FAILED;
         this.completedAt = LocalDateTime.now();
+        if (this.errorDetails == null) this.errorDetails = new ArrayList<>();
         this.errorDetails.add(new ImportErrorDetail(0, null, reason, null));
     }
 }

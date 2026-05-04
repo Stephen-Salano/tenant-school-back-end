@@ -12,6 +12,8 @@ import io.psyllabus.platform.academic.repository.SubjectRepository;
 import io.psyllabus.platform.academic.repository.TeacherAssignmentRepository;
 import io.psyllabus.platform.academic.service.TeacherAssignmentService;
 import io.psyllabus.platform.academic.service.mapper.TeacherAssignmentMapper;
+import io.psyllabus.platform.audit.enums.AuditAction;
+import io.psyllabus.platform.audit.service.AuditService;
 import io.psyllabus.platform.common.exception.DuplicateResourceException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
 import io.psyllabus.platform.common.util.TenantContext;
@@ -19,6 +21,7 @@ import io.psyllabus.platform.staff.entities.Staff;
 import io.psyllabus.platform.staff.repository.StaffRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,8 +43,10 @@ public class TeacherAssignmentServiceImpl implements TeacherAssignmentService {
     private final SubjectRepository subjectRepository;
     private final AcademicTermRepository academicTermRepository;
     private final TeacherAssignmentMapper assignmentMapper;
+    private final AuditService auditService;
 
     @Override
+    @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
     public TeacherAssignmentResponse assignTeacher(TeacherAssignmentCreateRequest request) {
         UUID tenantId = TenantContext.getCurrentTenantId();
 
@@ -63,6 +68,13 @@ public class TeacherAssignmentServiceImpl implements TeacherAssignmentService {
                 .build();
 
         TeacherAssignment saved = teacherAssignmentRepository.save(assignment);
+
+        auditService.log(
+                AuditAction.ACADEMIC_SETUP,
+                "TEACHER_ASSIGNMENT",
+                saved.getId(),
+                String.format("Assigned teacher to subject %s in class %s", request.subjectId(), request.classId())
+        );
         
         return assignmentMapper.toResponse(
                 saved, 

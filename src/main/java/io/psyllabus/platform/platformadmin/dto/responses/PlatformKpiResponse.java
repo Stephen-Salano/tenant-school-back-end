@@ -6,7 +6,8 @@ package io.psyllabus.platform.platformadmin.dto.responses;
 public record PlatformKpiResponse(
         long totalSchools,
         long activeSchools,
-        long inactiveSchools,
+        long suspendedSchools,
+        long deactivatedSchools,
         long queuedImportJobs,
         long processingImportJobs,
         long failedImportJobs

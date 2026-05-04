@@ -10,6 +10,7 @@ import java.util.UUID;
 public record TeacherAssignmentResponse(
     UUID id,
     UUID staffId,
+    UUID userId,
     String staffName,
     UUID classId,
     String className,

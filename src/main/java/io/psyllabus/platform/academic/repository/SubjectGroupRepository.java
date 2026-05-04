@@ -24,5 +24,6 @@ public interface SubjectGroupRepository extends JpaRepository<SubjectGroup, UUID
 
     Page<SubjectGroup> findAllByTenantId(UUID tenantId, Pageable pageable);
     Optional<SubjectGroup> findByIdAndTenantId(UUID id, UUID tenantId);
+    Optional<SubjectGroup> findByNameAndTenantId(String name, UUID tenantId);
     boolean existsByNameAndTenantId(String name, UUID tenantId);
 }

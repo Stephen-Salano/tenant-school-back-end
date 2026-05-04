@@ -13,6 +13,7 @@ public record GuardianCreateRequest(
         String lastName,
 
         @NotBlank(message = "Phone is required")
+        @NotNull
         String phone,
 
         @Email(message = "Invalid email format")

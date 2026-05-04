@@ -10,11 +10,14 @@ import io.psyllabus.platform.common.exception.CsvValidationException;
 import io.psyllabus.platform.common.exception.MessagingException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
 import io.psyllabus.platform.common.exception.ValidationException;
+import io.psyllabus.platform.onboarding.dto.ImportErrorDetail;
+import io.psyllabus.platform.onboarding.dto.ImportRowOutcome;
 import io.psyllabus.platform.onboarding.dto.response.ImportJobStatusResponse;
 import io.psyllabus.platform.onboarding.dto.response.ValidationReport;
 import io.psyllabus.platform.onboarding.entity.ImportJob;
 import io.psyllabus.platform.onboarding.enums.ImportJobStatus;
 import io.psyllabus.platform.onboarding.enums.ImportJobType;
+import io.psyllabus.platform.onboarding.listener.OnboardingJobPayload;
 import io.psyllabus.platform.onboarding.repository.ImportJobRepository;
 import io.psyllabus.platform.onboarding.service.CsvValidationService;
 import io.psyllabus.platform.onboarding.service.OnboardingService;
@@ -96,7 +99,12 @@ public class OnboardingServiceImpl implements OnboardingService {
              CSVPrinter printer = new CSVPrinter(new OutputStreamWriter(out, StandardCharsets.UTF_8),
                      CSVFormat.DEFAULT.builder().setHeader("row", "column", "issue", "raw_value").build())) {
             for (var err : job.getErrorDetails()) {
-                printer.printRecord(err.row(), err.field(), err.issue(), err.rawValue());
+                printer.printRecord(
+                        err.row(),
+                        sanitizeCsvCell(err.field()),
+                        sanitizeCsvCell(err.issue()),
+                        sanitizeCsvCell(err.rawValue())
+                        );
             }
             printer.flush();
             return out.toByteArray();
@@ -110,63 +118,30 @@ public class OnboardingServiceImpl implements OnboardingService {
     @Transactional(readOnly = true)
     public byte[] downloadCompletionReportCsv(UUID jobId, UUID tenantId) {
         ImportJob job = findJobOrThrow(jobId, tenantId);
-        if (job.getCompletedAt() == null) {
-            throw new ValidationException("Completion report is only available after the import job finishes.");
-        }
-        if (job.getRawData() == null || job.getRawData().isEmpty()) {
-            throw new ResourceNotFoundException("Completion report data is no longer available for job " + jobId);
-        }
+        validateJobReadyForReport(job);
 
-        Map<Integer, List<io.psyllabus.platform.onboarding.dto.ImportErrorDetail>> errorsByRow = new HashMap<>();
-        for (var err : job.getErrorDetails()) {
-            if (err.row() > 0) {
-                errorsByRow.computeIfAbsent(err.row(), ignored -> new ArrayList<>()).add(err);
-            }
-        }
-
+        Map<Integer, List<ImportErrorDetail>> errorsByRow = mapErrorsByRow(job);
+        Map<Integer, ImportRowOutcome> outcomesByRow = mapOutcomesByRow(job);
+        
         List<Map<String, String>> rows = new ArrayList<>();
         Set<String> dynamicColumns = new LinkedHashSet<>();
-        for (Object rawRow : job.getRawData()) {
-            Map<String, String> row = objectMapper.convertValue(rawRow, new TypeReference<>() {
-            });
-            rows.add(row);
-            dynamicColumns.addAll(row.keySet());
-        }
+        parseRawData(job, rows, dynamicColumns);
 
-        List<String> headers = new ArrayList<>(List.of(
-                "row",
-                "job_type",
-                "status",
-                "failure_count",
-                "failure_fields",
-                "failure_issues",
-                "failure_values"
-        ));
-        headers.addAll(dynamicColumns);
+        List<String> headers = buildReportHeaders(dynamicColumns);
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream();
              CSVPrinter printer = new CSVPrinter(
                      new OutputStreamWriter(out, StandardCharsets.UTF_8),
                      CSVFormat.DEFAULT.builder().setHeader(headers.toArray(String[]::new)).build()
              )) {
+
             for (int i = 0; i < rows.size(); i++) {
                 int rowNumber = i + 1;
-                Map<String, String> row = rows.get(i);
-                List<io.psyllabus.platform.onboarding.dto.ImportErrorDetail> rowErrors =
-                        errorsByRow.getOrDefault(rowNumber, List.of());
+                Map<String, String> rowData = rows.get(i);
+                List<ImportErrorDetail> rowErrors = errorsByRow.getOrDefault(rowNumber, List.of());
+                ImportRowOutcome outcome = outcomesByRow.get(rowNumber);
 
-                List<String> csvRecordEntry = new ArrayList<>();
-                csvRecordEntry.add(String.valueOf(rowNumber));
-                csvRecordEntry.add(job.getJobType().name());
-                csvRecordEntry.add(rowErrors.isEmpty() ? "SUCCESS" : "FAILED");
-                csvRecordEntry.add(String.valueOf(rowErrors.size()));
-                csvRecordEntry.add(joinRowErrors(rowErrors, io.psyllabus.platform.onboarding.dto.ImportErrorDetail::field));
-                csvRecordEntry.add(joinRowErrors(rowErrors, io.psyllabus.platform.onboarding.dto.ImportErrorDetail::issue));
-                csvRecordEntry.add(joinRowErrors(rowErrors, io.psyllabus.platform.onboarding.dto.ImportErrorDetail::rawValue));
-                for (String column : dynamicColumns) {
-                    csvRecordEntry.add(row.getOrDefault(column, ""));
-                }
-                printer.printRecord(csvRecordEntry);
+                printer.printRecord(buildCsvRecordEntry(job, rowNumber, rowData, rowErrors, outcome, dynamicColumns));
             }
             printer.flush();
             return out.toByteArray();
@@ -176,6 +151,86 @@ public class OnboardingServiceImpl implements OnboardingService {
         }
     }
 
+    private void validateJobReadyForReport(ImportJob job) {
+        if (job.getCompletedAt() == null) {
+            throw new ValidationException("Completion report is only available after the import job finishes.");
+        }
+        if (job.getRawData() == null || job.getRawData().isEmpty()) {
+            throw new ResourceNotFoundException("Completion report data is no longer available for job " + job.getId());
+        }
+    }
+
+    private Map<Integer, List<ImportErrorDetail>> mapErrorsByRow(ImportJob job) {
+        Map<Integer, List<ImportErrorDetail>> errorsByRow = new HashMap<>();
+        for (var err : job.getErrorDetails()) {
+            if (err.row() > 0) {
+                errorsByRow.computeIfAbsent(err.row(), ignored -> new ArrayList<>()).add(err);
+            }
+        }
+        return errorsByRow;
+    }
+
+    private Map<Integer, ImportRowOutcome> mapOutcomesByRow(ImportJob job) {
+        Map<Integer, ImportRowOutcome> outcomesByRow = new HashMap<>();
+        if (job.getRowOutcomes() != null) {
+            for (var outcome : job.getRowOutcomes()) {
+                outcomesByRow.put(outcome.row(), outcome);
+            }
+        }
+        return outcomesByRow;
+    }
+
+    private void parseRawData(ImportJob job, List<Map<String, String>> rows, Set<String> dynamicColumns) {
+        for (Object rawRow : job.getRawData()) {
+            Map<String, String> row = objectMapper.convertValue(rawRow, new TypeReference<>() {});
+            rows.add(row);
+            dynamicColumns.addAll(row.keySet());
+        }
+    }
+
+    private List<String> buildReportHeaders(Set<String> dynamicColumns) {
+        List<String> headers = new ArrayList<>(List.of(
+                "row", "job_type", "status", "final_identifier",
+                "failure_count", "failure_fields", "failure_issues", "failure_values"
+        ));
+        headers.addAll(dynamicColumns);
+        return headers;
+    }
+
+    private List<String> buildCsvRecordEntry(
+            ImportJob job, int rowNumber, Map<String, String> rowData,
+            List<ImportErrorDetail> rowErrors, ImportRowOutcome outcome,
+            Set<String> dynamicColumns
+    ) {
+        String rowStatus;
+        String finalIdentifier = "";
+
+        if (job.getStatus() == ImportJobStatus.FAILED && rowNumber > job.getProcessedRows()) {
+            rowStatus = "NOT_PROCESSED";
+        } else if (outcome != null) {
+            rowStatus = outcome.status();
+            finalIdentifier = outcome.finalIdentifier();
+        } else {
+            rowStatus = rowErrors.isEmpty() ? "SUCCESS" : "FAILED";
+        }
+
+        List<String> csvRecordEntry = new ArrayList<>();
+        csvRecordEntry.add(String.valueOf(rowNumber));
+        csvRecordEntry.add(job.getJobType().name());
+        csvRecordEntry.add(rowStatus);
+        csvRecordEntry.add(sanitizeCsvCell(finalIdentifier));
+        csvRecordEntry.add(String.valueOf(rowErrors.size()));
+
+        csvRecordEntry.add(sanitizeCsvCell(joinRowErrors(rowErrors, ImportErrorDetail::field)));
+        csvRecordEntry.add(sanitizeCsvCell(joinRowErrors(rowErrors, ImportErrorDetail::issue)));
+        csvRecordEntry.add(sanitizeCsvCell(joinRowErrors(rowErrors, ImportErrorDetail::rawValue)));
+
+        for (String column : dynamicColumns) {
+            csvRecordEntry.add(sanitizeCsvCell(rowData.getOrDefault(column, "")));
+        }
+        return csvRecordEntry;
+    }
+
     @Override
     public ImportJobStatusResponse requeueJob(UUID jobId, UUID tenantId) {
         ImportJob job = findJobOrThrow(jobId, tenantId);
@@ -183,18 +238,34 @@ public class OnboardingServiceImpl implements OnboardingService {
             throw new ValidationException("Only FAILED jobs can be re-queued. Current status: " + job.getStatus());
         }
 
+        if (job.getRawData() == null || job.getRawData().isEmpty()) {
+            throw new ValidationException("Raw data has been cleared for this job. Re-upload the CSV to create a new import job.");
+        }
+
         job.setStatus(ImportJobStatus.QUEUED);
         job.setProcessedRows(0);
         job.setSuccessRows(0);
         job.setErrorRows(0);
-        job.getErrorDetails().clear();
+        
+        if (job.getErrorDetails() != null) {
+            job.getErrorDetails().clear();
+        } else {
+            job.setErrorDetails(new ArrayList<>());
+        }
+
+        if (job.getRowOutcomes() != null) {
+            job.getRowOutcomes().clear();
+        } else {
+            job.setRowOutcomes(new ArrayList<>());
+        }
+
         job.setCompletedAt(null);
         importJobRepository.save(job);
 
         String routingKey = job.getJobType() == ImportJobType.STUDENT_BULK_IMPORT ? 
                 RabbitMQConstants.STUDENT_IMPORT_ROUTING_KEY : RabbitMQConstants.STAFF_IMPORT_ROUTING_KEY;
         
-        rabbitTemplate.convertAndSend(RabbitMQConstants.ONBOARDING_EXCHANGE, routingKey, Map.of("jobId", job.getId().toString()));
+        rabbitTemplate.convertAndSend(RabbitMQConstants.ONBOARDING_EXCHANGE, routingKey, new OnboardingJobPayload(job.getId(), tenantId));
 
         log.info("Job re-queued [jobId={}, tenantId={}]", jobId, tenantId);
         auditService.log(AuditAction.BULK_IMPORT, IMPORT_JOB_LITERAL, jobId, "Job re-queued for retry");
@@ -232,7 +303,7 @@ public class OnboardingServiceImpl implements OnboardingService {
         job.setRawData(new ArrayList<>(rows));
         importJobRepository.save(job);
 
-        rabbitTemplate.convertAndSend(RabbitMQConstants.ONBOARDING_EXCHANGE, routingKey, Map.of("jobId", job.getId().toString()));
+        rabbitTemplate.convertAndSend(RabbitMQConstants.ONBOARDING_EXCHANGE, routingKey, new OnboardingJobPayload(job.getId(), job.getTenantId()));
 
         log.info("Import job queued [jobId={}, type={}, rows={}, tenantId={}]", job.getId(), jobType, rows.size(), tenantId);
         auditService.log(AuditAction.BULK_IMPORT, IMPORT_JOB_LITERAL, job.getId(), "QUEUED " + rows.size() + " " + jobType.name() + " rows");
@@ -305,5 +376,19 @@ public class OnboardingServiceImpl implements OnboardingService {
                 .distinct()
                 .reduce((left, right) -> left + " | " + right)
                 .orElse("");
+    }
+
+    private String sanitizeCsvCell(String value) {
+        if (value == null) return "";
+        String trimmed = value.strip();
+        // If the value is purely numeric, don't escape it even if it starts with a dash
+        if (trimmed.matches("-?\\d+")) {
+            return trimmed;
+        }
+        if (trimmed.startsWith("=") || trimmed.startsWith("+")
+                || trimmed.startsWith("-") || trimmed.startsWith("@")) {
+            return "'" + trimmed; // prefix with apostrophe — standard defense
+        }
+        return trimmed;
     }
 }

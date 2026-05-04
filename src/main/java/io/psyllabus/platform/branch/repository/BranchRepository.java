@@ -30,6 +30,7 @@ public interface BranchRepository extends JpaRepository<Branch, UUID> {
      * Finds a branch by ID, ensuring it belongs to the specified tenant.
      */
     Optional<Branch> findByIdAndTenantId(UUID id, UUID tenantId);
+    Optional<Branch> findByCodeAndTenantId(String code, UUID tenantId);
 
     /**
      * Lists all branches belonging to a specific school (tenant).

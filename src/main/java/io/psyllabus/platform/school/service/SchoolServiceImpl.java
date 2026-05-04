@@ -7,6 +7,7 @@ import io.psyllabus.platform.auth.enums.AccessScope;
 import io.psyllabus.platform.auth.enums.UserType;
 import io.psyllabus.platform.auth.services.AuthService;
 import io.psyllabus.platform.branch.entities.Branch;
+import io.psyllabus.platform.branch.enums.BranchStatus;
 import io.psyllabus.platform.branch.repository.BranchRepository;
 import io.psyllabus.platform.common.constants.FeatureConstants;
 import io.psyllabus.platform.common.exception.DuplicateResourceException;
@@ -21,6 +22,7 @@ import io.psyllabus.platform.school.dto.responses.SchoolOnboardResponse;
 import io.psyllabus.platform.school.dto.responses.SchoolProfileResponse;
 import io.psyllabus.platform.school.entities.School;
 import io.psyllabus.platform.school.entities.SchoolProfile;
+import io.psyllabus.platform.school.enums.SchoolStatus;
 import io.psyllabus.platform.school.repository.SchoolProfileRepository;
 import io.psyllabus.platform.school.repository.SchoolRepository;
 import io.psyllabus.platform.subscription.entity.Subscription;
@@ -111,7 +113,7 @@ public class SchoolServiceImpl implements SchoolService{
                 .address(request.address())
                 .customDomain(request.customDomain())
                 .plan(request.planType())
-                .isActive(true)
+                .status(io.psyllabus.platform.school.enums.SchoolStatus.ACTIVE)
                 .build();
         school = schoolRepository.save(school);
         UUID schoolId = school.getId();
@@ -136,13 +138,14 @@ public class SchoolServiceImpl implements SchoolService{
                 .name("Main Campus")
                 .code("MAIN")
                 .isMainBranch(true)
-                .isActive(true)
+                .status(BranchStatus.ACTIVE)
                 .build();
         mainBranch = branchRepository.save(mainBranch);
         log.info("Main branch created: id={} for school={}", mainBranch.getId(), schoolId);
 
         // Station 4: Admin User — AuthService.register() reads TenantContext,
         // so we set it manually for this unauthenticated provisioning call.
+        UUID previousTenant = TenantContext.getCurrentTenantId();
         TenantContext.setCurrentTenant(schoolId);
         try {
             RegisterRequest adminRequest = new RegisterRequest(
@@ -159,7 +162,11 @@ public class SchoolServiceImpl implements SchoolService{
             authService.register(adminRequest);
             log.info("Admin user created for school={}", schoolId);
         } finally {
-            TenantContext.clear();
+            if (previousTenant != null) {
+                TenantContext.setCurrentTenant(previousTenant);
+            } else {
+                TenantContext.clear();
+            }
         }
 
         log.info("School provisioning complete: {}", school.getName());
@@ -264,7 +271,7 @@ public class SchoolServiceImpl implements SchoolService{
      */
     private void applyAcademicSection(SchoolProfile profile, SchoolProfileUpdateRequest.AcademicSection section) {
         if (section == null) return;
-        if (section.curriculumType() != null) {
+        if (section.curriculumType() != null && !section.curriculumType().equals(profile.getCurriculumType())) {
             profile.setCurriculumType(section.curriculumType());
             // Trigger auto-drafting of terms for the current year
             eventPublisher.publishEvent(new io.psyllabus.platform.academic.dto.events.CurriculumSelectedEvent(
@@ -330,7 +337,6 @@ public class SchoolServiceImpl implements SchoolService{
      * <p>JSONB blobs are converted back into typed nested records using
      * {@link ObjectMapper#convertValue}. Column-mapped fields are set directly.</p>
      *
-     * <p>TODO (SM4): Replace the stubbed {@code currentEnrollment = 0} with a real count
      * from {@code StudentRepository.countActiveByTenantId(schoolId)} once that
      * repository exists.</p>
      */
@@ -408,7 +414,7 @@ public class SchoolServiceImpl implements SchoolService{
                 school.getPhone(),
                 school.getAddress(),
                 school.getPlan(),
-                school.getIsActive(),
+                school.getStatus(),
                 general,
                 academic,
                 enrollment,

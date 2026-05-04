@@ -1,5 +1,7 @@
 package io.psyllabus.platform.academic.dto.response;
 
+import io.psyllabus.platform.academic.enums.AcademicStatus;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -19,7 +21,7 @@ public record ClassDetailResponse(
     UUID academicYearId,
     UUID branchId,
     Integer maxCapacity,
-    boolean isActive,
+    AcademicStatus status,
     int enrolledCount,
     int availableSlots,
     UUID classTeacherId,

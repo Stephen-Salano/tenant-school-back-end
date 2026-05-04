@@ -90,6 +90,18 @@ public interface PlatformAdminService {
     PlatformImportJobResponse getImportJob(UUID jobId);
 
     /**
+     * Update a school's status (ACTIVE, SUSPENDED, DEACTIVATED).
+     *
+     * <p><strong>Intentionally cross-tenant</strong> — no {@code TenantContext} read.</p>
+     *
+     * @param schoolId UUID of the school to update
+     * @param status   the new status (ACTIVE, SUSPENDED, DEACTIVATED)
+     * @param adminId  the platform admin performing the update (for auditing)
+     * @return updated school summary
+     */
+    SchoolSummaryResponse updateSchoolStatus(UUID schoolId, io.psyllabus.platform.school.enums.SchoolStatus status, String reason, UUID adminId);
+
+    /**
      * Create a new platform-level administrator.
      *
      * <p>Stored in {@code platform_admins} — separate from school users.

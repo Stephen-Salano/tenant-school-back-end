@@ -148,7 +148,8 @@ public class SchoolProfile {
      */
     @Type(JsonBinaryType.class)
     @Column(name = "stream_names", columnDefinition = "jsonb")
-    private List<String> streamNames;
+    @Builder.Default
+    private List<String> streamNames = new java.util.ArrayList<>();
 
     // ── Enrollment tab ───────────────────────────────────────────────────────
     // Note: currentEnrollment and availableSlots are computed at runtime
@@ -172,7 +173,8 @@ public class SchoolProfile {
      */
     @Type(JsonBinaryType.class)
     @Column(name = "grades_offered", columnDefinition = "jsonb")
-    private List<String> gradesOffered;
+    @Builder.Default
+    private List<String> gradesOffered = new java.util.ArrayList<>();
 
     // ── Facilities tab (JSONB blob) ───────────────────────────────────────────
     /**

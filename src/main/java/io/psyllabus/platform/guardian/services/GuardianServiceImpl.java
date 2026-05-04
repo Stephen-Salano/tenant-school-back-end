@@ -1,5 +1,7 @@
 package io.psyllabus.platform.guardian.services;
 
+import io.psyllabus.platform.audit.enums.AuditAction;
+import io.psyllabus.platform.audit.service.AuditService;
 import io.psyllabus.platform.auth.dto.request.RegisterRequest;
 import io.psyllabus.platform.auth.dto.responses.UserResponse;
 import io.psyllabus.platform.auth.enums.AccessScope;
@@ -14,9 +16,12 @@ import io.psyllabus.platform.guardian.entities.Guardian;
 import io.psyllabus.platform.guardian.entities.StudentGuardian;
 import io.psyllabus.platform.guardian.repository.GuardianRepository;
 import io.psyllabus.platform.guardian.repository.StudentGuardianRepository;
+import io.psyllabus.platform.guardian.service.mapper.GuardianMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,11 +32,13 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 @Transactional
-public class GuardianServiceImpl implements  GuardianService{
+public class GuardianServiceImpl implements GuardianService {
 
     private final GuardianRepository guardianRepository;
     private final StudentGuardianRepository studentGuardianRepository;
     private final AuthService authService;
+    private final AuditService auditService;
+    private final GuardianMapper guardianMapper;
 
     @Value("${platform.default-passwords.guardian:Parent@123}")
     private String guardianTempPassword;
@@ -41,54 +48,72 @@ public class GuardianServiceImpl implements  GuardianService{
      */
 
     @Override
+    @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
     public GuardianResponse createGuardian(GuardianCreateRequest request) {
-        log.info("Creating guardian: {}", request.email());
+        log.info("Creating new guardian record");
 
         UUID tenantId = TenantContext.getCurrentTenantId();
 
         // check for duplicate email
-        if (guardianRepository.existsByEmailAndTenantId(request.email(), tenantId)){
+        if (request.email() != null && !request.email().isBlank() && guardianRepository.existsByEmailAndTenantId(request.email(), tenantId)) {
             throw new DuplicateResourceException(" Email already exists");
         }
         // Check for duplicate phone
-        if (guardianRepository.existsByPhoneAndTenantId(request.phone(), tenantId)){
+        if (guardianRepository.existsByPhoneAndTenantId(request.phone(), tenantId)) {
             throw new DuplicateResourceException("Phone number already exists");
         }
 
-        // Create user account
-        RegisterRequest userRequest = new RegisterRequest(
-            request.email(), // Username  = email
-                request.email(),
-                guardianTempPassword, // default password = phone number
+        RegisterRequest userRequest = getRegisterRequest(request);
+
+        UserResponse userResponse = authService.register(userRequest);
+
+        // Create Guardian record using mapper
+        Guardian guardian = guardianMapper.toEntity(request);
+        guardian.setTenantId(tenantId);
+        guardian.setUserId(userResponse.id());
+        
+        if (guardian.getIsFeepayer() == null) {
+            guardian.setIsFeepayer(true);
+        }
+
+        guardian = guardianRepository.save(guardian);
+        log.info("Guardian created");
+
+        auditService.log(
+                AuditAction.CREATE,
+                "GUARDIAN",
+                guardian.getId(),
+                "New guardian created and linked to user account"
+        );
+
+        return guardianMapper.toResponse(guardian);
+    }
+    private @NonNull RegisterRequest getRegisterRequest(GuardianCreateRequest request) {
+        UUID tenantId = TenantContext.getCurrentTenantId();
+        boolean hasEmail = request.email() != null && !request.email().isBlank();
+
+        // Use email as username if available; otherwise, use phone with tenantId prefix to guarantee uniqueness
+        String username = hasEmail ? request.email() : ("G-" + tenantId + "-" + request.phone());
+
+        // Use email if available; otherwise, provide a tenant-namespaced placeholder email
+        String userEmail = hasEmail ? request.email() : (tenantId + "+" + request.phone() + "@noemail.psyllabus.internal");
+
+        return new RegisterRequest(
+                username,
+                userEmail,
+                guardianTempPassword,
                 request.firstName(),
                 request.lastName(),
                 request.phone(),
                 UserType.PARENT,
-                null, // guardians don't have a branch scope
+                null,
                 AccessScope.SCHOOL
         );
-
-        UserResponse userResponse = authService.register(userRequest);
-
-        // Create Guardian record
-        Guardian guardian = Guardian.builder()
-                .tenantId(tenantId)
-                .userId(userResponse.id())
-                .firstName(request.firstName())
-                .lastName(request.lastName())
-                .phone(request.phone())
-                .email(request.email())
-                .relationshipType(request.relationshipType())
-                .isFeepayer(request.isFeePayer() != null ? request.isFeePayer() : true)
-                .build();
-
-        guardian = guardianRepository.save(guardian);
-        log.info("Guardian created: {}", guardian.getEmail());
-        return mapToResponse(guardian);
     }
 
     @Override
-    public void linkToStudent(UUID guardianId, UUID studentId) {
+    @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
+    public GuardianResponse linkToStudent(UUID guardianId, UUID studentId) {
         UUID tenantId = TenantContext.getCurrentTenantId();
 
         // Verify that the guardian does exist
@@ -98,7 +123,7 @@ public class GuardianServiceImpl implements  GuardianService{
         // Check if link already exists
         if (studentGuardianRepository.existsByStudentIdAndGuardianIdAndTenantId(
                 studentId, guardianId, tenantId
-        )){
+        )) {
             throw new DuplicateResourceException("Guardian already linked to this student");
         }
 
@@ -114,26 +139,50 @@ public class GuardianServiceImpl implements  GuardianService{
 
         studentGuardianRepository.save(link);
 
-        log.info("Link guardian {} to student {}", guardianId , studentId);
+        log.info("Link guardian {} to student {}", guardianId, studentId);
+
+        auditService.log(
+                AuditAction.UPDATE,
+                "GUARDIAN_RELATIONSHIP",
+                guardianId,
+                String.format("Linked guardian to student %s", studentId)
+        );
+
+        return guardianMapper.toResponse(guardian);
     }
 
+
     @Override
-    public void unlinkFromStudent(UUID guardianId, UUID studentId) {
+    @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
+    public GuardianResponse unlinkFromStudent(UUID guardianId, UUID studentId) {
         UUID tenantId = TenantContext.getCurrentTenantId();
+
+        Guardian guardian = guardianRepository.findByIdAndTenantId(guardianId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Guardian not found"));
 
         studentGuardianRepository.deleteByStudentIdAndGuardianIdAndTenantId(
                 studentId, guardianId, tenantId
         );
 
         log.info(" Unlinked guardian {} from student {}", guardianId, studentId);
+
+        auditService.log(
+                AuditAction.UPDATE,
+                "GUARDIAN_RELATIONSHIP",
+                guardianId,
+                String.format("Unlinked guardian from student %s", studentId)
+        );
+
+        return guardianMapper.toResponse(guardian);
     }
+
 
     @Override
     @Transactional(readOnly = true)
     public GuardianResponse findByEmail(String email, UUID tenantId) {
         Guardian guardian = guardianRepository.findByEmailAndTenantId(email, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException(" Guardian not found"));
-        return mapToResponse(guardian);
+        return guardianMapper.toResponse(guardian);
     }
 
     @Override
@@ -153,18 +202,8 @@ public class GuardianServiceImpl implements  GuardianService{
         // Batch fetch guardians to avoid N+1
         return guardianRepository.findByIdInAndTenantId(guardianIds, tenantId)
                 .stream()
-                .map(this::mapToResponse)
+                .map(guardianMapper::toResponse)
                 .toList();
     }
 
-    private GuardianResponse mapToResponse(Guardian guardian) {
-        return new GuardianResponse(
-                guardian.getId(),
-                guardian.getFirstName(),
-                guardian.getLastName(),
-                guardian.getPhone(),
-                guardian.getEmail(),
-                guardian.getRelationshipType()
-        );
-    }
 }

@@ -1,6 +1,8 @@
 package io.psyllabus.platform.student.service;
 
 
+import io.psyllabus.platform.audit.enums.AuditAction;
+import io.psyllabus.platform.audit.service.AuditService;
 import io.psyllabus.platform.auth.dto.request.RegisterRequest;
 import io.psyllabus.platform.auth.dto.responses.UserResponse;
 import io.psyllabus.platform.auth.enums.AccessScope;
@@ -14,10 +16,12 @@ import io.psyllabus.platform.student.dto.request.StudentCreateRequest;
 import io.psyllabus.platform.student.dto.responses.StudentDetailResponse;
 import io.psyllabus.platform.student.dto.responses.StudentResponse;
 import io.psyllabus.platform.student.entities.Student;
+import io.psyllabus.platform.student.enums.StudentStatus;
 import io.psyllabus.platform.student.repository.StudentRepository;
 import io.psyllabus.platform.student.service.mapper.StudentMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -33,14 +37,17 @@ import java.util.UUID;
 public class StudentServiceImpl implements StudentService {
 
     private static final String STUDENT_NOT_FOUND = "Student not found";
+    public static final String STUDENT = "STUDENT";
 
     private final StudentRepository studentRepository;
     private final AuthService authService;
     private final StudentMapper studentMapper;
+    private final AuditService auditService;
 
     @Override
+    @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
     public StudentResponse enrollStudent(StudentCreateRequest request) {
-        log.info("Enrolling student: {}", request.admissionNumber());
+        log.info("Enrolling student" );
 
         UUID tenantId = TenantContext.getCurrentTenantId();
 
@@ -66,24 +73,22 @@ public class StudentServiceImpl implements StudentService {
 
         UserResponse userResponse = authService.register(userRequest);
 
-        // Create Student record
-        Student student = Student.builder()
-                .tenantId(tenantId)
-                .userId(userResponse.id())
-                .admissionNumber(request.admissionNumber())
-                .firstName(request.firstName())
-                .lastName(request.lastName())
-                .dateOfBirth(request.dateOfBirth())
-                .gender(request.gender())
-                .currentClassId(request.classId())
-                .admissionDate(LocalDate.now())
-                .currentStatus(request.status())
-                .medicalConditions(request.medicalConditions())
-                .build();
+        // Create Student record using mapper
+        Student student = studentMapper.toEntity(request);
+        student.setTenantId(tenantId);
+        student.setUserId(userResponse.id());
+        student.setAdmissionDate(LocalDate.now());
 
         student = studentRepository.save(student);
 
-        log.info("Student enrolled: {}", student.getAdmissionNumber());
+        log.info("Student enrolled");
+
+        auditService.log(
+                AuditAction.ENROLLMENT,
+                STUDENT,
+                student.getId(),
+                "New student enrolled and linked to user account"
+        );
 
         return studentMapper.toResponse(student);
     }
@@ -101,7 +106,8 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
-    public void assignClass(UUID studentId, UUID classId) {
+    @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
+    public StudentResponse assignClass(UUID studentId, UUID classId) {
         UUID tenantId = TenantContext.getCurrentTenantId();
 
         Student student = studentRepository.findByIdAndTenantId(studentId, tenantId)
@@ -109,9 +115,18 @@ public class StudentServiceImpl implements StudentService {
 
         // TODO: Will work when we setup classes
         student.setCurrentClassId(classId);
-        studentRepository.save(student);
+        student = studentRepository.save(student);
 
         log.info("Assigned student {} to class {}", studentId, classId);
+
+        auditService.log(
+                AuditAction.UPDATE,
+                STUDENT,
+                studentId,
+                String.format("Assigned student to class %s", classId)
+        );
+
+        return studentMapper.toResponse(student);
     }
 
     @Override
@@ -144,21 +159,31 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
+    @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
     public StudentResponse updateStatus(UUID studentId, io.psyllabus.platform.student.enums.StudentStatus status) {
         UUID tenantId = TenantContext.getCurrentTenantId();
         Student student = studentRepository.findByIdAndTenantId(studentId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException(STUDENT_NOT_FOUND));
 
+        StudentStatus previous = student.getCurrentStatus();
         student.setCurrentStatus(status);
         
         // Nullify class if no longer enrolled to prevent inflated stats
         if (status == io.psyllabus.platform.student.enums.StudentStatus.TRANSFERRED || 
             status == io.psyllabus.platform.student.enums.StudentStatus.GRADUATED) {
-            log.info("Student {} moved to status {}, nulling currentClassId", student.getAdmissionNumber(), status);
+            log.info("Student {} moved to status {}, nulling currentClassId", student.getId(), status);
             student.setCurrentClassId(null);
         }
 
         Student saved = studentRepository.save(student);
+
+        auditService.log(
+                AuditAction.UPDATE,
+                STUDENT,
+                studentId,
+                String.format("Status changed from %s to %s", previous, status)
+        );
+
         return studentMapper.toResponse(saved);
     }
 }

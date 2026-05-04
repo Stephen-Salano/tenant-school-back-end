@@ -6,6 +6,9 @@ import io.psyllabus.platform.academic.dto.response.SubjectGroupResponse;
 import io.psyllabus.platform.academic.entities.SubjectGroup;
 import io.psyllabus.platform.academic.repository.SubjectGroupRepository;
 import io.psyllabus.platform.academic.service.SubjectGroupService;
+import io.psyllabus.platform.academic.service.mapper.SubjectGroupMapper;
+import io.psyllabus.platform.audit.enums.AuditAction;
+import io.psyllabus.platform.audit.service.AuditService;
 import io.psyllabus.platform.common.exception.DuplicateResourceException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
 import io.psyllabus.platform.common.exception.ValidationException;
@@ -30,8 +33,11 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class SubjectGroupServiceImpl implements SubjectGroupService {
 
+    public static final String SUBJECT_GROUP = "SUBJECT_GROUP";
     private final SubjectGroupRepository subjectGroupRepository;
     private final StaffRepository staffRepository;
+    private final SubjectGroupMapper subjectGroupMapper;
+    private final AuditService auditService;
 
     @Override
     @Transactional
@@ -51,7 +57,10 @@ public class SubjectGroupServiceImpl implements SubjectGroupService {
 
         SubjectGroup saved = subjectGroupRepository.save(subjectGroup);
         log.info("Subject group created: {} for tenant: {}", saved.getName(), tenantId);
-        return mapToResponse(saved);
+
+        auditService.log(AuditAction.ACADEMIC_SETUP, SUBJECT_GROUP, saved.getId(), "Created subject group: " + saved.getName());
+
+        return subjectGroupMapper.toResponse(saved);
     }
 
     @Override
@@ -71,19 +80,22 @@ public class SubjectGroupServiceImpl implements SubjectGroupService {
 
         SubjectGroup updated = subjectGroupRepository.save(subjectGroup);
         log.info("Subject group updated: {}", id);
-        return mapToResponse(updated);
+
+        auditService.log(AuditAction.UPDATE, SUBJECT_GROUP, id, "Updated subject group details: " + updated.getName());
+
+        return subjectGroupMapper.toResponse(updated);
     }
 
     @Override
     public SubjectGroupResponse getById(UUID id) {
-        return mapToResponse(getEntityById(id));
+        return subjectGroupMapper.toResponse(getEntityById(id));
     }
 
     @Override
     public Page<SubjectGroupResponse> getAll(Pageable pageable) {
         UUID tenantId = TenantContext.getCurrentTenantId();
         return subjectGroupRepository.findAllByTenantId(tenantId, pageable)
-                .map(this::mapToResponse);
+                .map(subjectGroupMapper::toResponse);
     }
 
     @Override
@@ -92,6 +104,8 @@ public class SubjectGroupServiceImpl implements SubjectGroupService {
         SubjectGroup subjectGroup = getEntityById(id);
         subjectGroupRepository.delete(subjectGroup);
         log.info("Subject group deleted: {}", id);
+
+        auditService.log(AuditAction.DELETE, SUBJECT_GROUP, id, "Deleted subject group: " + subjectGroup.getName());
     }
 
     @Override
@@ -108,7 +122,10 @@ public class SubjectGroupServiceImpl implements SubjectGroupService {
         subjectGroup.setHodStaffId(request.staffId());
         SubjectGroup updated = subjectGroupRepository.save(subjectGroup);
         log.info("HOD assigned to subject group: {}", id);
-        return mapToResponse(updated);
+
+        auditService.log(AuditAction.ACADEMIC_SETUP, SUBJECT_GROUP, id, "Assigned HOD to subject group: " + request.staffId());
+
+        return subjectGroupMapper.toResponse(updated);
     }
 
     @Override
@@ -118,24 +135,13 @@ public class SubjectGroupServiceImpl implements SubjectGroupService {
         subjectGroup.setActive(!subjectGroup.isActive());
         subjectGroupRepository.save(subjectGroup);
         log.info("Subject group active status toggled: {} (now {})", id, subjectGroup.isActive());
+
+        auditService.log(AuditAction.UPDATE, SUBJECT_GROUP, id, "Toggled active status: " + subjectGroup.isActive());
     }
 
     private SubjectGroup getEntityById(UUID id) {
         UUID tenantId = TenantContext.getCurrentTenantId();
         return subjectGroupRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Subject group not found: " + id));
-    }
-
-    private SubjectGroupResponse mapToResponse(SubjectGroup entity) {
-        return new SubjectGroupResponse(
-                entity.getId(),
-                entity.getTenantId(),
-                entity.getName(),
-                entity.getDescription(),
-                entity.getHodStaffId(),
-                entity.isActive(),
-                entity.getCreatedAt(),
-                entity.getUpdatedAt()
-        );
     }
 }

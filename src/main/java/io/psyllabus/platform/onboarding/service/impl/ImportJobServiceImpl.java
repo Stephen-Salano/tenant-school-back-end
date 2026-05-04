@@ -2,6 +2,7 @@ package io.psyllabus.platform.onboarding.service.impl;
 
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
 import io.psyllabus.platform.onboarding.dto.ImportErrorDetail;
+import io.psyllabus.platform.onboarding.dto.ImportRowOutcome;
 import io.psyllabus.platform.onboarding.entity.ImportJob;
 import io.psyllabus.platform.onboarding.enums.ImportJobStatus;
 import io.psyllabus.platform.onboarding.enums.ImportJobType;
@@ -47,10 +48,10 @@ public class ImportJobServiceImpl implements ImportJobService {
     }
 
     @Override
-    public ImportJob updateProgress(UUID jobId, UUID tenantId, int batchSuccesses, List<ImportErrorDetail> batchErrors) {
+    public ImportJob updateProgress(UUID jobId, UUID tenantId, int batchSuccesses, List<ImportErrorDetail> batchErrors, List<ImportRowOutcome> batchOutcomes) {
         ImportJob job = findJobOrThrow(jobId, tenantId);
         job.markProcessing();
-        job.recordBatchResult(batchSuccesses, batchErrors);
+        job.recordBatchResult(batchSuccesses, batchErrors, batchOutcomes);
         log.debug("Job progress update: id={}, success={}, errors={}, total_processed={}", 
                 jobId, job.getSuccessRows(), job.getErrorRows(), job.getProcessedRows());
         return importJobRepository.save(job);

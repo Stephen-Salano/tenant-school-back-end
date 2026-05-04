@@ -1,6 +1,7 @@
 package io.psyllabus.platform.school.entities;
 
 import io.psyllabus.platform.common.audit.Auditable;
+import io.psyllabus.platform.school.enums.SchoolStatus;
 import io.psyllabus.platform.subscription.enums.PlanType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -12,7 +13,7 @@ import java.util.UUID;
         @Index(name = "idx_subdomain_prefix", columnList = "subdomain_prefix"),
         @Index(name = "idx_custom_domain", columnList = "custom_domain"),
         @Index(name = "idx_plan", columnList = "plan"),
-        @Index(name = "idx_school_is_active", columnList = "is_active")
+        @Index(name = "idx_school_status", columnList = "status")
 })
 @Getter
 @Setter
@@ -48,9 +49,10 @@ public class School extends Auditable {
     @Builder.Default
     private PlanType plan = PlanType.BASIC;
 
-    @Column(name = "is_active")
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 30)
     @Builder.Default
-    private Boolean isActive = true;
+    private SchoolStatus status = SchoolStatus.ACTIVE;
 
     @Column(name = "provisioned_by")
     private UUID provisionedBy;

@@ -1,9 +1,12 @@
 package io.psyllabus.platform.subscription.service;
 
+import io.psyllabus.platform.audit.enums.AuditAction;
+import io.psyllabus.platform.audit.service.AuditService;
 import io.psyllabus.platform.subscription.dto.request.SubscriptionCreateRequest;
 import io.psyllabus.platform.subscription.dto.response.SubscriptionResponse;
 import io.psyllabus.platform.subscription.entity.Subscription;
 import io.psyllabus.platform.subscription.enums.SubscriptionStatus;
+import io.psyllabus.platform.subscription.mapper.SubscriptionMapper;
 import io.psyllabus.platform.subscription.repository.SubscriptionRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +24,8 @@ import java.util.UUID;
 public class SubscriptionServiceImpl implements SubscriptionService {
 
     private final SubscriptionRepository subscriptionRepository;
+    private final SubscriptionMapper mapper;
+    private final AuditService auditService;
 
     @Override
     @Cacheable(value = "subscriptions", key = "#tenantId", unless = "#result == null")
@@ -59,8 +64,9 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         subscription = subscriptionRepository.save(subscription);
 
         log.info("Subscription created: {} for tenant: {}", subscription.getId(), request.tenantId());
+        auditService.log(AuditAction.CREATE, "Subscription", subscription.getId(), "Created new subscription");
 
-        return mapToResponse(subscription);
+        return mapper.toResponse(subscription);
     }
 
     @Override
@@ -77,18 +83,5 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         subscriptionRepository.save(subscription);
 
         log.info("Subscription cancelled for tenant: {}", tenantId);
-    }
-
-    private SubscriptionResponse mapToResponse(Subscription subscription) {
-        return new SubscriptionResponse(
-                subscription.getId(),
-                subscription.getTenantId(),
-                subscription.getPlanType(),
-                subscription.getStartDate(),
-                subscription.getEndDate(),
-                subscription.getStatus(),
-                subscription.getFeatures(),
-                subscription.getIsActive()
-        );
     }
 }

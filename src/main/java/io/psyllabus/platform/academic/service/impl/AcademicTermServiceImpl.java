@@ -10,6 +10,9 @@ import io.psyllabus.platform.academic.entities.AcademicYear;
 import io.psyllabus.platform.academic.repository.AcademicTermRepository;
 import io.psyllabus.platform.academic.repository.AcademicYearRepository;
 import io.psyllabus.platform.academic.service.AcademicTermService;
+import io.psyllabus.platform.academic.service.mapper.AcademicTermMapper;
+import io.psyllabus.platform.audit.enums.AuditAction;
+import io.psyllabus.platform.audit.service.AuditService;
 import io.psyllabus.platform.common.dto.PageResponse;
 import io.psyllabus.platform.common.exception.DuplicateResourceException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
@@ -38,8 +41,11 @@ import java.util.UUID;
 @Transactional
 public class AcademicTermServiceImpl implements AcademicTermService {
 
+    public static final String ACADEMIC_TERM = "ACADEMIC_TERM";
     private final AcademicTermRepository academicTermRepository;
     private final AcademicYearRepository academicYearRepository;
+    private final AcademicTermMapper academicTermMapper;
+    private final AuditService auditService;
 
     @Override
     public AcademicTermResponse create(AcademicTermCreateRequest request) {
@@ -66,7 +72,10 @@ public class AcademicTermServiceImpl implements AcademicTermService {
 
         AcademicTerm saved = academicTermRepository.save(term);
         log.info("Academic term created: id={} name={} tenant={}", saved.getId(), saved.getName(), tenantId);
-        return mapToResponse(saved);
+
+        auditService.log(AuditAction.ACADEMIC_SETUP, ACADEMIC_TERM, saved.getId(), "Created academic term: " + saved.getName());
+
+        return academicTermMapper.toResponse(saved);
     }
 
     @Override
@@ -84,7 +93,7 @@ public class AcademicTermServiceImpl implements AcademicTermService {
         UUID tenantId = TenantContext.getCurrentTenantId();
         AcademicTerm term = academicTermRepository.findByTenantIdAndIsCurrentTrue(tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("No current academic term set for this school"));
-        return mapToResponse(term);
+        return academicTermMapper.toResponse(term);
     }
 
     @Override
@@ -93,7 +102,7 @@ public class AcademicTermServiceImpl implements AcademicTermService {
         UUID tenantId = TenantContext.getCurrentTenantId();
         return academicTermRepository.findAllByAcademicYearIdAndTenantId(academicYearId, tenantId)
                 .stream()
-                .map(this::mapToResponse)
+                .map(academicTermMapper::toResponse)
                 .toList();
     }
 
@@ -103,7 +112,7 @@ public class AcademicTermServiceImpl implements AcademicTermService {
         UUID tenantId = TenantContext.getCurrentTenantId();
         return PageResponse.from(
                 academicTermRepository.findAllByTenantId(tenantId, pageable)
-                        .map(this::mapToResponse)
+                        .map(academicTermMapper::toResponse)
         );
     }
 
@@ -133,7 +142,10 @@ public class AcademicTermServiceImpl implements AcademicTermService {
 
         AcademicTerm saved = academicTermRepository.save(term);
         log.info("Academic term updated: id={} tenant={}", id, tenantId);
-        return mapToResponse(saved);
+
+        auditService.log(AuditAction.UPDATE, ACADEMIC_TERM, id, "Updated academic term details: " + saved.getName());
+
+        return academicTermMapper.toResponse(saved);
     }
 
     @Override
@@ -152,7 +164,10 @@ public class AcademicTermServiceImpl implements AcademicTermService {
         AcademicTerm saved = academicTermRepository.save(term);
 
         log.info("Current academic term set: id={} name={} tenant={}", id, term.getName(), tenantId);
-        return mapToResponse(saved);
+
+        auditService.log(AuditAction.ACADEMIC_SETUP, ACADEMIC_TERM, id, "Set as current academic term: " + term.getName());
+
+        return academicTermMapper.toResponse(saved);
     }
 
     /**
@@ -254,20 +269,6 @@ public class AcademicTermServiceImpl implements AcademicTermService {
             throw new ValidationException("Term dates must be within the academic year range: " + 
                     year.getStartDate() + " to " + year.getEndDate());
         }
-    }
-
-    private AcademicTermResponse mapToResponse(AcademicTerm term) {
-        return new AcademicTermResponse(
-                term.getId(),
-                term.getAcademicYearId(),
-                term.getName(),
-                term.getTermNumber(),
-                term.getStartDate(),
-                term.getEndDate(),
-                term.isCurrent(),
-                term.getCreatedAt(),
-                term.getUpdatedAt()
-        );
     }
 
     private AcademicTermDetailResponse mapToDetailResponse(AcademicTerm term, String yearName) {

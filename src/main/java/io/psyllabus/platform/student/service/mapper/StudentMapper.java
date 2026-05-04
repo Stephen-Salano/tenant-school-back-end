@@ -1,5 +1,6 @@
 package io.psyllabus.platform.student.service.mapper;
 
+import io.psyllabus.platform.student.dto.request.StudentCreateRequest;
 import io.psyllabus.platform.student.dto.responses.StudentDetailResponse;
 import io.psyllabus.platform.student.dto.responses.StudentResponse;
 import io.psyllabus.platform.student.entities.Student;
@@ -17,4 +18,12 @@ public interface StudentMapper {
     StudentResponse toResponse(Student student);
 
     StudentDetailResponse toDetailResponse(Student student);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "tenantId", ignore = true)
+    @Mapping(target = "userId", ignore = true)
+    @Mapping(target = "admissionDate", ignore = true)
+    @Mapping(target = "currentStatus", source = "status")
+    @Mapping(target = "currentClassId", source = "classId")
+    Student toEntity(StudentCreateRequest request);
 }
