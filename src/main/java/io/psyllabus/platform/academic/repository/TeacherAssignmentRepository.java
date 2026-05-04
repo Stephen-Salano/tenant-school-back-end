@@ -20,7 +20,7 @@ public interface TeacherAssignmentRepository extends JpaRepository<TeacherAssign
 
     @Query("""
         SELECT new io.psyllabus.platform.academic.dto.response.TeacherAssignmentResponse(
-            ta.id, ta.staffId, s.userId, CONCAT(s.firstName, ' ', s.lastName), 
+            ta.id, ta.staffId, s.userId, CONCAT(s.firstName, ' ', s.lastName),
             ta.classId, sc.name, ta.subjectId, sub.name, 
             ta.academicTermId, term.name, ta.isClassTeacher, 
             ta.lessonsPerWeek, ta.status, ta.createdAt, ta.updatedAt
@@ -36,7 +36,7 @@ public interface TeacherAssignmentRepository extends JpaRepository<TeacherAssign
 
     @Query("""
         SELECT new io.psyllabus.platform.academic.dto.response.TeacherAssignmentResponse(
-            ta.id, ta.staffId, s.userId, CONCAT(s.firstName, ' ', s.lastName), 
+            ta.id, ta.staffId, s.userId, CONCAT(s.firstName, ' ', s.lastName),
             ta.classId, sc.name, ta.subjectId, sub.name, 
             ta.academicTermId, term.name, ta.isClassTeacher, 
             ta.lessonsPerWeek, ta.status, ta.createdAt, ta.updatedAt
@@ -53,6 +53,14 @@ public interface TeacherAssignmentRepository extends JpaRepository<TeacherAssign
     List<TeacherAssignment> findAllByAcademicTermIdAndTenantId(UUID academicTermId, UUID tenantId);
     Optional<TeacherAssignment> findByIdAndTenantId(UUID id, UUID tenantId);
     List<TeacherAssignment> findAllByClassIdAndAcademicTermIdAndIsClassTeacherTrueAndTenantId(UUID classId, UUID academicTermId, UUID tenantId);
+    boolean existsByStaffIdAndClassIdAndSubjectIdAndAcademicTermIdAndTenantIdAndStatus(
+            UUID staffId,
+            UUID classId,
+            UUID subjectId,
+            UUID academicTermId,
+            UUID tenantId,
+            io.psyllabus.platform.academic.enums.AssignmentStatus status
+    );
 
     boolean existsByStaffIdAndClassIdAndSubjectIdAndAcademicTermIdAndTenantId(
         UUID staffId, UUID classId, UUID subjectId, UUID academicTermId, UUID tenantId);

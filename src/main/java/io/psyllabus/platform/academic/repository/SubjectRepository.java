@@ -22,6 +22,7 @@ public interface SubjectRepository extends JpaRepository<Subject, UUID> {
     Page<Subject> findAllBySubjectGroupIdAndTenantId(UUID subjectGroupId, UUID tenantId, Pageable pageable);
     Page<Subject> findAllBySubjectCategoryIdAndTenantId(UUID subjectCategoryId, UUID tenantId, Pageable pageable);
     List<Subject> findAllBySubjectGroupIdAndTenantIdOrderByNameAsc(UUID subjectGroupId, UUID tenantId);
+    List<Subject> findAllByIdInAndTenantId(List<UUID> ids, UUID tenantId);
     Optional<Subject> findByNameAndTenantId(String name, UUID tenantId);
     Optional<Subject> findByIdAndTenantId(UUID id, UUID tenantId);
     boolean existsByNameAndTenantId(String name, UUID tenantId);

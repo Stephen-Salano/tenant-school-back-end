@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -25,6 +26,8 @@ public interface StaffRepository extends JpaRepository<Staff, UUID> {
     Optional<Staff> findByIdAndTenantId(UUID id, UUID tenantId);
 
     Optional<Staff> findByUserIdAndTenantId(UUID userId, UUID tenantId);
+
+    List<Staff> findAllByIdInAndTenantId(List<UUID> ids, UUID tenantId);
 
     Optional<Staff> findByEmployeeNumberAndTenantId(String employeeNumber, UUID tenantId);
 
