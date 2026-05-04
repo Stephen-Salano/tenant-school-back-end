@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -174,6 +175,7 @@ public class AcademicTermServiceImpl implements AcademicTermService {
      * Responds to curriculum selection by auto-generating terms.
      * CBC generates 3 terms; IGCSE generates 2 terms.
      */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onCurriculumSelected(CurriculumSelectedEvent event) {
         log.info("Curriculum selection event received for tenant={}, type={}",

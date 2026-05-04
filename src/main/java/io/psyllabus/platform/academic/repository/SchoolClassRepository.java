@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -20,7 +21,7 @@ public interface SchoolClassRepository extends JpaRepository<SchoolClass, UUID> 
      * Used by CsvValidationService to validate student enrollment in bulk.
      */
     @Query("""
-        SELECT CONCAT(c.gradeLevel, '::', COALESCE(c.streamName, '')) 
+        SELECT CONCAT(c.gradeLevel, '::', COALESCE(c.streamName, ''))
         FROM SchoolClass c
         JOIN AcademicYear y ON c.academicYearId = y.id
         WHERE c.tenantId = :tenantId AND y.isCurrent = true
@@ -31,6 +32,7 @@ public interface SchoolClassRepository extends JpaRepository<SchoolClass, UUID> 
     Page<SchoolClass> findAllByAcademicYearIdAndTenantId(UUID academicYearId, UUID tenantId, Pageable pageable);
     Page<SchoolClass> findAllByBranchIdAndTenantId(UUID branchId, UUID tenantId, Pageable pageable);
     Optional<SchoolClass> findByIdAndTenantId(UUID id, UUID tenantId);
+    List<SchoolClass> findAllByIdInAndTenantId(List<UUID> ids, UUID tenantId);
     Optional<SchoolClass> findByGradeLevelAndStreamNameAndTenantId(String gradeLevel, String streamName, UUID tenantId);
     Optional<SchoolClass> findByGradeLevelAndStreamNameIsNullAndTenantId(String gradeLevel, UUID tenantId);
     boolean existsByNameAndAcademicYearIdAndTenantId(String name, UUID academicYearId, UUID tenantId);

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -31,6 +32,8 @@ public interface StaffRepository extends JpaRepository<Staff, UUID> {
     List<Staff> findAllByIdInAndTenantId(Set<UUID> ids, UUID tenantId);
 
     Optional<Staff> findByUserIdAndTenantId(UUID userId, UUID tenantId);
+
+    List<Staff> findAllByIdInAndTenantId(List<UUID> ids, UUID tenantId);
 
     Optional<Staff> findByEmployeeNumberAndTenantId(String employeeNumber, UUID tenantId);
 
