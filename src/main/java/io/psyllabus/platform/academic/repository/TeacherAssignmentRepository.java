@@ -57,4 +57,11 @@ public interface TeacherAssignmentRepository extends JpaRepository<TeacherAssign
 
     boolean existsByStaffIdAndClassIdAndSubjectIdAndAcademicTermIdAndTenantId(
         UUID staffId, UUID classId, UUID subjectId, UUID academicTermId, UUID tenantId);
+
+    boolean existsByStaffIdAndClassIdAndTenantIdAndStatus(
+            UUID staffId,
+            UUID classId,
+            UUID tenantId,
+            io.psyllabus.platform.academic.enums.AssignmentStatus status
+    );
 }

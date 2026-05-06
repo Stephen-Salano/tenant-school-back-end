@@ -1,8 +1,11 @@
 package io.psyllabus.platform.attendance.dto.responses;
 
-/**
- * Summary report
- * { totalDays: 20, present: 18, absent: 2, rate: 90% }
- */
-public record AttendanceReportResponse() {
+public record AttendanceReportResponse(
+        long totalRecords,
+        long presentCount,
+        long lateCount,
+        long absentCount,
+        long excusedCount,
+        double attendanceRate
+) {
 }

@@ -6,7 +6,7 @@ package io.psyllabus.platform.audit.enums;
  */
 public enum AuditAction {
     // Infrastructure & Auth
-    CREATE, UPDATE, DELETE, LOGIN, LOGOUT, ACCESS_DENIED,
+    CREATE, UPDATE, DELETE, READ, LOGIN, LOGOUT, ACCESS_DENIED,
     
     // SM3: Academic Structure
     ACADEMIC_SETUP, // For creating Years, Terms, Classes, Subjects
