@@ -3,13 +3,19 @@ spring:
     url: ${DEV_DB_URL:jdbc:postgresql://localhost:5432/psyllabus_dev?prepareThreshold=0}
     driver-class-name: org.postgresql.Driver
     username: ${DEV_DB_USERNAME}
-    password: ${DEV_DB_PASSWORD}
+    password: postgres
 
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: update
+      ddl-auto: create-drop
     show-sql: true
+
+  flyway:
+    enabled: false
+    baseline-on-migrate: true
+    baseline-version: 13
+    locations: classpath:db/migration
   h2:
     console:
       enabled: false
@@ -49,11 +55,12 @@ logging:
 jwt:
   secret-key: ${DEV_JWT_SECRET_KEY}
   signing-key: ${DEV_SIGNING_KEY}
-  access-token-expiration: ${DEV_JWT_ACCESS_EXPR}
-  refresh-token-expiration: ${DEV_JWT_REFRESH_EXPR}
+  access-token-expiration: ${DEV_JWT_ACCESS_EXPR:86400000} # 24 hours
+  refresh-token-expiration: ${DEV_JWT_REFRESH_EXPR:2592000000} # 30 days
 
 platform:
   api-key: ${PLATFORM_API_KEY:dev-platform-key-change-in-prod}
   dev:
     skip-subscription-check: true # turns off subscription gating
     admin-password: ${DEV_ADMIN_PASS:PlatformAdmin@123}
+    school-admin-password: ${DEV_SCHOOL_ADMIN_PASS:Admin@123}

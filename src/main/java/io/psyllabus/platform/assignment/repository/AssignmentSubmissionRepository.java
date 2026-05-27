@@ -47,4 +47,15 @@ public interface AssignmentSubmissionRepository extends JpaRepository<Assignment
           AND s.tenantId = :tenantId
     """)
     List<UUID> findStudentIdsByAssignmentIdAndTenantId(@Param("assignmentId") UUID assignmentId, @Param("tenantId") UUID tenantId);
+
+    @Query("""
+        SELECT s.assignmentId,
+               COUNT(CASE WHEN s.submissionStatus = 'PENDING' THEN 1 END),
+               COUNT(CASE WHEN s.submissionStatus = 'SUBMITTED' THEN 1 END),
+               COUNT(CASE WHEN s.submissionStatus = 'GRADED' THEN 1 END)
+        FROM AssignmentSubmission s
+        WHERE s.assignmentId IN :assignmentIds AND s.tenantId = :tenantId
+        GROUP BY s.assignmentId
+    """)
+    List<Object[]> countSubmissionsByAssignmentIds(@Param("assignmentIds") List<UUID> assignmentIds, @Param("tenantId") UUID tenantId);
 }

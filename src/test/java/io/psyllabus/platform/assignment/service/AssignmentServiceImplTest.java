@@ -11,6 +11,7 @@ import io.psyllabus.platform.academic.repository.TeacherAssignmentRepository;
 import io.psyllabus.platform.assignment.dto.request.AssignmentCreateRequest;
 import io.psyllabus.platform.assignment.dto.request.AttachmentMetadataRequest;
 import io.psyllabus.platform.assignment.dto.response.AssignmentDetailResponse;
+import io.psyllabus.platform.assignment.dto.response.AssignmentResponse;
 import io.psyllabus.platform.assignment.entities.Assignment;
 import io.psyllabus.platform.assignment.enums.AssignmentStatus;
 import io.psyllabus.platform.assignment.enums.AssignmentType;
@@ -20,6 +21,7 @@ import io.psyllabus.platform.assignment.repository.AssignmentSubmissionRepositor
 import io.psyllabus.platform.assignment.repository.SubmissionAttachmentRepository;
 import io.psyllabus.platform.assignment.service.impl.AssignmentServiceImpl;
 import io.psyllabus.platform.audit.service.AuditService;
+import io.psyllabus.platform.common.dto.PageResponse;
 import io.psyllabus.platform.common.util.TenantContext;
 import io.psyllabus.platform.grading.service.GradingSchemeService;
 import io.psyllabus.platform.staff.entities.Staff;
@@ -33,14 +35,20 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -171,5 +179,62 @@ class AssignmentServiceImplTest {
         ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
         verify(rabbitTemplate).convertAndSend(anyString(), anyString(), eventCaptor.capture());
         assertTrue(eventCaptor.getValue().toString().contains(assignmentId.toString()));
+    }
+
+    @Test
+    void listAssignments_usesBatchQueriesAndPopulatesSubmissionCounts() {
+        UUID tenantId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID staffId = UUID.randomUUID();
+        UUID classId = UUID.randomUUID();
+        UUID subjectId = UUID.randomUUID();
+        UUID assignmentId = UUID.randomUUID();
+        TenantContext.setCurrentTenant(tenantId);
+
+        Staff staff = Staff.builder().id(staffId).tenantId(tenantId).userId(userId).firstName("Jane").lastName("Teacher").build();
+        SchoolClass schoolClass = SchoolClass.builder().id(classId).tenantId(tenantId).name("Grade 5 Blue").build();
+        Subject subject = Subject.builder().id(subjectId).tenantId(tenantId).name("Math").build();
+        Assignment assignment = Assignment.builder()
+                .id(assignmentId)
+                .tenantId(tenantId)
+                .staffId(staffId)
+                .classId(classId)
+                .subjectId(subjectId)
+                .academicTermId(UUID.randomUUID())
+                .title("Homework 1")
+                .assignmentType(AssignmentType.HOMEWORK)
+                .maxScore(100)
+                .dueDate(LocalDateTime.now().plusDays(3))
+                .status(AssignmentStatus.ACTIVE)
+                .build();
+        Page<Assignment> page = new PageImpl<>(List.of(assignment), PageRequest.of(0, 20), 1);
+
+        when(staffRepository.findByUserIdAndTenantId(userId, tenantId)).thenReturn(Optional.of(staff));
+        when(assignmentRepository.findAllByStaffIdAndTenantId(eq(staffId), eq(tenantId), any(Pageable.class)))
+                .thenReturn(page);
+        when(schoolClassRepository.findAllByIdInAndTenantId(List.of(classId), tenantId))
+                .thenReturn(List.of(schoolClass));
+        when(subjectRepository.findAllByIdInAndTenantId(List.of(subjectId), tenantId))
+                .thenReturn(List.of(subject));
+        List<Object[]> submissionCounts = new ArrayList<>();
+        submissionCounts.add(new Object[]{assignmentId, 2L, 3L, 1L});
+        List<Object[]> attachmentCounts = new ArrayList<>();
+        attachmentCounts.add(new Object[]{assignmentId, 5L});
+        when(assignmentSubmissionRepository.countSubmissionsByAssignmentIds(List.of(assignmentId), tenantId))
+                .thenReturn(submissionCounts);
+        when(assignmentAttachmentRepository.countByAssignmentIds(List.of(assignmentId), tenantId))
+                .thenReturn(attachmentCounts);
+
+        PageResponse<AssignmentResponse> response = assignmentService.listAssignments(userId, null, null, PageRequest.of(0, 20));
+
+        assertEquals(1, response.content().size());
+        AssignmentResponse result = response.content().getFirst();
+        assertEquals(2, result.pendingCount());
+        assertEquals(3, result.submittedCount());
+        assertEquals(1, result.gradedCount());
+        assertEquals(5, result.attachmentCount());
+        verify(assignmentSubmissionRepository).countSubmissionsByAssignmentIds(List.of(assignmentId), tenantId);
+        verify(assignmentAttachmentRepository).countByAssignmentIds(List.of(assignmentId), tenantId);
+        verify(assignmentAttachmentRepository, never()).countByAssignmentIdAndTenantId(any(), any());
     }
 }

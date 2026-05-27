@@ -21,4 +21,6 @@ public interface AttendanceRepository extends JpaRepository<AttendanceRecord, UU
     List<AttendanceRecord> findAllByTenantIdAndIdempotencyKey(UUID tenantId, String idempotencyKey);
 
     List<AttendanceRecord> findAllByTenantIdAndClassIdAndDateOrderByCreatedAtAsc(UUID tenantId, UUID classId, LocalDate date);
+
+    long deleteByAcademicTermIdAndTenantId(UUID academicTermId, UUID tenantId);
 }

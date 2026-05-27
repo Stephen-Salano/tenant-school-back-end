@@ -4,9 +4,11 @@ import io.psyllabus.platform.academic.dto.events.CurriculumSelectedEvent;
 import io.psyllabus.platform.audit.service.AuditService;
 import io.psyllabus.platform.common.exception.ValidationException;
 import io.psyllabus.platform.common.util.TenantContext;
+import io.psyllabus.platform.common.dto.PageResponse;
 import io.psyllabus.platform.grading.dto.request.GradingLevelCreateRequest;
 import io.psyllabus.platform.grading.dto.request.GradingSchemeCreateRequest;
 import io.psyllabus.platform.grading.dto.response.GradeCalculationResponse;
+import io.psyllabus.platform.grading.dto.response.GradingSchemeResponse;
 import io.psyllabus.platform.grading.entities.GradingLevel;
 import io.psyllabus.platform.grading.entities.GradingScheme;
 import io.psyllabus.platform.grading.enums.GradingSystem;
@@ -21,7 +23,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -119,5 +126,34 @@ class GradingSchemeServiceImplTest {
         assertTrue(captor.getValue().isActive());
         verify(gradingLevelRepository).deleteAllBySchemeIdAndTenantId(schemeId, tenantId);
         verify(gradingLevelRepository).saveAll(anyList());
+    }
+
+    @Test
+    void listSchemes_usesBatchLevelCountQuery() {
+        UUID tenantId = UUID.randomUUID();
+        UUID schemeId = UUID.randomUUID();
+        TenantContext.setCurrentTenant(tenantId);
+
+        GradingScheme scheme = GradingScheme.builder()
+                .id(schemeId)
+                .tenantId(tenantId)
+                .name("Traditional A-F")
+                .gradingSystem(GradingSystem.TRADITIONAL)
+                .isDefault(true)
+                .isActive(true)
+                .build();
+        Page<GradingScheme> page = new PageImpl<>(List.of(scheme), PageRequest.of(0, 20), 1);
+
+        when(gradingSchemeRepository.findAllByTenantId(tenantId, PageRequest.of(0, 20))).thenReturn(page);
+        List<Object[]> levelCounts = new ArrayList<>();
+        levelCounts.add(new Object[]{schemeId, 5L});
+        when(gradingLevelRepository.countBySchemeIds(List.of(schemeId), tenantId))
+                .thenReturn(levelCounts);
+
+        PageResponse<GradingSchemeResponse> response = gradingSchemeService.listSchemes(PageRequest.of(0, 20));
+
+        assertEquals(1, response.content().size());
+        assertEquals(Integer.valueOf(5), response.content().getFirst().levelCount());
+        verify(gradingLevelRepository).countBySchemeIds(List.of(schemeId), tenantId);
     }
 }

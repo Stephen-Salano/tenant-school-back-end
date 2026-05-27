@@ -1,0 +1,6 @@
+first_name,last_name,date_of_birth,gender,admission_number,email,phone,medical_conditions,grade_level,stream_name,guardian1_first_name,guardian1_last_name,guardian1_phone,guardian1_email,guardian1_relationship,guardian2_first_name,guardian2_last_name,guardian2_phone,guardian2_email,guardian2_relationship
+Kevin,Otieno,14/05/2010,MALE,ADM-99901,kevin.otieno@school.ac.ke,+254722200001,,Grade 1,East,Samuel,Otieno,+254711000201,samuel.otieno@gmail.com,FATHER,,,,,
+Lilian,Kimani,22/08/2011,FEMALE,ADM-99902,lilian.kimani@school.ac.ke,+254722200002,,Grade 1,East,Anne,Kimani,+254711000202,anne.kimani@gmail.com,MOTHER,,,,,
+Michael,Njoroge,10/03/2010,MALE,ADM-99903,michael.njoroge@school.ac.ke,+254722200003,,Grade 1,West,George,Njoroge,+254711000203,george.njoroge@gmail.com,FATHER,,,,,
+Diana,Kariuki,05/11/2011,FEMALE,ADM-99904,diana.kariuki@school.ac.ke,+254722200004,,Grade 2,East,Mary,Kariuki,+254711000204,mary.kariuki@gmail.com,MOTHER,,,,,
+Eric,Wanjiru,19/07/2010,MALE,ADM-99905,eric.wanjiru@school.ac.ke,+254722200005,,Grade 2,East,Joseph,Wanjiru,+254711000205,joseph.wanjiru@gmail.com,FATHER,,,,,

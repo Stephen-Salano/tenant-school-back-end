@@ -1,0 +1,2 @@
+first_name,last_name,date_of_birth,gender,admission_number,email,phone,medical_conditions,grade_level,stream_name,guardian1_first_name,guardian1_last_name,guardian1_phone,guardian1_email,guardian1_relationship,guardian2_first_name,guardian2_last_name,guardian2_phone,guardian2_email,guardian2_relationship
+Calvin,Ombogo,14/05/2010,MALE,,calvin.ombogo@school.ac.ke,+254722900001,,Grade 9,North,Ben,Ombogo,+254711000901,ben.ombogo2@gmail.com,FATHER,,,,,

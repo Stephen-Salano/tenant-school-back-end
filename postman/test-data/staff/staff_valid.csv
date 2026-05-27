@@ -1,0 +1,6 @@
+first_name,last_name,email,gender,hire_date,phone,employee_number,subject_group_name,teaching_assignments,class_teacher_assignment
+Paul,Ngugi,paul.ngugi@school.ac.ke,MALE,12/01/2022,+254731100001,,Mathematics & Sciences,Mathematics|Grade 1|East;Science|Grade 1|East,
+Lucy,Mbugua,lucy.mbugua@school.ac.ke,FEMALE,08/03/2021,+254731100002,,Languages,English|Grade 1|East;Kiswahili|Grade 1|East,
+Samuel,Kioko,samuel.kioko@school.ac.ke,MALE,15/06/2020,+254731100003,,Humanities,Social Studies|Grade 1|West;CRE|Grade 1|West,
+Grace,Njeri,grace.njeri@school.ac.ke,FEMALE,20/08/2023,+254731100004,,Mathematics & Sciences,Mathematics|Grade 2|East,
+James,Mwenda,james.mwenda@school.ac.ke,MALE,05/02/2019,+254731100005,,Languages,Kiswahili|Grade 2|West,

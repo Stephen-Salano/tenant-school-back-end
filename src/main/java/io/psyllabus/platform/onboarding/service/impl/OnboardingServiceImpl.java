@@ -13,6 +13,7 @@ import io.psyllabus.platform.common.exception.ValidationException;
 import io.psyllabus.platform.onboarding.dto.ImportErrorDetail;
 import io.psyllabus.platform.onboarding.dto.ImportRowOutcome;
 import io.psyllabus.platform.onboarding.dto.response.ImportJobStatusResponse;
+import io.psyllabus.platform.onboarding.event.OnboardingJobQueuedEvent;
 import io.psyllabus.platform.onboarding.dto.response.ValidationReport;
 import io.psyllabus.platform.onboarding.entity.ImportJob;
 import io.psyllabus.platform.onboarding.enums.ImportJobStatus;
@@ -37,6 +38,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import org.springframework.context.ApplicationEventPublisher;
+
 import java.util.*;
 
 @Service
@@ -52,6 +55,7 @@ public class OnboardingServiceImpl implements OnboardingService {
     private final RabbitTemplate rabbitTemplate;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Value("${onboarding.max-file-size-bytes:5242880}")
     private long maxFileSizeBytes;
@@ -303,7 +307,7 @@ public class OnboardingServiceImpl implements OnboardingService {
         job.setRawData(new ArrayList<>(rows));
         importJobRepository.save(job);
 
-        rabbitTemplate.convertAndSend(RabbitMQConstants.ONBOARDING_EXCHANGE, routingKey, new OnboardingJobPayload(job.getId(), job.getTenantId()));
+        eventPublisher.publishEvent(new OnboardingJobQueuedEvent(this, job.getId(), job.getTenantId(), routingKey));
 
         log.info("Import job queued [jobId={}, type={}, rows={}, tenantId={}]", job.getId(), jobType, rows.size(), tenantId);
         auditService.log(AuditAction.BULK_IMPORT, IMPORT_JOB_LITERAL, job.getId(), "QUEUED " + rows.size() + " " + jobType.name() + " rows");

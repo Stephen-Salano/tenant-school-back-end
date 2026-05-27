@@ -1,5 +1,7 @@
 package io.psyllabus.platform.common.config;
 
+import io.psyllabus.platform.academic.repository.AcademicTermRepository;
+import io.psyllabus.platform.attendance.repository.AttendanceRepository;
 import io.psyllabus.platform.onboarding.repository.ImportJobRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -8,6 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -33,7 +36,11 @@ public class MaintenanceService {
      */
     private static final int RAW_DATA_RETENTION_HOURS = 24;
 
+    private static final int ATTENDANCE_ARCHIVE_GRACE_DAYS = 14;
+
     private final ImportJobRepository importJobRepository;
+    private final AttendanceRepository attendanceRepository;
+    private final AcademicTermRepository academicTermRepository;
 
     /**
      * Nullifies {@code raw_data} on ImportJob records that reached a terminal state
@@ -56,6 +63,40 @@ public class MaintenanceService {
                     "older than {} hours (K-DPA data minimisation)", cleared, RAW_DATA_RETENTION_HOURS);
         } else {
             log.debug("Maintenance: no stale ImportJob raw_data to clear");
+        }
+    }
+
+    /**
+     * Archives attendance records for academic terms that ended more than
+     * {@value #ATTENDANCE_ARCHIVE_GRACE_DAYS} days ago. Archived records are
+     * deleted from the live table since attendance is immutable and the
+     * reporting API can be extended to read from an archive store.
+     *
+     * <p>Runs daily at 03:00 AM server time.
+     */
+    @Scheduled(cron = "0 0 3 * * *")
+    @Transactional
+    public void archiveStaleAttendanceRecords() {
+        LocalDate cutoff = LocalDate.now().minusDays(ATTENDANCE_ARCHIVE_GRACE_DAYS);
+
+        var expiredTerms = academicTermRepository.findAllByEndDateBefore(cutoff);
+        if (expiredTerms.isEmpty()) {
+            log.debug("Maintenance: no expired academic terms found for attendance archive");
+            return;
+        }
+
+        long totalDeleted = 0;
+        for (var term : expiredTerms) {
+            long deleted = attendanceRepository.deleteByAcademicTermIdAndTenantId(term.getId(), term.getTenantId());
+            totalDeleted += deleted;
+            if (deleted > 0) {
+                log.info("Maintenance: archived {} attendance record(s) for term '{}' (id={}, tenant={})",
+                        deleted, term.getName(), term.getId(), term.getTenantId());
+            }
+        }
+
+        if (totalDeleted == 0) {
+            log.debug("Maintenance: no attendance records to archive");
         }
     }
 }

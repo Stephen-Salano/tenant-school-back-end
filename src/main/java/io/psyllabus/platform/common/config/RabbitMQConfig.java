@@ -93,6 +93,16 @@ public class RabbitMQConfig {
         return ExchangeBuilder.directExchange(ASSIGNMENT_DLX).durable(true).build();
     }
 
+    @Bean
+    public DirectExchange auditExportExchange() {
+        return ExchangeBuilder.directExchange(AUDIT_EXPORT_EXCHANGE).durable(true).build();
+    }
+
+    @Bean
+    public DirectExchange auditExportDLX() {
+        return ExchangeBuilder.directExchange(AUDIT_EXPORT_DLX).durable(true).build();
+    }
+
     // ══════════════════════════════════════════════════════════════════════
     // QUEUES & BINDINGS: ONBOARDING (SM4)
     // ══════════════════════════════════════════════════════════════════════
@@ -141,6 +151,33 @@ public class RabbitMQConfig {
     @Bean
     public Binding staffImportDlqBinding() {
         return BindingBuilder.bind(staffImportDLQ()).to(onboardingDLX()).with(STAFF_IMPORT_DLQ);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // QUEUES & BINDINGS: AUDIT EXPORT
+    // ══════════════════════════════════════════════════════════════════════
+
+    @Bean
+    public Queue auditExportQueue() {
+        return QueueBuilder.durable(AUDIT_EXPORT_QUEUE)
+                .withArgument(X_DEAD_LETTER_EXCHANGE, AUDIT_EXPORT_DLX)
+                .withArgument(X_DEAD_LETTER_ROUTING_KEY, AUDIT_EXPORT_DLQ)
+                .build();
+    }
+
+    @Bean
+    public Queue auditExportDLQ() {
+        return new Queue(AUDIT_EXPORT_DLQ);
+    }
+
+    @Bean
+    public Binding auditExportBinding() {
+        return BindingBuilder.bind(auditExportQueue()).to(auditExportExchange()).with(AUDIT_EXPORT_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding auditExportDlqBinding() {
+        return BindingBuilder.bind(auditExportDLQ()).to(auditExportDLX()).with(AUDIT_EXPORT_DLQ);
     }
 
     // ══════════════════════════════════════════════════════════════════════

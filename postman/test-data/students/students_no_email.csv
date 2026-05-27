@@ -1,0 +1,4 @@
+first_name,last_name,date_of_birth,gender,admission_number,email,phone,medical_conditions,grade_level,stream_name,guardian1_first_name,guardian1_last_name,guardian1_phone,guardian1_email,guardian1_relationship,guardian2_first_name,guardian2_last_name,guardian2_phone,guardian2_email,guardian2_relationship
+Elijah,Otieno,14/05/2010,MALE,,,+254723000001,,Grade 1,East,Vincent,Otieno,+254711001001,vincent.otieno@gmail.com,FATHER,,,,,
+Celestine,Anyango,22/08/2011,FEMALE,,,+254723000002,,Grade 1,West,Margaret,Anyango,+254711001002,margaret.anyango@gmail.com,MOTHER,,,,,
+Ruth,Njeri,10/03/2010,FEMALE,,,+254723000003,,Grade 2,East,Esther,Njeri,+254711001003,esther.njeri@gmail.com,MOTHER,,,,,

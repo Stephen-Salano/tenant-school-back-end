@@ -1,0 +1,5 @@
+first_name,last_name,date_of_birth,gender,admission_number,email,phone,medical_conditions,grade_level,stream_name,guardian1_first_name,guardian1_last_name,guardian1_phone,guardian1_email,guardian1_relationship,guardian2_first_name,guardian2_last_name,guardian2_phone,guardian2_email,guardian2_relationship
+Kevin,Wanjiku,03/03/2010,MALE,,kevin.wanjiku@school.ac.ke,+254722200001,,Grade 1,East,Robert,Ochieng,+254711000999,robert.ochieng@gmail.com,FATHER,,,,,
+Diana,Njeri,17/09/2011,FEMALE,,diana.njeri@school.ac.ke,+254722200002,,Grade 1,West,Robert,Ochieng,+254711000999,robert.ochieng@gmail.com,FATHER,,,,,
+Samuel,Muthoni,22/06/2010,MALE,,samuel.muthoni@school.ac.ke,+254722200003,,Grade 2,East,Robert,Ochieng,+254711000999,robert.ochieng@gmail.com,FATHER,,,,,
+Faith,Nakamura,14/02/2011,FEMALE,,faith.nakamura@school.ac.ke,+254722200004,,Grade 2,West,Lucy,Nakamura,+254711000888,lucy.nakamura@gmail.com,MOTHER,,,,,

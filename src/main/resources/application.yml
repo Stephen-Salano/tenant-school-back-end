@@ -71,12 +71,12 @@ africas-talking:
   sender-id: ${AT_SENDER_ID:35010}
 
 # Cloudinary Configuration
-cloudinary:
-  cloud-name: ${CLOUDINARY_CLOUD_NAME}
-  api-key: ${CLOUDINARY_API_KEY}
-  api-secret: ${CLOUDINARY_API_SECRET}
-  upload-preset: ${CLOUDINARY_UPLOAD_PRESET:psyllabus_dev}
-  folder-prefix: ${CLOUDINARY_FOLDER_PREFIX:psyllabus}
+#cloudinary:
+#  cloud-name: ${CLOUDINARY_CLOUD_NAME}
+#  api-key: ${CLOUDINARY_API_KEY}
+#  api-secret: ${CLOUDINARY_API_SECRET}
+#  upload-preset: ${CLOUDINARY_UPLOAD_PRESET:psyllabus_dev}
+#  folder-prefix: ${CLOUDINARY_FOLDER_PREFIX:psyllabus}
 
 # Resend Email Configuration
 resend:
@@ -122,7 +122,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, info, metrics, prometheus
+        include: health, info, metrics, prometheus, flyway, beans
   endpoint:
     health:
       livenessstate:

@@ -57,5 +57,9 @@ public class School extends Auditable {
     @Column(name = "provisioned_by")
     private UUID provisionedBy;
 
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
 
 }

@@ -85,8 +85,13 @@ public class SchoolServiceImpl implements SchoolService{
 
     @Override
     public SchoolOnboardResponse onboardSchool(SchoolCreateRequest request) {
-        String password = RandomUtils.generateRandomAlphanumeric(12);
-        log.info("Provisioning school: subdomain={}, plan={}", request.subdomainPrefix(), request.planType());
+        String password = (request.adminPassword() != null && !request.adminPassword().isBlank())
+                ? request.adminPassword()
+                : RandomUtils.generateRandomAlphanumeric(12);
+        log.info("Provisioning school: subdomain={}, plan={}, adminPasswordProvided={}, passwordLength={}", 
+                request.subdomainPrefix(), request.planType(), 
+                request.adminPassword() != null && !request.adminPassword().isBlank(),
+                password.length());
 
         boolean hasSubdomain = request.subdomainPrefix() != null && !request.subdomainPrefix().isBlank();
         boolean hasCustomDomain = request.customDomain() != null && !request.customDomain().isBlank();
@@ -217,14 +222,13 @@ public class SchoolServiceImpl implements SchoolService{
             throw new InsufficientPermissionException("Cannot update another school's profile");
         }
 
-        School school = schoolRepository.findById(schoolId)
-                .orElseThrow(() -> new ResourceNotFoundException("School not found: " + schoolId));
-
-        // Fetch or create the profile row — first time an admin saves settings,
+        // Fetch School profile row — first time an admin saves settings,
         // the profile row will not exist yet.
         SchoolProfile profile = schoolProfileRepository.findBySchoolId(schoolId)
                 .orElseGet(() -> {
                     log.info("Creating initial SchoolProfile row for school={}", schoolId);
+                    School school = schoolRepository.findById(schoolId)
+                            .orElseThrow(() -> new ResourceNotFoundException("School not found: " + schoolId));
                     SchoolProfile newProfile = new SchoolProfile();
                     newProfile.setSchoolId(schoolId);
                     newProfile.setSchool(school);
@@ -240,10 +244,11 @@ public class SchoolServiceImpl implements SchoolService{
         applyJsonbSection(profile, request.policies());
         applyJsonbSection(profile, request.communication());
 
-        schoolProfileRepository.save(profile);
+        profile = schoolProfileRepository.save(profile);
         log.info("SchoolProfile updated: schoolId={}", schoolId);
 
-        return mapToProfileResponse(school, profile);
+        // Map response using the potentially re-fetched school from the profile
+        return mapToProfileResponse(profile.getSchool(), profile);
     }
 
     // ── Section appliers (PATCH semantics) ───────────────────────────────────

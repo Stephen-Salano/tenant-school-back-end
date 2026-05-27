@@ -7,6 +7,7 @@ import io.psyllabus.platform.onboarding.dto.response.ValidationReport;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -173,6 +174,18 @@ public class GlobalExceptionHandler  {
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error("The requested endpoint does not exist.", errorDetails));
+    }
+
+    @ExceptionHandler(PropertyReferenceException.class)
+    public ResponseEntity<ApiResponse<Void>> handlePropertyReference(PropertyReferenceException ex) {
+        log.warn("Invalid sort property: {}", ex.getMessage());
+        ErrorResponse errorDetails = ErrorResponse.of(
+                "Invalid sort property: " + ex.getPropertyName(),
+                "INVALID_SORT_PROPERTY"
+        );
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("Invalid sort property provided", errorDetails));
     }
 
 

@@ -3,7 +3,9 @@ package io.psyllabus.platform.auth.services;
 import io.psyllabus.platform.auth.entities.RefreshToken;
 import io.psyllabus.platform.auth.entities.User;
 import io.psyllabus.platform.auth.repository.RefreshTokenRepository;
+import io.psyllabus.platform.common.constants.AuthConstants;
 import io.psyllabus.platform.common.exception.UnauthorizedException;
+import io.psyllabus.platform.platformadmin.entities.PlatformAdmin;
 import io.psyllabus.platform.school.entities.School;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -97,6 +99,39 @@ public class RefreshTokenServiceImpl  implements  RefreshTokenService{
     }
 
     @Override
+    public String createPlatformRefreshToken(PlatformAdmin admin) {
+        // 1: Generate signed JWT refresh token for platform admin
+        String refreshJwt = jwtService.generatePlatformToken(admin, "refresh");
+
+        // 2: Extract the jti
+        String jti = jwtService.extractJti(refreshJwt);
+
+        // 3: Hash the jti
+        String jtiHash = sha256(jti);
+
+        // 4: Extract actual expiry from the JWT
+        Date jwtExpiry = jwtService.extractClaims(refreshJwt).getExpiration();
+        LocalDateTime expiresAt = jwtExpiry.toInstant()
+                .atZone(ZoneOffset.UTC)
+                .toLocalDateTime();
+
+        // 5: Persist the revocation record using SYSTEM_TENANT_ID
+        RefreshToken refreshToken = RefreshToken.builder()
+                .tokenHash(jtiHash)
+                .userId(admin.getId())
+                .tenantId(AuthConstants.SYSTEM_TENANT_ID)
+                .expiresAt(expiresAt)
+                .revoked(false)
+                .build();
+
+        refreshTokenRepository.save(refreshToken);
+
+        log.info("Platform refresh token created for admin: {}", admin.getId());
+
+        return refreshJwt;
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public RefreshToken validateAndGet(String refreshJwt, UUID tenantId) {
         // ── Gate 1: Signature check ──────────────────────────────────────────────
@@ -137,6 +172,41 @@ public class RefreshTokenServiceImpl  implements  RefreshTokenService{
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public RefreshToken validateAndGetPlatformToken(String refreshJwt) {
+        // Gate 1: Signature check
+        if (!jwtService.validateToken(refreshJwt)) {
+            log.warn("Platform refresh token failed JWT signature/expiry validation");
+            throw new UnauthorizedException("Invalid refresh token");
+        }
+
+        // Gate 2: Revocation check
+        String jti = jwtService.extractJti(refreshJwt);
+        String jtiHash = sha256(jti);
+
+        RefreshToken token = refreshTokenRepository.findByTokenHash(jtiHash)
+                .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
+
+        // Platform isolation — token must belong to the SYSTEM_TENANT_ID
+        if (!AuthConstants.SYSTEM_TENANT_ID.equals(token.getTenantId())) {
+            log.warn("Platform refresh token type mismatch: expected SYSTEM_TENANT_ID, actual={}", token.getTenantId());
+            throw new UnauthorizedException("Invalid refresh token");
+        }
+
+        if (token.isRevoked()) {
+            log.warn("Attempted use of revoked platform refresh token for admin: {}", token.getUserId());
+            throw new UnauthorizedException("Refresh token has been revoked");
+        }
+
+        if (token.isExpired()) {
+            log.info("Expired platform refresh token used for admin: {}", token.getUserId());
+            throw new UnauthorizedException("Refresh token has expired");
+        }
+
+        return token;
+    }
+
+    @Override
     public void revoke(String refreshJwt, UUID tenantId) {
         try {
             String jti = jwtService.extractJti(refreshJwt);
@@ -153,6 +223,24 @@ public class RefreshTokenServiceImpl  implements  RefreshTokenService{
             // Silent fail — a JWT that can't be parsed is already effectively invalid.
             // No active session to revoke, so this is safe to ignore.
             log.warn("Could not revoke refresh token (may already be invalid): {}", e.getMessage());
+        }
+    }
+
+    @Override
+    public void revokePlatformToken(String refreshJwt) {
+        try {
+            String jti = jwtService.extractJti(refreshJwt);
+            String jtiHash = sha256(jti);
+
+            refreshTokenRepository.findByTokenHash(jtiHash).ifPresent(token -> {
+                if (AuthConstants.SYSTEM_TENANT_ID.equals(token.getTenantId())) {
+                    token.setRevoked(true);
+                    refreshTokenRepository.save(token);
+                    log.info("Platform refresh token revoked for admin: {}", token.getUserId());
+                }
+            });
+        } catch (Exception e) {
+            log.warn("Could not revoke platform refresh token (may already be invalid): {}", e.getMessage());
         }
     }
 

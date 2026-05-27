@@ -2,6 +2,7 @@ package io.psyllabus.platform.auth.services;
 
 import io.psyllabus.platform.auth.entities.RefreshToken;
 import io.psyllabus.platform.auth.entities.User;
+import io.psyllabus.platform.platformadmin.entities.PlatformAdmin;
 import io.psyllabus.platform.school.entities.School;
 
 import java.util.UUID;
@@ -25,6 +26,11 @@ public interface RefreshTokenService {
     String createRefreshToken(User user, School school);
 
     /**
+     * Create and persist a new refresh token for a platform admin.
+     */
+    String createPlatformRefreshToken(PlatformAdmin admin);
+
+    /**
      * Validate an incoming raw refresh token.
      * Hashes it, looks up the DB record, checks revoked + expiry.
      *
@@ -33,9 +39,19 @@ public interface RefreshTokenService {
     RefreshToken validateAndGet(String refreshJwt, UUID tenantId);
 
     /**
+     * Validate an incoming raw refresh token for a platform admin.
+     */
+    RefreshToken validateAndGetPlatformToken(String refreshJwt);
+
+    /**
      * Revoke a single refresh token (single-device logout).
      */
     void revoke(String refreshJwt, UUID tenantId);
+
+    /**
+     * Revoke a single platform admin refresh token.
+     */
+    void revokePlatformToken(String refreshJwt);
 
     /**
      * Revoke ALL active refresh tokens for a user (all-device logout).

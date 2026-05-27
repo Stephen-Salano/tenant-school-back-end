@@ -11,6 +11,8 @@ import io.psyllabus.platform.auth.repository.UserRepository;
 import io.psyllabus.platform.common.constants.AuthConstants;
 import io.psyllabus.platform.common.exception.*;
 import io.psyllabus.platform.common.util.TenantContext;
+import io.psyllabus.platform.platformadmin.entities.PlatformAdmin;
+import io.psyllabus.platform.platformadmin.repositories.PlatformAdminRepository;
 import io.psyllabus.platform.school.entities.School;
 import io.psyllabus.platform.school.repository.SchoolRepository;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +44,7 @@ public class AuthServiceImpl implements AuthService {
     public static final String TOKEN_TYPE = "Bearer";
     private final UserRepository userRepository;
     private final SchoolRepository schoolRepository;
+    private final PlatformAdminRepository platformAdminRepository;
     private final PasswordService passwordService;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
@@ -54,8 +57,10 @@ public class AuthServiceImpl implements AuthService {
 
         // Step 1: Get Tenant from Context (Resolved by TenantFilter)
         UUID tenantId = TenantContext.getCurrentTenantId();
+
         if (tenantId == null) {
-            throw new TenantNotFoundException("Tenant context not set. Access via valid subdomain or custom domain.");
+            log.warn("Login attempted without tenant context for username: {}", request.username());
+            throw new TenantNotFoundException("School context required for this login path");
         }
 
         // Step 2: Find School (Tenant)
@@ -110,6 +115,58 @@ public class AuthServiceImpl implements AuthService {
                 user.getUsername(), false, null
         );
      return new AuthResult(loginResponse, refreshToken);
+    }
+
+    @Override
+    public AuthResult loginPlatformAdmin(LoginRequest request) {
+        log.info("Platform admin login attempt: {}", request.username());
+
+        PlatformAdmin admin = platformAdminRepository
+                .findByUsername(request.username())
+                .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
+
+        if (!passwordService.verifyPassword(request.password(), admin.getPassword())) {
+            throw new UnauthorizedException("Invalid credentials");
+        }
+
+        if (!admin.isEnabled()) {
+            throw new UnauthorizedException("Account is disabled");
+        }
+
+        // Enforce single-session-per-admin: revoke any existing platform refresh tokens
+        refreshTokenService.revokeAllForUser(admin.getId(), AuthConstants.SYSTEM_TENANT_ID);
+
+        String accessToken = jwtService.generatePlatformAccessToken(admin);
+        String refreshToken = refreshTokenService.createPlatformRefreshToken(admin);
+
+        log.info("Platform admin login successful: {}", admin.getUsername());
+
+        return new AuthResult(
+                new LoginResponse(accessToken, TOKEN_TYPE,
+                        jwtService.getAccessTokenExpiration(),
+                        admin.getId(), admin.getUsername(), false, null),
+                refreshToken
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public String refreshPlatformAdmin(String refreshJwt) {
+        RefreshToken tokenRecord = refreshTokenService.validateAndGetPlatformToken(refreshJwt);
+
+        PlatformAdmin admin = platformAdminRepository.findById(tokenRecord.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("Platform admin not found"));
+
+        String newAccessToken = jwtService.generatePlatformAccessToken(admin);
+
+        log.info("Access token refreshed for platform admin: {}", admin.getId());
+        return newAccessToken;
+    }
+
+    @Override
+    public void logoutPlatformAdmin(String refreshJwt) {
+        refreshTokenService.revokePlatformToken(refreshJwt);
+        log.info("Platform admin logged out");
     }
 
     @Override

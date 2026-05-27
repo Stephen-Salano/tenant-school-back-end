@@ -21,6 +21,7 @@ public class SwaggerConfig {
 
     private static final String BEARER_AUTH = "bearerAuth";
     private static final String PLATFORM_KEY = "platformKey";
+    private static final String TENANT_HEADER = "tenantHeader";
 
     @Bean
     public OpenAPI customOpenApi(){
@@ -29,10 +30,12 @@ public class SwaggerConfig {
                 .servers(serverList())
                 .addSecurityItem(new SecurityRequirement()
                         .addList(BEARER_AUTH)
-                        .addList(PLATFORM_KEY))
+                        .addList(PLATFORM_KEY)
+                        .addList(TENANT_HEADER))
                 .components(new Components()
                         .addSecuritySchemes(BEARER_AUTH, jwtSecurityScheme())
-                        .addSecuritySchemes(PLATFORM_KEY, platformKeySecurityScheme()));
+                        .addSecuritySchemes(PLATFORM_KEY, platformKeySecurityScheme())
+                        .addSecuritySchemes(TENANT_HEADER, tenantHeaderScheme()));
     }
 
     private SecurityScheme jwtSecurityScheme() {
@@ -50,6 +53,14 @@ public class SwaggerConfig {
                 .type(SecurityScheme.Type.APIKEY)
                 .in(SecurityScheme.In.HEADER)
                 .description("Platform-level API key required for provisioning endpoints");
+    }
+
+    private SecurityScheme tenantHeaderScheme() {
+        return new SecurityScheme()
+                .name("X-Tenant-ID")
+                .type(SecurityScheme.Type.APIKEY)
+                .in(SecurityScheme.In.HEADER)
+                .description("School tenant identifier (subdomain or UUID). Required for all school-scoped endpoints. e.g. 'stmary' or 'riverside'");
     }
 
     private List<Server> serverList() {

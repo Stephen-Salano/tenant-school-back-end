@@ -273,4 +273,8 @@ public class SchoolProfile {
     @Column(name = "communication", columnDefinition = "jsonb")
     private Map<String, Object> communication;
 
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
 }

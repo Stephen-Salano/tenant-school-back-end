@@ -147,4 +147,13 @@ public class TeacherAssignmentServiceImpl implements TeacherAssignmentService {
         // High Performance: Uses JPQL Constructor Projection to avoid N+1
         return teacherAssignmentRepository.findResponsesByStaffId(staffId, tenantId);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TeacherAssignmentResponse> getAssignmentsByUser(UUID userId) {
+        UUID tenantId = TenantContext.getCurrentTenantId();
+        Staff staff = staffRepository.findByUserIdAndTenantId(userId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Staff profile not found for user: " + userId));
+        return teacherAssignmentRepository.findResponsesByStaffId(staff.getId(), tenantId);
+    }
 }
