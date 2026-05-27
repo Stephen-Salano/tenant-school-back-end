@@ -12,5 +12,7 @@ public interface SubmissionAttachmentRepository extends JpaRepository<Submission
 
     List<SubmissionAttachment> findAllBySubmissionIdAndTenantId(UUID submissionId, UUID tenantId);
 
+    List<SubmissionAttachment> findAllBySubmissionIdInAndTenantId(List<UUID> submissionIds, UUID tenantId);
+
     void deleteAllBySubmissionIdAndTenantId(UUID submissionId, UUID tenantId);
 }

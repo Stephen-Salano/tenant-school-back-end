@@ -35,6 +35,11 @@ public interface AuthService {
     AuthResult login(LoginRequest request);
 
     /**
+     * Authenticate a platform admin.
+     */
+    AuthResult loginPlatformAdmin(LoginRequest request);
+
+    /**
      * Refresh an expired access token using a valid refresh token.
      *
      * Flow:
@@ -50,6 +55,11 @@ public interface AuthService {
     String refresh(String refreshJwt, UUID tenantId);
 
     /**
+     * Refresh an expired platform admin access token.
+     */
+    String refreshPlatformAdmin(String refreshJwt);
+
+    /**
      * Logout — revoke the refresh token.
      *
      * Sets revoked=true on the DB row identified by the jti hash.
@@ -60,6 +70,11 @@ public interface AuthService {
      * @param tenantId current tenant (from TenantContext)
      */
     void logout(String refreshJwt, UUID tenantId);
+
+    /**
+     * Logout a platform admin.
+     */
+    void logoutPlatformAdmin(String refreshJwt);
 
     /**
      * Register a new user within a tenant.

@@ -31,18 +31,14 @@ import java.util.UUID;
  * <p><strong>School user path</strong> (tenantId present in {@code TenantContext}):</p>
  * <ol>
  *   <li>Extract username from JWT {@code sub} claim.</li>
- *   <li>Load {@link User} from {@code users} table, scoped to {@code tenantId}.</li>
+ *   <li>Load {@link io.psyllabus.platform.auth.entities.User} from {@code users} table, scoped to {@code tenantId}.</li>
  *   <li>Validate token signature and username match.</li>
- *   <li>Set {@code UsernamePasswordAuthenticationToken} with the {@link User} as principal.</li>
+ *   <li>Set {@code UsernamePasswordAuthenticationToken} with the user as principal.</li>
  * </ol>
  *
- * <p><strong>Platform admin path</strong> (tenantId is {@code null} because
- * {@code TenantFilter} skips all {@code /api/platform/**} requests):</p>
- * <ol>
- *   <li>Extract username from JWT {@code sub} claim.</li>
- *   <li>Load {@link PlatformAdmin} from {@code platform_admins} table (no tenant scope).</li>
- *   <li>Validate token and set principal with {@code ROLE_PLATFORM_ADMIN} authority.</li>
- * </ol>
+ * <p><strong>Platform admin path</strong>: Requests to {@code /api/platform/**} are
+ * <strong>skipped</strong> by this filter and handled by
+ * {@link io.psyllabus.platform.platformadmin.common.filter.PlatformAdminAuthFilter}.</p>
  *
  * <p>Public endpoints ({@code /api/auth/login}, {@code /api/auth/refresh}, etc.) are
  * excluded via {@link #shouldNotFilter} and never reach this logic.</p>
@@ -174,6 +170,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 path.startsWith("/swagger-ui/")        ||
                 path.startsWith("/v3/api-docs/")       ||
                 path.startsWith("/error") ||
-                path.startsWith("/api/auth/reset-required"); // force reset
+                path.startsWith("/api/health")||
+                path.startsWith("/api/auth/reset-required") || // force reset
+                path.startsWith("/api/platform/"); // delegated to PlatformAdminAuthFilter
     }
 }

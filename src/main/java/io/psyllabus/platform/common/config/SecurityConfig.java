@@ -67,6 +67,7 @@ public class SecurityConfig {
             "/api/auth/logout",     // user may have expired access token when logging out
             "/api/auth/reset-required",
             "/api/auth/forgot-password/**",
+            "/api/platform/auth/**", // platform admin auth endpoints
             "/error"
     };
 
@@ -74,7 +75,8 @@ public class SecurityConfig {
             "/swagger-ui/**",
             "/v3/api-docs/**",
             "/h2-console/**",
-            "/actuator/**"
+            "/actuator/**",
+            "/api/health"
     };
 
     private static final String[] PROD_ACTUATOR_ENDPOINTS = {

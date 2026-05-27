@@ -24,6 +24,7 @@ import io.psyllabus.platform.grading.repository.GradingSchemeRepository;
 import io.psyllabus.platform.school.enums.CurriculumType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -34,6 +35,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -79,8 +81,17 @@ public class GradingSchemeServiceImpl implements GradingSchemeService {
     @Transactional(readOnly = true)
     public PageResponse<GradingSchemeResponse> listSchemes(Pageable pageable) {
         UUID tenantId = TenantContext.getCurrentTenantId();
-        return PageResponse.from(gradingSchemeRepository.findAllByTenantId(tenantId, pageable)
-                .map(this::toSummaryResponse));
+        Page<GradingScheme> page = gradingSchemeRepository.findAllByTenantId(tenantId, pageable);
+
+        Map<UUID, Integer> levelCounts = gradingLevelRepository
+                .countBySchemeIds(page.getContent().stream().map(GradingScheme::getId).toList(), tenantId)
+                .stream().collect(Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> ((Long) row[1]).intValue()
+                ));
+
+        return PageResponse.from(page.map(scheme ->
+                toSummaryResponse(scheme, levelCounts.getOrDefault(scheme.getId(), 0))));
     }
 
     @Override
@@ -324,8 +335,7 @@ public class GradingSchemeServiceImpl implements GradingSchemeService {
         }
     }
 
-    private GradingSchemeResponse toSummaryResponse(GradingScheme scheme) {
-        int levelCount = loadLevels(scheme.getId(), scheme.getTenantId()).size();
+    private GradingSchemeResponse toSummaryResponse(GradingScheme scheme, int levelCount) {
         return new GradingSchemeResponse(
                 scheme.getId(),
                 scheme.getName(),

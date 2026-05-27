@@ -1,0 +1,6 @@
+first_name,last_name,date_of_birth,gender,admission_number,email,phone,medical_conditions,grade_level,stream_name,guardian1_first_name,guardian1_last_name,guardian1_phone,guardian1_email,guardian1_relationship,guardian2_first_name,guardian2_last_name,guardian2_phone,guardian2_email,guardian2_relationship
+Brian,Nakuru,14/05/2010,MALE,,brian.nakuru@school.ac.ke,+254722100001,,Grade 1,East,John,Nakuru,+254711000101,john.nakuru@gmail.com,FATHER,,,,,
+Amina,Mohammed,22/08/2011,FEMALE,,amina.mohammed@school.ac.ke,+254722100002,,Grade 1,East,Maria,Mohammed,+254711000102,maria.mohammed@gmail.com,MOTHER,,,,,
+David,Mwangi,10/03/2010,MALE,,david.mwangi@school.ac.ke,+254722100003,,Grade 1,West,Peter,Mwangi,+254711000103,peter.mwangi@gmail.com,FATHER,,,,,
+Grace,Wanjiku,05/11/2011,FEMALE,,grace.wanjiku@school.ac.ke,+254722100004,,Grade 2,East,Susan,Wanjiku,+254711000104,susan.wanjiku@gmail.com,MOTHER,,,,,
+Faith,Achieng,19/07/2010,FEMALE,,faith.achieng@school.ac.ke,+254722100005,,Grade 2,East,James,Achieng,+254711000105,james.achieng@gmail.com,FATHER,,,,,

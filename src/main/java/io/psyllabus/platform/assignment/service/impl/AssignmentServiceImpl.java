@@ -117,6 +117,11 @@ public class AssignmentServiceImpl implements AssignmentService {
         UUID tenantId = TenantContext.getCurrentTenantId();
         Staff currentStaff = findStaffByUser(currentUserId, tenantId);
 
+        // Optimization: If listing by class without specific status, use the enriched projection with stats
+        if (classId != null && status == null) {
+            return PageResponse.from(assignmentRepository.findResponsesWithStatsByClassId(classId, tenantId, pageable));
+        }
+
         Page<Assignment> page = queryAssignments(currentStaff.getId(), classId, status, tenantId, pageable);
         Map<UUID, SchoolClass> classes = schoolClassRepository.findAllByIdInAndTenantId(
                 page.getContent().stream().map(Assignment::getClassId).distinct().toList(),
@@ -127,12 +132,32 @@ public class AssignmentServiceImpl implements AssignmentService {
                 tenantId
         ).stream().collect(Collectors.toMap(Subject::getId, Function.identity()));
 
-        return PageResponse.from(page.map(assignment -> toAssignmentResponse(
-                assignment,
-                classes.get(assignment.getClassId()),
-                subjects.get(assignment.getSubjectId()),
-                tenantId
-        )));
+        List<UUID> assignmentIds = page.getContent().stream().map(Assignment::getId).toList();
+
+        Map<UUID, long[]> subCounts = assignmentSubmissionRepository
+                .countSubmissionsByAssignmentIds(assignmentIds, tenantId)
+                .stream().collect(Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> new long[]{(long) row[1], (long) row[2], (long) row[3]}
+                ));
+
+        Map<UUID, Long> attachCounts = assignmentAttachmentRepository
+                .countByAssignmentIds(assignmentIds, tenantId)
+                .stream().collect(Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> (Long) row[1]
+                ));
+
+        return PageResponse.from(page.map(assignment -> {
+            long[] counts = subCounts.getOrDefault(assignment.getId(), new long[]{0, 0, 0});
+            return toAssignmentResponse(
+                    assignment,
+                    classes.get(assignment.getClassId()),
+                    subjects.get(assignment.getSubjectId()),
+                    attachCounts.getOrDefault(assignment.getId(), 0L),
+                    counts[0], counts[1], counts[2]
+            );
+        }));
     }
 
     @Override
@@ -253,13 +278,26 @@ public class AssignmentServiceImpl implements AssignmentService {
                 ? assignmentSubmissionRepository.findAllByAssignmentIdAndTenantId(assignmentId, tenantId, pageable)
                 : assignmentSubmissionRepository.findAllByAssignmentIdAndTenantIdAndSubmissionStatus(assignmentId, tenantId, status, pageable);
 
+        List<UUID> submissionIds = page.getContent().stream().map(AssignmentSubmission::getId).toList();
         Map<UUID, Student> students = studentRepository.findAllByIdInAndTenantId(
                 page.getContent().stream().map(AssignmentSubmission::getStudentId).distinct().toList(),
                 tenantId
         ).stream().collect(Collectors.toMap(Student::getId, Function.identity()));
 
+        Map<UUID, List<AttachmentMetadataResponse>> attachmentsBySubmission = submissionAttachmentRepository
+                .findAllBySubmissionIdInAndTenantId(submissionIds, tenantId)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        SubmissionAttachment::getSubmissionId,
+                        Collectors.mapping(this::toAttachmentResponse, Collectors.toList())
+                ));
+
         return PageResponse.from(page.map(submission ->
-                toSubmissionResponse(submission, students.get(submission.getStudentId()), assignment.getMaxScore(), false, tenantId)));
+                toSubmissionResponse(
+                        submission,
+                        students.get(submission.getStudentId()),
+                        assignment.getMaxScore(),
+                        attachmentsBySubmission.getOrDefault(submission.getId(), List.of()))));
     }
 
     @Override
@@ -272,7 +310,12 @@ public class AssignmentServiceImpl implements AssignmentService {
         Assignment assignment = resolveOwnedAssignment(submission.getAssignmentId(), currentStaff, tenantId);
         Student student = studentRepository.findByIdAndTenantId(submission.getStudentId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found: " + submission.getStudentId()));
-        return toSubmissionResponse(submission, student, assignment.getMaxScore(), true, tenantId);
+        List<AttachmentMetadataResponse> attachments = submissionAttachmentRepository
+                .findAllBySubmissionIdAndTenantId(submission.getId(), tenantId)
+                .stream()
+                .map(this::toAttachmentResponse)
+                .toList();
+        return toSubmissionResponse(submission, student, assignment.getMaxScore(), attachments);
     }
 
     @Override
@@ -317,7 +360,12 @@ public class AssignmentServiceImpl implements AssignmentService {
         auditService.log(AuditAction.UPDATE, SUBMISSION_ENTITY, submission.getId(), "Graded assignment submission");
         Student student = studentRepository.findByIdAndTenantId(submission.getStudentId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found: " + submission.getStudentId()));
-        return toSubmissionResponse(submission, student, assignment.getMaxScore(), true, tenantId);
+        List<AttachmentMetadataResponse> attachments = submissionAttachmentRepository
+                .findAllBySubmissionIdAndTenantId(submission.getId(), tenantId)
+                .stream()
+                .map(this::toAttachmentResponse)
+                .toList();
+        return toSubmissionResponse(submission, student, assignment.getMaxScore(), attachments);
     }
 
     @Override
@@ -450,7 +498,9 @@ public class AssignmentServiceImpl implements AssignmentService {
         );
     }
 
-    private AssignmentResponse toAssignmentResponse(Assignment assignment, SchoolClass schoolClass, Subject subject, UUID tenantId) {
+    private AssignmentResponse toAssignmentResponse(
+            Assignment assignment, SchoolClass schoolClass, Subject subject,
+            long attachmentCount, long pendingCount, long submittedCount, long gradedCount) {
         return new AssignmentResponse(
                 assignment.getId(),
                 assignment.getClassId(),
@@ -464,7 +514,10 @@ public class AssignmentServiceImpl implements AssignmentService {
                 assignment.getDueDate(),
                 assignment.getPostedAt(),
                 assignment.getStatus(),
-                assignmentAttachmentRepository.countByAssignmentIdAndTenantId(assignment.getId(), tenantId)
+                attachmentCount,
+                pendingCount,
+                submittedCount,
+                gradedCount
         );
     }
 
@@ -472,15 +525,8 @@ public class AssignmentServiceImpl implements AssignmentService {
             AssignmentSubmission submission,
             Student student,
             Integer maxScore,
-            boolean includeAttachments,
-            UUID tenantId
+            List<AttachmentMetadataResponse> attachments
     ) {
-        List<AttachmentMetadataResponse> attachments = includeAttachments
-                ? submissionAttachmentRepository.findAllBySubmissionIdAndTenantId(submission.getId(), tenantId).stream()
-                        .map(this::toAttachmentResponse)
-                        .toList()
-                : List.of();
-
         return new SubmissionResponse(
                 submission.getId(),
                 submission.getAssignmentId(),
@@ -491,7 +537,7 @@ public class AssignmentServiceImpl implements AssignmentService {
                 submission.getSubmissionType(),
                 submission.getSubmittedAt(),
                 submission.isLate(),
-                includeAttachments ? submission.getTextContent() : null,
+                submission.getTextContent(),
                 attachments,
                 submission.getScore(),
                 maxScore,

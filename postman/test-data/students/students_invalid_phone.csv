@@ -1,0 +1,3 @@
+first_name,last_name,date_of_birth,gender,admission_number,email,phone,medical_conditions,grade_level,stream_name,guardian1_first_name,guardian1_last_name,guardian1_phone,guardian1_email,guardian1_relationship,guardian2_first_name,guardian2_last_name,guardian2_phone,guardian2_email,guardian2_relationship
+George,Ombogo,14/05/2010,MALE,,george.ombogo@school.ac.ke,+254722700001,,Grade 1,East,Ben,Ombogo,071234,ben.ombogo@gmail.com,FATHER,,,,,
+Rose,Anyango,22/08/2011,FEMALE,,rose.anyango@school.ac.ke,+254722700002,,Grade 1,West,Mary,Anyango,invalid-phone,rose.anyango@gmail.com,MOTHER,,,,,

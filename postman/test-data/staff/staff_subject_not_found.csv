@@ -1,0 +1,3 @@
+first_name,last_name,email,gender,hire_date,phone,employee_number,subject_group_name,teaching_assignments,class_teacher_assignment
+Patrick,Otieno,patrick.otieno@school.ac.ke,MALE,12/01/2022,+254732100001,,Mathematics & Sciences,NonExistent Subject|Grade 1|East,
+Beatrice,Njeri,beatrice.njeri@school.ac.ke,FEMALE,08/03/2021,+254732100002,,Languages,AnotherFake Subject|Grade 1|West,

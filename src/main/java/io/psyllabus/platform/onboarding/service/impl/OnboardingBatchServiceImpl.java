@@ -198,8 +198,8 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
                     .rowNumber(error.row())
                     .status(FAILED)
                     .identifier(null) // Should be mapped from context if needed
-                    .message(error.issue())
-                    .rawValue(error.rawValue())
+                    .message(sanitizeOutcomeText(error.issue()))
+                    .rawValue(sanitizeOutcomeText(error.rawValue()))
                     .build());
         }
 
@@ -208,8 +208,8 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
                     .jobId(jobId)
                     .rowNumber(outcome.row())
                     .status(outcome.status())
-                    .identifier(outcome.finalIdentifier())
-                    .message(outcome.message())
+                    .identifier(sanitizeOutcomeText(outcome.finalIdentifier()))
+                    .message(sanitizeOutcomeText(outcome.message()))
                     .build());
         }
 
@@ -464,7 +464,23 @@ public class OnboardingBatchServiceImpl implements OnboardingBatchService {
 
     private ImportErrorDetail toRowError(int rowNumber, Exception ex) {
         String message = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
-        return new ImportErrorDetail(rowNumber, null, message, null);
+        return new ImportErrorDetail(rowNumber, null, sanitizeOutcomeText(message), null);
+    }
+
+    private String sanitizeOutcomeText(String value) {
+        if (value == null) {
+            return null;
+        }
+        String sanitized = value
+                .replace("\r", " ")
+                .replace("\n", " ")
+                .replace("\t", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+        if (sanitized.length() > 1000) {
+            return sanitized.substring(0, 1000);
+        }
+        return sanitized;
     }
 
     private ImportJob findJob(UUID jobId, UUID tenantId) {

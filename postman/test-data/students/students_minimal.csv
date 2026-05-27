@@ -1,0 +1,4 @@
+first_name,last_name,date_of_birth,gender,admission_number,email,phone,medical_conditions,grade_level,stream_name,guardian1_first_name,guardian1_last_name,guardian1_phone,guardian1_email,guardian1_relationship,guardian2_first_name,guardian2_last_name,guardian2_phone,guardian2_email,guardian2_relationship
+Thomas,Wambua,01/12/2010,MALE,,,+254722300001,,Grade 1,East,Robert,Wambua,+254711000301,robert.wambua@gmail.com,FATHER
+Alice,Awuor,15/06/2011,FEMALE,,,+254722300002,,Grade 1,West,Josephine,Awuor,+254711000302,josephine.awuor@gmail.com,MOTHER
+Peter,Ndegwa,28/02/2010,MALE,,,+254722300003,,Grade 2,East,Christine,Ndegwa,+254711000303,christine.ndegwa@gmail.com,MOTHER

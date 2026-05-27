@@ -3,6 +3,8 @@ package io.psyllabus.platform.common.exception;
 import io.psyllabus.platform.common.dto.ApiResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.mapping.PropertyReferenceException;
+import org.springframework.data.util.TypeInformation;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -30,5 +32,23 @@ class GlobalExceptionHandlerTest {
                 "DATA_INTEGRITY_VIOLATION",
                 response.getBody().errorDetails().getErrorCode()
         );
+    }
+
+    @Test
+    void handlePropertyReference_returnsBadRequest() {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+        PropertyReferenceException ex = new PropertyReferenceException(
+                "invalidField",
+                TypeInformation.of(String.class),
+                new java.util.ArrayList<>()
+        );
+
+        ResponseEntity<ApiResponse<Void>> response = handler.handlePropertyReference(ex);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals(false, response.getBody().success());
+        assertEquals("Invalid sort property provided", response.getBody().message());
+        assertEquals("INVALID_SORT_PROPERTY", response.getBody().errorDetails().getErrorCode());
+        assertEquals("Invalid sort property: invalidField", response.getBody().errorDetails().getMessage());
     }
 }

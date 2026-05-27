@@ -144,6 +144,6 @@ public class PlatformAdminAuthFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request){
         String path = request.getRequestURI();
-        return !path.startsWith("/api/platform/");
+        return !path.startsWith("/api/platform/") || path.startsWith("/api/platform/auth/");
     }
 }

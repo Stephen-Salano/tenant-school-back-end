@@ -21,13 +21,16 @@ public interface TeacherAssignmentRepository extends JpaRepository<TeacherAssign
     @Query("""
         SELECT new io.psyllabus.platform.academic.dto.response.TeacherAssignmentResponse(
             ta.id, ta.staffId, s.userId, CONCAT(s.firstName, ' ', s.lastName),
-            ta.classId, sc.name, ta.subjectId, sub.name, 
+            ta.classId, sc.name, sc.academicYearId, ay.name,
+            (SELECT COUNT(sce.id) FROM StudentClassEnrollment sce WHERE sce.classId = sc.id AND sce.tenantId = ta.tenantId AND sce.isActive = true),
+            ta.subjectId, sub.name, 
             ta.academicTermId, term.name, ta.isClassTeacher, 
             ta.lessonsPerWeek, ta.status, ta.createdAt, ta.updatedAt
         )
         FROM TeacherAssignment ta
         JOIN Staff s ON s.id = ta.staffId AND s.tenantId = ta.tenantId
         JOIN SchoolClass sc ON sc.id = ta.classId AND sc.tenantId = ta.tenantId
+        JOIN AcademicYear ay ON ay.id = sc.academicYearId AND ay.tenantId = sc.tenantId
         JOIN Subject sub ON sub.id = ta.subjectId AND sub.tenantId = ta.tenantId
         JOIN AcademicTerm term ON term.id = ta.academicTermId AND term.tenantId = ta.tenantId
         WHERE ta.classId = :classId AND ta.tenantId = :tenantId
@@ -37,13 +40,16 @@ public interface TeacherAssignmentRepository extends JpaRepository<TeacherAssign
     @Query("""
         SELECT new io.psyllabus.platform.academic.dto.response.TeacherAssignmentResponse(
             ta.id, ta.staffId, s.userId, CONCAT(s.firstName, ' ', s.lastName),
-            ta.classId, sc.name, ta.subjectId, sub.name, 
+            ta.classId, sc.name, sc.academicYearId, ay.name,
+            (SELECT COUNT(sce.id) FROM StudentClassEnrollment sce WHERE sce.classId = sc.id AND sce.tenantId = ta.tenantId AND sce.isActive = true),
+            ta.subjectId, sub.name, 
             ta.academicTermId, term.name, ta.isClassTeacher, 
             ta.lessonsPerWeek, ta.status, ta.createdAt, ta.updatedAt
         )
         FROM TeacherAssignment ta
         JOIN Staff s ON s.id = ta.staffId AND s.tenantId = ta.tenantId
         JOIN SchoolClass sc ON sc.id = ta.classId AND sc.tenantId = ta.tenantId
+        JOIN AcademicYear ay ON ay.id = sc.academicYearId AND ay.tenantId = sc.tenantId
         JOIN Subject sub ON sub.id = ta.subjectId AND sub.tenantId = ta.tenantId
         JOIN AcademicTerm term ON term.id = ta.academicTermId AND term.tenantId = ta.tenantId
         WHERE ta.staffId = :staffId AND ta.tenantId = :tenantId

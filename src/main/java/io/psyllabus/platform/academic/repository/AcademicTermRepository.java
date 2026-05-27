@@ -23,4 +23,6 @@ public interface AcademicTermRepository extends JpaRepository<AcademicTerm, UUID
     );
     long countByAcademicYearIdAndTenantId(UUID academicYearId, UUID tenantId);
     boolean existsByAcademicYearIdAndTermNumberAndTenantId(UUID academicYearId, int termNumber, UUID tenantId);
+
+    List<AcademicTerm> findAllByEndDateBefore(java.time.LocalDate endDate);
 }

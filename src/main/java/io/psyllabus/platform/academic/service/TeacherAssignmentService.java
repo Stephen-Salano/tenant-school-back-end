@@ -29,4 +29,11 @@ public interface TeacherAssignmentService {
      * @return list of assignments
      */
     List<TeacherAssignmentResponse> getAssignmentsByStaff(UUID staffId);
+
+    /**
+     * Fetch all assignments for the currently authenticated user (as staff).
+     * @param userId the user UUID
+     * @return list of assignments
+     */
+    List<TeacherAssignmentResponse> getAssignmentsByUser(UUID userId);
 }

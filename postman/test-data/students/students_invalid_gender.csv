@@ -1,0 +1,3 @@
+first_name,last_name,date_of_birth,gender,admission_number,email,phone,medical_conditions,grade_level,stream_name,guardian1_first_name,guardian1_last_name,guardian1_phone,guardian1_email,guardian1_relationship,guardian2_first_name,guardian2_last_name,guardian2_phone,guardian2_email,guardian2_relationship
+Dennis,Njeri,14/05/2010,Boy,,dennis.njeri@school.ac.ke,+254722600001,,Grade 1,East,Vincent,Njeri,+254711000601,vincent.njeri@gmail.com,FATHER,,,,,
+Betty,Kariuki,22/08/2011,Girl,,betty.kariuki@school.ac.ke,+254722600002,,Grade 1,West,Catherine,Kariuki,+254711000602,catherine.kariuki@gmail.com,MOTHER,,,,,

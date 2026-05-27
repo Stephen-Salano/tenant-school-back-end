@@ -1,0 +1,4 @@
+first_name,last_name,email,gender,hire_date,phone,employee_number,subject_group_name,teaching_assignments,class_teacher_assignment
+David,Kimani,david.kimani@school.ac.ke,MALE,18/01/2021,+254731300001,,Mathematics & Sciences,Mathematics|Grade 1|East;Mathematics|Grade 2|East;Science|Grade 1|East,Mathematics|Grade 1|East
+Mary,Wanjiru,mary.wanjiru@school.ac.ke,FEMALE,22/04/2022,+254731300002,,Languages,English|Grade 1|West;Kiswahili|Grade 1|West;English|Grade 2|West,English|Grade 1|West
+Peter,Ndegwa,peter.ndegwa@school.ac.ke,MALE,09/11/2020,+254731300003,,Humanities,Social Studies|Grade 1|East;CRE|Grade 1|East;Music|Grade 1|East,Social Studies|Grade 1|East

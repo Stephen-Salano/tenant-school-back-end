@@ -123,4 +123,22 @@ class OnboardingBatchServiceImplTest {
         assertNotNull(result);
         assertEquals(guardianId, result.getId());
     }
+
+    @Test
+    void toRowError_sanitizesAndTruncatesLongMessages() {
+        String longMessage = "boom\n" + "x".repeat(1200);
+
+        Object result = ReflectionTestUtils.invokeMethod(
+                onboardingBatchService,
+                "toRowError",
+                4,
+                new IllegalStateException(longMessage)
+        );
+
+        assertNotNull(result);
+        String issue = (String) ReflectionTestUtils.invokeMethod(result, "issue");
+        assertNotNull(issue);
+        assertFalse(issue.contains("\n"));
+        assertTrue(issue.length() <= 1000);
+    }
 }

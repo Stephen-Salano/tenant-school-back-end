@@ -28,6 +28,14 @@ public final class RabbitMQConstants {
     public static final String STAFF_IMPORT_DLQ = "psyllabus.onboarding.staff-import.dlq";
     public static final String STAFF_IMPORT_ROUTING_KEY = "onboarding.staff";
 
+    // ── Audit export exchange (Direct) ─────────────────────────────────────
+    public static final String AUDIT_EXPORT_EXCHANGE = "psyllabus.audit-export";
+    public static final String AUDIT_EXPORT_DLX = "psyllabus.audit-export.dlx";
+
+    public static final String AUDIT_EXPORT_QUEUE = "psyllabus.audit-export.jobs";
+    public static final String AUDIT_EXPORT_DLQ = "psyllabus.audit-export.jobs.dlq";
+    public static final String AUDIT_EXPORT_ROUTING_KEY = "audit.export.job";
+
     // ── Assignments exchange (Direct) ─────────────────────────────────────
     public static final String ASSIGNMENT_EXCHANGE = "psyllabus.assignments";
     public static final String ASSIGNMENT_DLX = "psyllabus.assignments.dlx";

@@ -14,5 +14,6 @@ public record MessageBoardRequest(
     @NotBlank String content,
     @NotNull MessageType type,
     @NotNull MessageAudience targetAudience,
+    // TODO: Should take an image or the url storage not just string and can be null
     String attachmentUrl
 ) {}

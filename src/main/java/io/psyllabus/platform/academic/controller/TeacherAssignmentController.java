@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,6 +29,15 @@ import java.util.UUID;
 public class TeacherAssignmentController extends BaseController {
 
     private final TeacherAssignmentService teacherAssignmentService;
+
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('STAFF')")
+    @Operation(summary = "Get all teacher assignments for the currently logged in teacher")
+    public ResponseEntity<ApiResponse<List<TeacherAssignmentResponse>>> getMyAssignments(
+            Authentication authentication) {
+        UUID userId = getCurrentUser(authentication).getId();
+        return ok(teacherAssignmentService.getAssignmentsByUser(userId), "My assignments retrieved");
+    }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")

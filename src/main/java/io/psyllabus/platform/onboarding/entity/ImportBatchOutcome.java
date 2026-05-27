@@ -25,6 +25,10 @@ public class ImportBatchOutcome {
     private int rowNumber;
     private String status; // SUCCESS or FAILED
     private String identifier;
+
+    @Column(columnDefinition = "TEXT")
     private String message;
+
+    @Column(columnDefinition = "TEXT")
     private String rawValue;
 }

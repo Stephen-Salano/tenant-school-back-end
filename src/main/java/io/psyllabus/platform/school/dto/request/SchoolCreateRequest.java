@@ -49,6 +49,9 @@ public record SchoolCreateRequest(
         @NotBlank(message = "Admin phone is required")
         String adminPhone,
 
+        @Size(min = 6, max = 100, message = "Admin password must be 6-100 characters")
+        String adminPassword,
+
         @Size(max = 255)
         String customDomain,
 

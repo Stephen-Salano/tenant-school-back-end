@@ -28,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -61,7 +62,7 @@ public class StudentServiceImpl implements StudentService {
         // Create user account
         RegisterRequest userRequest = new RegisterRequest(
                 request.admissionNumber(), // username = admission number
-                request.email(),
+                resolveUserEmail(request, tenantId),
                 request.admissionNumber(), // default password = admission number
                 request.firstName(),
                 request.lastName(),
@@ -185,5 +186,15 @@ public class StudentServiceImpl implements StudentService {
         );
 
         return studentMapper.toResponse(saved);
+    }
+
+    private String resolveUserEmail(StudentCreateRequest request, UUID tenantId) {
+        if (request.email() != null && !request.email().isBlank()) {
+            return request.email().trim().toLowerCase(Locale.ROOT);
+        }
+        return request.admissionNumber().trim().toLowerCase(Locale.ROOT)
+                + "+"
+                + tenantId
+                + "@noemail.psyllabus.internal";
     }
 }

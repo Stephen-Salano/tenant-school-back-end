@@ -19,6 +19,9 @@ public record AssignmentResponse(
         LocalDateTime dueDate,
         LocalDateTime postedAt,
         AssignmentStatus status,
-        long attachmentCount
+        long attachmentCount,
+        long pendingCount,
+        long submittedCount,
+        long gradedCount
 ) {
 }

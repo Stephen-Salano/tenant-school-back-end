@@ -9,6 +9,7 @@ import io.psyllabus.platform.onboarding.repository.ImportJobRepository;
 import io.psyllabus.platform.onboarding.service.CsvValidationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.Map;
@@ -35,7 +36,8 @@ class OnboardingServiceImplTest {
                 mock(CsvValidationService.class),
                 mock(RabbitTemplate.class),
                 mock(AuditService.class),
-                new com.fasterxml.jackson.databind.ObjectMapper()
+                new com.fasterxml.jackson.databind.ObjectMapper(),
+                mock(ApplicationEventPublisher.class)
         );
 
         ValidationException ex = assertThrows(
@@ -61,7 +63,8 @@ class OnboardingServiceImplTest {
                 mock(CsvValidationService.class),
                 mock(RabbitTemplate.class),
                 mock(AuditService.class),
-                new com.fasterxml.jackson.databind.ObjectMapper()
+                new com.fasterxml.jackson.databind.ObjectMapper(),
+                mock(ApplicationEventPublisher.class)
         );
 
         ValidationException ex = assertThrows(
@@ -87,7 +90,8 @@ class OnboardingServiceImplTest {
                 mock(CsvValidationService.class),
                 mock(RabbitTemplate.class),
                 mock(AuditService.class),
-                new com.fasterxml.jackson.databind.ObjectMapper()
+                new com.fasterxml.jackson.databind.ObjectMapper(),
+                mock(ApplicationEventPublisher.class)
         );
 
         ValidationException ex = assertThrows(
