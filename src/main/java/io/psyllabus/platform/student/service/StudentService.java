@@ -2,6 +2,7 @@ package io.psyllabus.platform.student.service;
 
 import io.psyllabus.platform.common.dto.PageResponse;
 import io.psyllabus.platform.student.dto.request.StudentCreateRequest;
+import io.psyllabus.platform.student.dto.request.StudentUpdateRequest;
 import io.psyllabus.platform.student.dto.responses.StudentDetailResponse;
 import io.psyllabus.platform.student.dto.responses.StudentResponse;
 import org.springframework.data.domain.Pageable;
@@ -34,7 +35,7 @@ public interface StudentService {
      * Paginated list of all students within the current tenant.
      * Returns StudentResponse (no medical data) — safe for list views.
      */
-    PageResponse<StudentResponse> findAll(Pageable pageable);
+    PageResponse<StudentResponse> findAll(UUID classId, Pageable pageable);
 
     /**
      * Full student detail by ID (tenant-scoped).
@@ -48,5 +49,8 @@ public interface StudentService {
      * If status is TRANSFERRED or GRADUATED, currentClassId is nulled.
      */
     StudentResponse updateStatus(UUID studentId, io.psyllabus.platform.student.enums.StudentStatus status);
-}
 
+    StudentResponse update(UUID studentId, StudentUpdateRequest request);
+
+    void delete(UUID studentId);
+}

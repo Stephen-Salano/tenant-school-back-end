@@ -1,10 +1,12 @@
 package io.psyllabus.platform.academic.service;
 
 import io.psyllabus.platform.academic.dto.request.ClassCreateRequest;
+import io.psyllabus.platform.academic.dto.request.ClassUpdateRequest;
 import io.psyllabus.platform.academic.dto.response.ClassDetailResponse;
 import io.psyllabus.platform.academic.dto.response.ClassEnrollmentStatsResponse;
 import io.psyllabus.platform.academic.dto.response.ClassResponse;
 import io.psyllabus.platform.common.dto.PageResponse;
+import io.psyllabus.platform.student.dto.responses.StudentResponse;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
@@ -76,4 +78,10 @@ public interface ClassService {
      * @return list of configured stream names, or empty list if none configured
      */
     List<String> getStreamNames();
+
+    ClassResponse updateClass(UUID classId, ClassUpdateRequest request);
+
+    void deleteClass(UUID classId);
+
+    PageResponse<StudentResponse> getClassStudents(UUID classId, Pageable pageable);
 }

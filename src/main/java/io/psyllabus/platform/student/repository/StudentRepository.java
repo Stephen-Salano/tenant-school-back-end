@@ -30,6 +30,13 @@ public interface StudentRepository extends JpaRepository<Student, UUID> {
 
     Page<Student> findByTenantId(UUID tenantId, Pageable pageable);
 
+    Page<Student> findByCurrentClassIdAndTenantIdAndCurrentStatus(
+            UUID currentClassId,
+            UUID tenantId,
+            io.psyllabus.platform.student.enums.StudentStatus currentStatus,
+            Pageable pageable
+    );
+
     long countByTenantId(UUID tenantId);
 
     /**
@@ -38,8 +45,12 @@ public interface StudentRepository extends JpaRepository<Student, UUID> {
      *
      * @param currentClassId the class UUID
      * @param tenantId the tenant UUID (multi-tenancy isolation)
-     * @param status the student status (usually ACTIVE)
+     * @param currentStatus the student status (usually ACTIVE)
      * @return number of students whose currentClassId and status matches
      */
-    long countByCurrentClassIdAndTenantIdAndStatus(UUID currentClassId, UUID tenantId, io.psyllabus.platform.student.enums.StudentStatus status);
+    long countByCurrentClassIdAndTenantIdAndCurrentStatus(
+            UUID currentClassId,
+            UUID tenantId,
+            io.psyllabus.platform.student.enums.StudentStatus currentStatus
+    );
 }

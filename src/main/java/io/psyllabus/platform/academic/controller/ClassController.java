@@ -2,6 +2,7 @@ package io.psyllabus.platform.academic.controller;
 
 import io.psyllabus.platform.academic.dto.request.AssignClassTeacherRequest;
 import io.psyllabus.platform.academic.dto.request.ClassCreateRequest;
+import io.psyllabus.platform.academic.dto.request.ClassUpdateRequest;
 import io.psyllabus.platform.academic.dto.response.ClassDetailResponse;
 import io.psyllabus.platform.academic.dto.response.ClassEnrollmentStatsResponse;
 import io.psyllabus.platform.academic.dto.response.ClassResponse;
@@ -10,6 +11,7 @@ import io.psyllabus.platform.common.controller.BaseController;
 import io.psyllabus.platform.common.dto.ApiResponse;
 import io.psyllabus.platform.common.dto.PageResponse;
 import io.psyllabus.platform.common.util.PaginationUtils;
+import io.psyllabus.platform.student.dto.responses.StudentResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -73,6 +75,35 @@ public class ClassController extends BaseController {
     @Operation(summary = "Get class detail with enrollment counts")
     public ResponseEntity<ApiResponse<ClassDetailResponse>> getClassById(@PathVariable UUID id) {
         return ok(classService.getClassById(id), "Class retrieved");
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update class info")
+    public ResponseEntity<ApiResponse<ClassResponse>> updateClass(
+            @PathVariable UUID id,
+            @Valid @RequestBody ClassUpdateRequest request) {
+        return ok(classService.updateClass(id, request), "Class updated");
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Remove class")
+    public ResponseEntity<ApiResponse<Void>> deleteClass(@PathVariable UUID id) {
+        classService.deleteClass(id);
+        return okMessage("Class removed");
+    }
+
+    @GetMapping("/{id}/students")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @Operation(summary = "Get active student roster for a class")
+    public ResponseEntity<ApiResponse<PageResponse<StudentResponse>>> getClassStudents(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy) {
+        Pageable pageable = PaginationUtils.of(page, size, sortBy);
+        return paged(classService.getClassStudents(id, pageable), "Class students retrieved");
     }
 
     @GetMapping("/streams")

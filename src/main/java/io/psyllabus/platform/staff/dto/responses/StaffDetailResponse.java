@@ -20,6 +20,7 @@ public record StaffDetailResponse (
         String email,
         String phone,
         UUID subjectGroupId,
+        String subjectGroupName,
         LocalDate hireDate,
         EmploymentStatus employmentStatus,
         String qualification,

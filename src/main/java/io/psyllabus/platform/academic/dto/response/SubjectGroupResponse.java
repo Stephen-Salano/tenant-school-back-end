@@ -12,6 +12,7 @@ public record SubjectGroupResponse(
     String name,
     String description,
     UUID hodStaffId,
+    String hodStaffName,
     boolean isActive,
     LocalDateTime createdAt,
     LocalDateTime updatedAt

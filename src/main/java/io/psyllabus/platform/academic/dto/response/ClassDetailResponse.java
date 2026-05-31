@@ -17,6 +17,7 @@ public record ClassDetailResponse(
     String gradeLevel,
     String streamName,
     UUID academicYearId,
+    String academicYearName,
     UUID branchId,
     Integer maxCapacity,
     boolean isActive,

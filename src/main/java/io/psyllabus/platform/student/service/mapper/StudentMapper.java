@@ -16,5 +16,6 @@ public interface StudentMapper {
     @Mapping(target = "status", source = "currentStatus")
     StudentResponse toResponse(Student student);
 
+    @Mapping(target = "currentClassName", ignore = true)
     StudentDetailResponse toDetailResponse(Student student);
 }

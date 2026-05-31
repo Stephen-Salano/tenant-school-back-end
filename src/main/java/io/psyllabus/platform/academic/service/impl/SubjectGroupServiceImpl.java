@@ -14,11 +14,15 @@ import io.psyllabus.platform.staff.repository.StaffRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Implementation of {@link SubjectGroupService}.
@@ -82,8 +86,15 @@ public class SubjectGroupServiceImpl implements SubjectGroupService {
     @Override
     public Page<SubjectGroupResponse> getAll(Pageable pageable) {
         UUID tenantId = TenantContext.getCurrentTenantId();
-        return subjectGroupRepository.findAllByTenantId(tenantId, pageable)
-                .map(this::mapToResponse);
+        Page<SubjectGroup> subjectGroups = subjectGroupRepository.findAllByTenantId(tenantId, pageable);
+        Map<UUID, String> hodNames = loadHodNames(subjectGroups, tenantId);
+        return new PageImpl<>(
+                subjectGroups.getContent().stream()
+                        .map(subjectGroup -> mapToResponse(subjectGroup, hodNames))
+                        .toList(),
+                subjectGroups.getPageable(),
+                subjectGroups.getTotalElements()
+        );
     }
 
     @Override
@@ -127,15 +138,46 @@ public class SubjectGroupServiceImpl implements SubjectGroupService {
     }
 
     private SubjectGroupResponse mapToResponse(SubjectGroup entity) {
+        Map<UUID, String> hodNames = entity.getHodStaffId() == null
+                ? Map.of()
+                : Map.of(entity.getHodStaffId(),
+                    staffRepository.findDisplayNameByIdAndTenantId(entity.getHodStaffId(), entity.getTenantId()).orElse(""));
+        return mapToResponse(entity, hodNames);
+    }
+
+    private SubjectGroupResponse mapToResponse(SubjectGroup entity, Map<UUID, String> hodNames) {
+        String hodStaffName = entity.getHodStaffId() == null
+                ? null
+                : blankToNull(hodNames.get(entity.getHodStaffId()));
         return new SubjectGroupResponse(
                 entity.getId(),
                 entity.getTenantId(),
                 entity.getName(),
                 entity.getDescription(),
                 entity.getHodStaffId(),
+                hodStaffName,
                 entity.isActive(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );
+    }
+
+    private Map<UUID, String> loadHodNames(Page<SubjectGroup> subjectGroups, UUID tenantId) {
+        Set<UUID> ids = subjectGroups.getContent().stream()
+                .map(SubjectGroup::getHodStaffId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return staffRepository.findAllByIdInAndTenantId(ids, tenantId).stream()
+                .collect(Collectors.toMap(
+                        io.psyllabus.platform.staff.entities.Staff::getId,
+                        staff -> staff.getFirstName() + " " + staff.getLastName()
+                ));
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 }

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -22,13 +23,20 @@ public interface StaffRepository extends JpaRepository<Staff, UUID> {
     @Query("SELECT s.employeeNumber FROM Staff s WHERE s.tenantId = :tenantId")
     Set<String> findAllEmployeeNumbersByTenantId(@Param("tenantId") UUID tenantId);
 
+    @Query("SELECT CONCAT(s.firstName, ' ', s.lastName) FROM Staff s WHERE s.id = :id AND s.tenantId = :tenantId")
+    Optional<String> findDisplayNameByIdAndTenantId(@Param("id") UUID id, @Param("tenantId") UUID tenantId);
+
     Optional<Staff> findByIdAndTenantId(UUID id, UUID tenantId);
+
+    List<Staff> findAllByIdInAndTenantId(Set<UUID> ids, UUID tenantId);
 
     Optional<Staff> findByEmployeeNumberAndTenantId(String employeeNumber, UUID tenantId);
 
     boolean existsByEmployeeNumberAndTenantId(String employeeNumber, UUID tenantId);
 
     boolean existsByEmailAndTenantId(String email, UUID tenantId);
+
+    boolean existsByEmailAndTenantIdAndIdNot(String email, UUID tenantId, UUID id);
 
     // ── Added for Stage 5 ──────────────────────────────────────────────────────
     Page<Staff> findByTenantId(UUID tenantId, Pageable pageable);

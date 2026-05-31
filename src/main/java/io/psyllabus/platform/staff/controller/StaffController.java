@@ -7,6 +7,7 @@ import io.psyllabus.platform.common.dto.ApiResponse;
 import io.psyllabus.platform.common.dto.PageResponse;
 import io.psyllabus.platform.common.util.PaginationUtils;
 import io.psyllabus.platform.staff.dto.request.StaffCreateRequest;
+import io.psyllabus.platform.staff.dto.request.StaffUpdateRequest;
 import io.psyllabus.platform.staff.dto.request.UpdateStaffStatusRequest;
 import io.psyllabus.platform.staff.dto.responses.StaffDetailResponse;
 import io.psyllabus.platform.staff.dto.responses.StaffResponse;
@@ -77,6 +78,26 @@ public class StaffController extends BaseController {
             @PathVariable UUID staffId
             ){
         return ok(staffService.findById(staffId), "Staff retrieved");
+    }
+
+    @PutMapping("/{staffId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @RequireFeature(FeatureConstants.STAFF_MANAGEMENT)
+    @Operation(summary = "Update staff profile")
+    public ResponseEntity<ApiResponse<StaffResponse>> updateStaff(
+            @PathVariable UUID staffId,
+            @Valid @RequestBody StaffUpdateRequest request
+    ) {
+        return ok(staffService.update(staffId, request), "Staff updated");
+    }
+
+    @DeleteMapping("/{staffId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @RequireFeature(FeatureConstants.STAFF_MANAGEMENT)
+    @Operation(summary = "Remove staff member from system")
+    public ResponseEntity<ApiResponse<Void>> deleteStaff(@PathVariable UUID staffId) {
+        staffService.delete(staffId);
+        return okMessage("Staff removed");
     }
 
     @PatchMapping("/{staffId}/status")

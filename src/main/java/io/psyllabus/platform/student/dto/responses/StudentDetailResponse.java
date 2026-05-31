@@ -24,6 +24,7 @@ public record StudentDetailResponse(
         LocalDate dateOfBirth,
         Gender gender,
         UUID currentClassId,
+        String currentClassName,
         LocalDate admissionDate,
         StudentStatus currentStatus,
         String medicalConditions   // K-DPA: ADMIN/STAFF only — never expose to PARENT

@@ -13,11 +13,16 @@ import io.psyllabus.platform.common.exception.ResourceNotFoundException;
 import io.psyllabus.platform.common.util.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Implementation of {@link SubjectService}.
@@ -75,10 +80,17 @@ public class SubjectServiceImpl implements SubjectService {
     @Transactional(readOnly = true)
     public PageResponse<SubjectResponse> listSubjects(Pageable pageable) {
         UUID tenantId = TenantContext.getCurrentTenantId();
-        return PageResponse.from(
-                subjectRepository.findAllByTenantId(tenantId, pageable)
-                        .map(this::mapToResponse)
+        Page<Subject> subjects = subjectRepository.findAllByTenantId(tenantId, pageable);
+        Map<UUID, String> subjectGroupNames = loadSubjectGroupNames(subjects, tenantId);
+        Map<UUID, String> subjectCategoryNames = loadSubjectCategoryNames(subjects, tenantId);
+        Page<SubjectResponse> responsePage = new PageImpl<>(
+                subjects.getContent().stream()
+                        .map(subject -> mapToResponse(subject, subjectGroupNames, subjectCategoryNames))
+                        .toList(),
+                subjects.getPageable(),
+                subjects.getTotalElements()
         );
+        return PageResponse.from(responsePage);
     }
 
     @Override
@@ -91,17 +103,72 @@ public class SubjectServiceImpl implements SubjectService {
     }
 
     private SubjectResponse mapToResponse(Subject subject) {
+        UUID tenantId = subject.getTenantId();
+        Map<UUID, String> subjectGroupNames = subject.getSubjectGroupId() == null
+                ? Map.of()
+                : Map.of(subject.getSubjectGroupId(),
+                    subjectGroupRepository.findNameByIdAndTenantId(subject.getSubjectGroupId(), tenantId).orElse(""));
+        Map<UUID, String> subjectCategoryNames = subject.getSubjectCategoryId() == null
+                ? Map.of()
+                : Map.of(subject.getSubjectCategoryId(),
+                    subjectCategoryRepository.findNameByIdAndTenantId(subject.getSubjectCategoryId(), tenantId).orElse(""));
+        return mapToResponse(subject, subjectGroupNames, subjectCategoryNames);
+    }
+
+    private SubjectResponse mapToResponse(Subject subject, Map<UUID, String> subjectGroupNames, Map<UUID, String> subjectCategoryNames) {
+        String subjectGroupName = subject.getSubjectGroupId() == null
+                ? null
+                : blankToNull(subjectGroupNames.get(subject.getSubjectGroupId()));
+        String subjectCategoryName = subject.getSubjectCategoryId() == null
+                ? null
+                : blankToNull(subjectCategoryNames.get(subject.getSubjectCategoryId()));
         return new SubjectResponse(
                 subject.getId(),
                 subject.getName(),
                 subject.getCode(),
                 subject.getSubjectGroupId(),
+                subjectGroupName,
                 subject.getSubjectCategoryId(),
+                subjectCategoryName,
                 subject.getMaxScore(),
                 subject.getPassMark(),
                 subject.isActive(),
                 subject.getCreatedAt(),
                 subject.getUpdatedAt()
         );
+    }
+
+    private Map<UUID, String> loadSubjectGroupNames(Page<Subject> subjects, UUID tenantId) {
+        Set<UUID> ids = subjects.getContent().stream()
+                .map(Subject::getSubjectGroupId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return subjectGroupRepository.findAllByIdInAndTenantId(ids, tenantId).stream()
+                .collect(Collectors.toMap(
+                        io.psyllabus.platform.academic.entities.SubjectGroup::getId,
+                        io.psyllabus.platform.academic.entities.SubjectGroup::getName
+                ));
+    }
+
+    private Map<UUID, String> loadSubjectCategoryNames(Page<Subject> subjects, UUID tenantId) {
+        Set<UUID> ids = subjects.getContent().stream()
+                .map(Subject::getSubjectCategoryId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return subjectCategoryRepository.findAllByIdInAndTenantId(ids, tenantId).stream()
+                .collect(Collectors.toMap(
+                        io.psyllabus.platform.academic.entities.SubjectCategory::getId,
+                        io.psyllabus.platform.academic.entities.SubjectCategory::getName
+                ));
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 }

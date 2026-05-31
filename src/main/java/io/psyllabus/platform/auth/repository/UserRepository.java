@@ -58,6 +58,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
      */
     boolean existsByEmailAndTenantId(String email, UUID tenantId);
 
+    boolean existsByEmailAndTenantIdAndIdNot(String email, UUID tenantId, UUID id);
+
     /**
      * Find user by username, email or admission number (flexible login)
      * Supports multiple login methods in a single query

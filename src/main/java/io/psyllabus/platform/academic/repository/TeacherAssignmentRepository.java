@@ -53,6 +53,7 @@ public interface TeacherAssignmentRepository extends JpaRepository<TeacherAssign
     List<TeacherAssignment> findAllByAcademicTermIdAndTenantId(UUID academicTermId, UUID tenantId);
     Optional<TeacherAssignment> findByIdAndTenantId(UUID id, UUID tenantId);
     List<TeacherAssignment> findAllByClassIdAndAcademicTermIdAndIsClassTeacherTrueAndTenantId(UUID classId, UUID academicTermId, UUID tenantId);
+    Optional<TeacherAssignment> findFirstByClassIdAndIsClassTeacherTrueAndTenantId(UUID classId, UUID tenantId);
 
     boolean existsByStaffIdAndClassIdAndSubjectIdAndAcademicTermIdAndTenantId(
         UUID staffId, UUID classId, UUID subjectId, UUID academicTermId, UUID tenantId);

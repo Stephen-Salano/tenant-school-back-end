@@ -8,6 +8,7 @@ import io.psyllabus.platform.common.dto.PageResponse;
 import io.psyllabus.platform.common.exception.InsufficientPermissionException;
 import io.psyllabus.platform.common.util.PaginationUtils;
 import io.psyllabus.platform.student.dto.request.StudentCreateRequest;
+import io.psyllabus.platform.student.dto.request.StudentUpdateRequest;
 import io.psyllabus.platform.student.dto.responses.StudentDetailResponse;
 import io.psyllabus.platform.student.dto.responses.StudentResponse;
 import io.psyllabus.platform.student.service.StudentService;
@@ -47,13 +48,13 @@ public class StudentController extends BaseController {
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    @RequireFeature(FeatureConstants.STAFF_MANAGEMENT)
+    @RequireFeature(FeatureConstants.STUDENT_MANAGEMENT)
     @Operation(summary = "Enroll a new student",
     description = "Creates user account + student record. Default password = admission number")
     public ResponseEntity<ApiResponse<StudentResponse>> enrollStudent(
             @Valid @RequestBody StudentCreateRequest request
             ){
-        log.info("Enrolling student: admissionNumber = {}", request.admissionNumber());
+        log.info("Enrolling student");
         return created(studentService.enrollStudent(request), "Student enrolled successfully");
     }
 
@@ -63,12 +64,33 @@ public class StudentController extends BaseController {
     @Operation(summary = "List all students (paginated)",
             description = "Returns StudentResponse — no medical data. Safe for all authorized roles.")
     public ResponseEntity<ApiResponse<PageResponse<StudentResponse>>> listStudents(
+            @RequestParam(required = false) UUID classId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy
     ) {
         Pageable pageable = PaginationUtils.of(page, size, sortBy);
-        return paged(studentService.findAll(pageable), "Students retrieved");
+        return paged(studentService.findAll(classId, pageable), "Students retrieved");
+    }
+
+    @PutMapping("/{studentId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @RequireFeature(FeatureConstants.STUDENT_MANAGEMENT)
+    @Operation(summary = "Update student profile")
+    public ResponseEntity<ApiResponse<StudentResponse>> updateStudent(
+            @PathVariable UUID studentId,
+            @Valid @RequestBody StudentUpdateRequest request
+    ) {
+        return ok(studentService.update(studentId, request), "Student updated");
+    }
+
+    @DeleteMapping("/{studentId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @RequireFeature(FeatureConstants.STUDENT_MANAGEMENT)
+    @Operation(summary = "Remove student from system")
+    public ResponseEntity<ApiResponse<Void>> deleteStudent(@PathVariable UUID studentId) {
+        studentService.delete(studentId);
+        return okMessage("Student removed");
     }
 
     @GetMapping("/{studentId}")
