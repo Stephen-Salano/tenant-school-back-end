@@ -2,6 +2,7 @@ package io.psyllabus.platform.staff.services;
 
 import io.psyllabus.platform.common.dto.PageResponse;
 import io.psyllabus.platform.staff.dto.request.StaffCreateRequest;
+import io.psyllabus.platform.staff.dto.request.StaffUpdateRequest;
 import io.psyllabus.platform.staff.dto.request.UpdateStaffStatusRequest;
 import io.psyllabus.platform.staff.dto.responses.StaffDetailResponse;
 import io.psyllabus.platform.staff.dto.responses.StaffResponse;
@@ -53,4 +54,9 @@ public interface StaffService {
      * State-aware: caller provides target status + optional reason.
      */
     StaffResponse updateStatus(UUID staffId, UpdateStaffStatusRequest request);
+
+
+    StaffResponse updateStaff(UUID staffId, StaffUpdateRequest request);
+
+    void deleteStaff(UUID staffId);
 }

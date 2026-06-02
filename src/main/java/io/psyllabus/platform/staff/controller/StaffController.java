@@ -7,6 +7,7 @@ import io.psyllabus.platform.common.dto.ApiResponse;
 import io.psyllabus.platform.common.dto.PageResponse;
 import io.psyllabus.platform.common.util.PaginationUtils;
 import io.psyllabus.platform.staff.dto.request.StaffCreateRequest;
+import io.psyllabus.platform.staff.dto.request.StaffUpdateRequest;
 import io.psyllabus.platform.staff.dto.request.UpdateStaffStatusRequest;
 import io.psyllabus.platform.staff.dto.responses.StaffDetailResponse;
 import io.psyllabus.platform.staff.dto.responses.StaffResponse;
@@ -90,5 +91,29 @@ public class StaffController extends BaseController {
             ){
         log.info("Updating staff {} status -> {}", staffId, request.status());
         return ok(staffService.updateStatus(staffId, request), "Staff Status updated");
+    }
+
+    @PatchMapping("/{staffId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @RequireFeature(FeatureConstants.STAFF_MANAGEMENT)
+    @Operation(summary = "Update staff profile (partial)",
+            description = "Updates ONLY the fields provided in the request body.")
+    public ResponseEntity<ApiResponse<StaffResponse>> updateStaff(
+            @PathVariable UUID staffId,
+            @Valid @RequestBody StaffUpdateRequest request
+    ) {
+        log.info("Updating staff profile: {}", staffId);
+        return ok(staffService.updateStaff(staffId, request), "Staff profile updated successfully");
+    }
+
+    @DeleteMapping("/{staffId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @RequireFeature(FeatureConstants.STAFF_MANAGEMENT)
+    @Operation(summary = "Soft delete staff member",
+            description = "Sets employment status to TERMINATED.")
+    public ResponseEntity<ApiResponse<Void>> deleteStaff(@PathVariable UUID staffId) {
+        log.info("Terminating staff: {}", staffId);
+        staffService.deleteStaff(staffId);
+        return okMessage("Staff member terminated successfully");
     }
 }

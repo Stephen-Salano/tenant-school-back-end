@@ -8,8 +8,10 @@ import io.psyllabus.platform.common.dto.PageResponse;
 import io.psyllabus.platform.common.exception.InsufficientPermissionException;
 import io.psyllabus.platform.common.util.PaginationUtils;
 import io.psyllabus.platform.student.dto.request.StudentCreateRequest;
+import io.psyllabus.platform.student.dto.request.StudentUpdateRequest;
 import io.psyllabus.platform.student.dto.responses.StudentDetailResponse;
 import io.psyllabus.platform.student.dto.responses.StudentResponse;
+import io.psyllabus.platform.student.dto.responses.StudentSubjectResponse;
 import io.psyllabus.platform.student.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,6 +25,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -61,14 +64,15 @@ public class StudentController extends BaseController {
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     @RequireFeature(FeatureConstants.STUDENT_MANAGEMENT)
     @Operation(summary = "List all students (paginated)",
-            description = "Returns StudentResponse — no medical data. Safe for all authorized roles.")
+            description = "Returns StudentResponse — no medical data. Safe for all authorized roles. Optionally filter by classId.")
     public ResponseEntity<ApiResponse<PageResponse<StudentResponse>>> listStudents(
+            @RequestParam(required = false) UUID classId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy
     ) {
         Pageable pageable = PaginationUtils.of(page, size, sortBy);
-        return paged(studentService.findAll(pageable), "Students retrieved");
+        return paged(studentService.findAll(classId, pageable), "Students retrieved");
     }
 
     @GetMapping("/{studentId}")
@@ -109,5 +113,38 @@ public class StudentController extends BaseController {
             );
         }
         return ok(studentService.findByAdmissionNumber(admissionNumber), "Student retrieved");
+    }
+
+    @PatchMapping("/{studentId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @RequireFeature(FeatureConstants.STUDENT_MANAGEMENT)
+    @Operation(summary = "Update student profile (partial)",
+            description = "Updates ONLY the fields provided in the request body.")
+    public ResponseEntity<ApiResponse<StudentResponse>> updateStudent(
+            @PathVariable UUID studentId,
+            @Valid @RequestBody StudentUpdateRequest request
+    ) {
+        log.info("Updating student: {}", studentId);
+        return ok(studentService.updateStudent(studentId, request), "Student updated successfully");
+    }
+
+    @DeleteMapping("/{studentId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @RequireFeature(FeatureConstants.STUDENT_MANAGEMENT)
+    @Operation(summary = "Soft delete student",
+            description = "Sets status to INACTIVE and nullifies currentClassId.")
+    public ResponseEntity<ApiResponse<Void>> deleteStudent(@PathVariable UUID studentId) {
+        log.info("Deleting student: {}", studentId);
+        studentService.deleteStudent(studentId);
+        return okMessage("Student deleted successfully");
+    }
+
+    @GetMapping("/{studentId}/courses")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @RequireFeature(FeatureConstants.STUDENT_MANAGEMENT)
+    @Operation(summary = "Get student subjects/courses",
+            description = "Returns subjects the student is enrolled in for the current academic term.")
+    public ResponseEntity<ApiResponse<List<StudentSubjectResponse>>> getStudentSubjects(@PathVariable UUID studentId) {
+        return ok(studentService.getStudentSubjects(studentId), "Student subjects retrieved");
     }
 }

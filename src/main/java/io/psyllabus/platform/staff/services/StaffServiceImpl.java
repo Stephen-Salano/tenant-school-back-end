@@ -12,6 +12,7 @@ import io.psyllabus.platform.common.exception.DuplicateResourceException;
 import io.psyllabus.platform.common.exception.ResourceNotFoundException;
 import io.psyllabus.platform.common.util.TenantContext;
 import io.psyllabus.platform.staff.dto.request.StaffCreateRequest;
+import io.psyllabus.platform.staff.dto.request.StaffUpdateRequest;
 import io.psyllabus.platform.staff.dto.request.UpdateStaffStatusRequest;
 import io.psyllabus.platform.staff.dto.responses.StaffDetailResponse;
 import io.psyllabus.platform.staff.dto.responses.StaffResponse;
@@ -166,5 +167,37 @@ public class StaffServiceImpl implements StaffService {
         );
 
         return staffMapper.toResponse(staff);
+    }
+
+    @CacheEvict(value = "userClaims", key = "#result.userId", condition = "#result != null && #result.userId != null")
+    @Override
+    public StaffResponse updateStaff(UUID staffId, StaffUpdateRequest request) {
+        UUID tenantId = TenantContext.getCurrentTenantId();
+        Staff staff = staffRepository.findByIdAndTenantId(staffId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException(STAFF_NOT_FOUND));
+
+        if (request.firstName() != null) staff.setFirstName(request.firstName());
+        if (request.lastName() != null) staff.setLastName(request.lastName());
+        if (request.phone() != null) staff.setPhone(request.phone());
+        if (request.email() != null) staff.setEmail(request.email());
+        if (request.subjectGroupId() != null) staff.setSubjectGroupId(request.subjectGroupId());
+        if (request.qualification() != null) staff.setQualification(request.qualification());
+        if (request.specialization() != null) staff.setSpecialization(request.specialization());
+
+        Staff saved = staffRepository.save(staff);
+        auditService.log(AuditAction.UPDATE, STAFF, staffId, "Staff profile updated");
+        return staffMapper.toResponse(saved);
+    }
+
+    @Override
+    public void deleteStaff(UUID staffId) {
+        UUID tenantId = TenantContext.getCurrentTenantId();
+        Staff staff = staffRepository.findByIdAndTenantId(staffId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException(STAFF_NOT_FOUND));
+
+        staff.setEmploymentStatus(EmploymentStatus.TERMINATED);
+        staffRepository.save(staff);
+
+        auditService.log(AuditAction.DELETE, STAFF, staffId, "Staff member terminated");
     }
 }

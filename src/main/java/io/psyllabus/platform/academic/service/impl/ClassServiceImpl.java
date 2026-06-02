@@ -1,6 +1,7 @@
 package io.psyllabus.platform.academic.service.impl;
 
 import io.psyllabus.platform.academic.dto.request.ClassCreateRequest;
+import io.psyllabus.platform.academic.dto.request.ClassUpdateRequest;
 import io.psyllabus.platform.academic.dto.response.ClassDetailResponse;
 import io.psyllabus.platform.academic.dto.response.ClassEnrollmentStatsResponse;
 import io.psyllabus.platform.academic.dto.response.ClassResponse;
@@ -23,8 +24,10 @@ import io.psyllabus.platform.common.util.TenantContext;
 import io.psyllabus.platform.school.entities.SchoolProfile;
 import io.psyllabus.platform.school.repository.SchoolProfileRepository;
 import io.psyllabus.platform.staff.repository.StaffRepository;
+import io.psyllabus.platform.student.dto.responses.StudentResponse;
 import io.psyllabus.platform.student.enums.StudentStatus;
 import io.psyllabus.platform.student.repository.StudentRepository;
+import io.psyllabus.platform.student.service.mapper.StudentMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -64,6 +67,7 @@ import java.util.UUID;
 public class ClassServiceImpl implements ClassService {
 
     public static final String CLASS_NOT_FOUND = "Class not found: ";
+    public static final String CLASS = "CLASS";
     private final SchoolClassRepository schoolClassRepository;
     private final SchoolProfileRepository schoolProfileRepository;
     private final TeacherAssignmentRepository teacherAssignmentRepository;
@@ -72,6 +76,7 @@ public class ClassServiceImpl implements ClassService {
     private final StaffRepository staffRepository;
     private final ClassMapper classMapper;
     private final AuditService auditService;
+    private final StudentMapper studentMapper;
 
     // ── Create ────────────────────────────────────────────────────────────────
 
@@ -122,7 +127,7 @@ public class ClassServiceImpl implements ClassService {
         SchoolClass saved = schoolClassRepository.save(schoolClass);
         log.info("Class created: id={} name={} stream={} tenant={}", saved.getId(), saved.getName(), saved.getStreamName(), tenantId);
 
-        auditService.log(AuditAction.ACADEMIC_SETUP, "CLASS", saved.getId(), "Created class: " + saved.getName());
+        auditService.log(AuditAction.ACADEMIC_SETUP, CLASS, saved.getId(), "Created class: " + saved.getName());
 
         return classMapper.toResponse(saved);
     }
@@ -171,7 +176,7 @@ public class ClassServiceImpl implements ClassService {
         teacherAssignmentRepository.saveAll(toSave);
         log.info("Class teacher assigned: staffId={} classId={} assignmentId={} tenant={}", staffId, classId, target.getId(), tenantId);
 
-        auditService.log(AuditAction.ACADEMIC_SETUP, "CLASS", classId, "Assigned class teacher: " + staffId);
+        auditService.log(AuditAction.ACADEMIC_SETUP, CLASS, classId, "Assigned class teacher: " + staffId);
     }
 
     // ── Read ──────────────────────────────────────────────────────────────────
@@ -234,6 +239,60 @@ public class ClassServiceImpl implements ClassService {
                 .orElse(List.of());
     }
 
+    @Override
+    public ClassResponse updateClass(UUID classId, ClassUpdateRequest request) {
+        UUID tenantId = TenantContext.getCurrentTenantId();
+        SchoolClass sc = schoolClassRepository.findByIdAndTenantId(classId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException(CLASS_NOT_FOUND + classId));
+
+        if (request.name() != null) sc.setName(request.name());
+        if (request.gradeLevel() != null) sc.setGradeLevel(request.gradeLevel());
+        if (request.maxCapacity() != null) sc.setMaxCapacity(request.maxCapacity());
+
+        if (request.streamName() != null) {
+            schoolProfileRepository.findBySchoolId(tenantId).ifPresent(profile -> {
+                List<String> configured = profile.getStreamNames();
+                if (configured != null && !configured.isEmpty()) {
+                    boolean valid = configured.stream()
+                            .anyMatch(s -> s.equalsIgnoreCase(request.streamName()));
+                    if (!valid) {
+                        throw new ValidationException(
+                                "Stream name '" + request.streamName() + "' is not configured.");
+                    }
+                }
+            });
+            sc.setStreamName(request.streamName());
+        }
+
+        SchoolClass saved = schoolClassRepository.save(sc);
+        auditService.log(AuditAction.UPDATE, CLASS, classId, "Class updated: " + sc.getName());
+        return classMapper.toResponse(saved);
+    }
+
+    @Override
+    public void deleteClass(UUID classId) {
+        UUID tenantId = TenantContext.getCurrentTenantId();
+        SchoolClass sc = schoolClassRepository.findByIdAndTenantId(classId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException(CLASS_NOT_FOUND + classId));
+
+        sc.setStatus(AcademicStatus.INACTIVE);
+        schoolClassRepository.save(sc);
+        auditService.log(AuditAction.DELETE, CLASS, classId, "Class soft-deleted: " + sc.getName());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<StudentResponse> getClassRoster(UUID classId) {
+        UUID tenantId = TenantContext.getCurrentTenantId();
+        // Ensure class exists
+        schoolClassRepository.findByIdAndTenantId(classId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException(CLASS_NOT_FOUND + classId));
+
+        return studentRepository.findAllByCurrentClassIdAndTenantId(classId, tenantId).stream()
+                .filter(s -> s.getCurrentStatus() == StudentStatus.ACTIVE)
+                .map(studentMapper::toResponse)
+                .toList();
+    }
     // ── Mappers ───────────────────────────────────────────────────────────────
 
     private ClassDetailResponse mapToDetailResponse(SchoolClass sc, int enrolled, int available, UUID teacherId, String teacherName) {

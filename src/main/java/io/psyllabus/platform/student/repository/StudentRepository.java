@@ -29,6 +29,7 @@ public interface StudentRepository extends JpaRepository<Student, UUID> {
 
     List<Student> findAllByIdInAndTenantId(List<UUID> ids, UUID tenantId);
     List<Student> findAllByCurrentClassIdAndTenantId(UUID currentClassId, UUID tenantId);
+    Page<Student> findAllByCurrentClassIdAndTenantId(UUID currentClassId, UUID tenantId, Pageable pageable);
 
     @Query("""
         SELECT s

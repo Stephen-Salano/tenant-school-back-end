@@ -2,6 +2,7 @@ package io.psyllabus.platform.academic.controller;
 
 import io.psyllabus.platform.academic.dto.request.AssignClassTeacherRequest;
 import io.psyllabus.platform.academic.dto.request.ClassCreateRequest;
+import io.psyllabus.platform.academic.dto.request.ClassUpdateRequest;
 import io.psyllabus.platform.academic.dto.response.ClassDetailResponse;
 import io.psyllabus.platform.academic.dto.response.ClassEnrollmentStatsResponse;
 import io.psyllabus.platform.academic.dto.response.ClassResponse;
@@ -10,6 +11,7 @@ import io.psyllabus.platform.common.controller.BaseController;
 import io.psyllabus.platform.common.dto.ApiResponse;
 import io.psyllabus.platform.common.dto.PageResponse;
 import io.psyllabus.platform.common.util.PaginationUtils;
+import io.psyllabus.platform.student.dto.responses.StudentResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -105,5 +107,33 @@ public class ClassController extends BaseController {
     @Operation(summary = "Get enrollment statistics for a class")
     public ResponseEntity<ApiResponse<ClassEnrollmentStatsResponse>> getEnrollmentStats(@PathVariable UUID id) {
         return ok(classService.getClassEnrollmentStats(id), "Enrollment stats retrieved");
+    }
+
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update class info",
+            description = "Updates ONLY the fields provided in the request body.")
+    public ResponseEntity<ApiResponse<ClassResponse>> updateClass(
+            @PathVariable UUID id,
+            @Valid @RequestBody ClassUpdateRequest request) {
+        log.info("PATCH /api/classes/{} — tenant={}", id, getCurrentTenantId());
+        return ok(classService.updateClass(id, request), "Class updated successfully");
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Soft delete class",
+            description = "Sets status to INACTIVE.")
+    public ResponseEntity<ApiResponse<Void>> deleteClass(@PathVariable UUID id) {
+        log.info("DELETE /api/classes/{} — tenant={}", id, getCurrentTenantId());
+        classService.deleteClass(id);
+        return okMessage("Class deleted successfully");
+    }
+
+    @GetMapping("/{id}/students")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @Operation(summary = "Get roster of active students for a class")
+    public ResponseEntity<ApiResponse<List<StudentResponse>>> getClassRoster(@PathVariable UUID id) {
+        return ok(classService.getClassRoster(id), "Class roster retrieved");
     }
 }
