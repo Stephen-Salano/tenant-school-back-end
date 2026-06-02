@@ -1,6 +1,7 @@
 package io.psyllabus.platform.academic.service.impl;
 
 import io.psyllabus.platform.academic.dto.request.SubjectCreateRequest;
+import io.psyllabus.platform.academic.dto.request.SubjectUpdateRequest;
 import io.psyllabus.platform.academic.dto.response.SubjectResponse;
 import io.psyllabus.platform.academic.entities.Subject;
 import io.psyllabus.platform.academic.enums.AcademicStatus;
@@ -32,6 +33,8 @@ import java.util.UUID;
 @Transactional
 public class SubjectServiceImpl implements SubjectService {
 
+    public static final String SUBJECT = "SUBJECT";
+    public static final String SUBJECT_NOT_FOUND = "Subject not found: ";
     private final SubjectRepository subjectRepository;
     private final SubjectGroupRepository subjectGroupRepository;
     private final SubjectCategoryRepository subjectCategoryRepository;
@@ -74,7 +77,7 @@ public class SubjectServiceImpl implements SubjectService {
         Subject saved = subjectRepository.save(subject);
         log.info("Subject created: id={} name={} code={} tenant={}", saved.getId(), saved.getName(), saved.getCode(), tenantId);
 
-        auditService.log(AuditAction.ACADEMIC_SETUP, "SUBJECT", saved.getId(), "Created subject: " + saved.getName());
+        auditService.log(AuditAction.ACADEMIC_SETUP, SUBJECT, saved.getId(), "Created subject: " + saved.getName());
 
         return subjectMapper.toResponse(saved);
     }
@@ -94,7 +97,45 @@ public class SubjectServiceImpl implements SubjectService {
     public SubjectResponse getSubjectById(UUID id) {
         UUID tenantId = TenantContext.getCurrentTenantId();
         Subject subject = subjectRepository.findByIdAndTenantId(id, tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Subject not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(SUBJECT_NOT_FOUND + id));
         return subjectMapper.toResponse(subject);
+    }
+
+    @Override
+    public SubjectResponse updateSubject(UUID id, SubjectUpdateRequest request) {
+        UUID tenantId = TenantContext.getCurrentTenantId();
+        Subject subject = subjectRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException(SUBJECT_NOT_FOUND + id));
+
+        if (request.name() != null) subject.setName(request.name());
+        if (request.code() != null) subject.setCode(request.code());
+        if (request.subjectGroupId() != null) {
+            subjectGroupRepository.findByIdAndTenantId(request.subjectGroupId(), tenantId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Subject group not found: " + request.subjectGroupId()));
+            subject.setSubjectGroupId(request.subjectGroupId());
+        }
+        if (request.subjectCategoryId() != null) {
+            subjectCategoryRepository.findByIdAndTenantId(request.subjectCategoryId(), tenantId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Subject category not found: " + request.subjectCategoryId()));
+            subject.setSubjectCategoryId(request.subjectCategoryId());
+        }
+        if (request.maxScore() != null) subject.setMaxScore(request.maxScore());
+        if (request.passMark() != null) subject.setPassMark(request.passMark());
+        if (request.status() != null) subject.setStatus(request.status());
+
+        Subject saved = subjectRepository.save(subject);
+        auditService.log(AuditAction.UPDATE, SUBJECT, id, "Subject updated: " + subject.getName());
+        return subjectMapper.toResponse(saved);
+    }
+
+    @Override
+    public void deleteSubject(UUID id) {
+        UUID tenantId = TenantContext.getCurrentTenantId();
+        Subject subject = subjectRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException(SUBJECT_NOT_FOUND + id));
+
+        subject.setStatus(AcademicStatus.INACTIVE);
+        subjectRepository.save(subject);
+        auditService.log(AuditAction.DELETE, SUBJECT, id, "Subject soft-deleted: " + subject.getName());
     }
 }

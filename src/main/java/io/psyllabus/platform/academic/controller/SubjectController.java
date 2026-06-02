@@ -1,6 +1,7 @@
 package io.psyllabus.platform.academic.controller;
 
 import io.psyllabus.platform.academic.dto.request.SubjectCreateRequest;
+import io.psyllabus.platform.academic.dto.request.SubjectUpdateRequest;
 import io.psyllabus.platform.academic.dto.response.SubjectResponse;
 import io.psyllabus.platform.academic.service.SubjectService;
 import io.psyllabus.platform.common.controller.BaseController;
@@ -56,5 +57,26 @@ public class SubjectController extends BaseController {
     @Operation(summary = "Get subject detail by ID")
     public ResponseEntity<ApiResponse<SubjectResponse>> getSubjectById(@PathVariable UUID id) {
         return ok(subjectService.getSubjectById(id), "Subject retrieved");
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update subject info",
+            description = "Updates ONLY the fields provided in the request body.")
+    public ResponseEntity<ApiResponse<SubjectResponse>> updateSubject(
+            @PathVariable UUID id,
+            @Valid @RequestBody SubjectUpdateRequest request) {
+        log.info("PUT /api/subjects/{} — tenant={}", id, getCurrentTenantId());
+        return ok(subjectService.updateSubject(id, request), "Subject updated successfully");
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Soft delete subject",
+            description = "Sets status to INACTIVE.")
+    public ResponseEntity<ApiResponse<Void>> deleteSubject(@PathVariable UUID id) {
+        log.info("DELETE /api/subjects/{} — tenant={}", id, getCurrentTenantId());
+        subjectService.deleteSubject(id);
+        return okMessage("Subject deleted successfully");
     }
 }
