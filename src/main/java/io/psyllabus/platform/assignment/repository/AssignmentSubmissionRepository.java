@@ -40,6 +40,13 @@ public interface AssignmentSubmissionRepository extends JpaRepository<Assignment
 
     List<AssignmentSubmission> findAllByAssignmentIdAndTenantId(UUID assignmentId, UUID tenantId);
 
+    Page<AssignmentSubmission> findAllByAssignmentIdInAndTenantIdAndSubmissionStatus(
+            List<UUID> assignmentIds,
+            UUID tenantId,
+            SubmissionStatus submissionStatus,
+            Pageable pageable
+    );
+
     @Query("""
         SELECT s.studentId
         FROM AssignmentSubmission s

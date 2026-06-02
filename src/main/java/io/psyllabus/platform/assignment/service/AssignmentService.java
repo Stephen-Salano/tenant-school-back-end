@@ -2,15 +2,18 @@ package io.psyllabus.platform.assignment.service;
 
 import io.psyllabus.platform.assignment.dto.request.AssignmentCreateRequest;
 import io.psyllabus.platform.assignment.dto.request.AssignmentUpdateRequest;
+import io.psyllabus.platform.assignment.dto.request.BulkGradeRequest;
 import io.psyllabus.platform.assignment.dto.request.GradeSubmissionRequest;
 import io.psyllabus.platform.assignment.dto.response.AssignmentDetailResponse;
 import io.psyllabus.platform.assignment.dto.response.AssignmentResponse;
+import io.psyllabus.platform.assignment.dto.response.PendingSubmissionResponse;
 import io.psyllabus.platform.assignment.dto.response.SubmissionResponse;
 import io.psyllabus.platform.assignment.enums.AssignmentStatus;
 import io.psyllabus.platform.assignment.enums.SubmissionStatus;
 import io.psyllabus.platform.common.dto.PageResponse;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface AssignmentService {
@@ -34,6 +37,10 @@ public interface AssignmentService {
     SubmissionResponse getSubmission(UUID submissionId, UUID currentUserId);
 
     SubmissionResponse gradeSubmission(UUID submissionId, GradeSubmissionRequest request, UUID currentUserId);
+
+    List<SubmissionResponse> bulkGrade(BulkGradeRequest request, UUID currentUserId);
+
+    PageResponse<PendingSubmissionResponse> listPendingSubmissions(UUID currentUserId, Pageable pageable);
 
     void createPendingSubmissions(UUID assignmentId);
 }

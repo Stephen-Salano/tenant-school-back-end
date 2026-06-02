@@ -2,9 +2,11 @@ package io.psyllabus.platform.assignment.controller;
 
 import io.psyllabus.platform.assignment.dto.request.AssignmentCreateRequest;
 import io.psyllabus.platform.assignment.dto.request.AssignmentUpdateRequest;
+import io.psyllabus.platform.assignment.dto.request.BulkGradeRequest;
 import io.psyllabus.platform.assignment.dto.request.GradeSubmissionRequest;
 import io.psyllabus.platform.assignment.dto.response.AssignmentDetailResponse;
 import io.psyllabus.platform.assignment.dto.response.AssignmentResponse;
+import io.psyllabus.platform.assignment.dto.response.PendingSubmissionResponse;
 import io.psyllabus.platform.assignment.dto.response.SubmissionResponse;
 import io.psyllabus.platform.assignment.enums.AssignmentStatus;
 import io.psyllabus.platform.assignment.enums.SubmissionStatus;
@@ -26,6 +28,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -152,5 +155,30 @@ public class AssignmentController extends BaseController {
             @Valid @RequestBody GradeSubmissionRequest request,
             Authentication authentication) {
         return ok(assignmentService.gradeSubmission(submissionId, request, getCurrentUser(authentication).getId()), "Submission graded");
+    }
+
+    @PostMapping("/bulk-grade")
+    @PreAuthorize("hasRole('STAFF')")
+    @RequireFeature(FeatureConstants.GRADES)
+    @Operation(summary = "Bulk grade submissions")
+    public ResponseEntity<ApiResponse<List<SubmissionResponse>>> bulkGrade(
+            @Valid @RequestBody BulkGradeRequest request,
+            Authentication authentication) {
+        return ok(assignmentService.bulkGrade(request, getCurrentUser(authentication).getId()), "Submissions graded");
+    }
+
+    @GetMapping("/pending/submissions")
+    @PreAuthorize("hasRole('STAFF')")
+    @RequireFeature(FeatureConstants.ASSIGNMENTS)
+    @Operation(summary = "List all pending submissions across assignments")
+    public ResponseEntity<ApiResponse<PageResponse<PendingSubmissionResponse>>> listPendingSubmissions(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            Authentication authentication) {
+        Pageable pageable = PaginationUtils.of(page, size, "submittedAt");
+        return paged(
+                assignmentService.listPendingSubmissions(getCurrentUser(authentication).getId(), pageable),
+                "Pending submissions retrieved"
+        );
     }
 }
