@@ -22,7 +22,6 @@ import io.psyllabus.platform.common.exception.ValidationException;
 import io.psyllabus.platform.common.util.TenantContext;
 import io.psyllabus.platform.school.entities.SchoolProfile;
 import io.psyllabus.platform.school.repository.SchoolProfileRepository;
-import io.psyllabus.platform.staff.entities.Staff;
 import io.psyllabus.platform.staff.repository.StaffRepository;
 import io.psyllabus.platform.student.enums.StudentStatus;
 import io.psyllabus.platform.student.repository.StudentRepository;
@@ -201,17 +200,13 @@ public class ClassServiceImpl implements ClassService {
         UUID teacherId = null;
         String teacherName = null;
 
-        Optional<TeacherAssignment> classTeacherAssignment = teacherAssignmentRepository.findAllByClassIdAndTenantId(classId, tenantId)
-                .stream()
-                .filter(TeacherAssignment::isClassTeacher)
-                .findFirst();
+        Optional<TeacherAssignment> classTeacherAssignment = teacherAssignmentRepository.findClassTeacherByClassIdAndTenantId(classId, tenantId);
 
         if (classTeacherAssignment.isPresent()) {
             teacherId = classTeacherAssignment.get().getStaffId();
-            Optional<Staff> staff = staffRepository.findByIdAndTenantId(teacherId, tenantId);
-            if (staff.isPresent()) {
-                teacherName = staff.get().getFirstName() + " " + staff.get().getLastName();
-            }
+            teacherName = staffRepository.findByIdAndTenantId(teacherId, tenantId)
+                    .map(s -> s.getFirstName() + " " + s.getLastName())
+                    .orElse(null);
         }
 
         return mapToDetailResponse(sc, enrolled, available, teacherId, teacherName);

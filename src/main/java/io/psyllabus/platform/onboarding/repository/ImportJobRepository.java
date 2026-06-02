@@ -41,6 +41,9 @@ public interface ImportJobRepository extends JpaRepository<ImportJob, UUID> {
     /** Lightweight count query for dashboards and health metrics. */
     long countByStatus(ImportJobStatus status);
 
+    @Query("SELECT j.status, COUNT(j) FROM ImportJob j GROUP BY j.status")
+    List<Object[]> countGroupByStatus();
+
     @Query("""
             SELECT j FROM ImportJob j
             WHERE (:status IS NULL OR j.status = :status)

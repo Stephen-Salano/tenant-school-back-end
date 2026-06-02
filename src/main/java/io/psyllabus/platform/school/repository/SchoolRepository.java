@@ -1,13 +1,14 @@
 package io.psyllabus.platform.school.repository;
 
 import io.psyllabus.platform.school.entities.School;
-import io.psyllabus.platform.school.enums.SchoolStatus;
 import io.psyllabus.platform.subscription.enums.PlanType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 /**
@@ -70,7 +71,13 @@ public interface SchoolRepository extends JpaRepository<School, UUID> {
      * Used for business metrics
      * @return count of schools with given status
      */
-    long countByStatus(SchoolStatus status);
+    /**
+     * Count schools grouped by status.
+     * Used for consolidated business metrics.
+     * @return List of arrays where [0] is status and [1] is count
+     */
+    @Query("SELECT s.status, COUNT(s) FROM School s GROUP BY s.status")
+    List<Object[]> countGroupByStatus();
 
     Page<School> findAllByOrderByCreatedAtDesc(Pageable pageable);
 

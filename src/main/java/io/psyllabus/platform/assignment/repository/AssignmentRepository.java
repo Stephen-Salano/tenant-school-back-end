@@ -1,5 +1,6 @@
 package io.psyllabus.platform.assignment.repository;
 
+import io.psyllabus.platform.assignment.dto.response.AssignmentDetailResponse;
 import io.psyllabus.platform.assignment.dto.response.AssignmentResponse;
 import io.psyllabus.platform.assignment.entities.Assignment;
 import io.psyllabus.platform.assignment.enums.AssignmentStatus;
@@ -53,4 +54,20 @@ public interface AssignmentRepository extends JpaRepository<Assignment, UUID> {
         GROUP BY a.id, sc.name, sub.name
     """)
     Page<AssignmentResponse> findResponsesWithStatsByClassId(@Param("classId") UUID classId, @Param("tenantId") UUID tenantId, Pageable pageable);
+
+    @Query("""
+        SELECT new io.psyllabus.platform.assignment.dto.response.AssignmentDetailResponse(
+            a.id, a.classId, sc.name, a.subjectId, sub.name,
+            a.academicTermId, a.staffId, CONCAT(s.firstName, ' ', s.lastName),
+            a.title, a.description, a.instructions, a.assignmentType,
+            a.maxScore, a.dueDate, a.postedAt, a.closedAt, a.archivedAt, a.status,
+            null
+        )
+        FROM Assignment a
+        JOIN SchoolClass sc ON sc.id = a.classId AND sc.tenantId = a.tenantId
+        JOIN Subject sub ON sub.id = a.subjectId AND sub.tenantId = a.tenantId
+        JOIN Staff s ON s.id = a.staffId AND s.tenantId = a.tenantId
+        WHERE a.id = :id AND a.tenantId = :tenantId
+    """)
+    Optional<AssignmentDetailResponse> findDetailById(@Param("id") UUID id, @Param("tenantId") UUID tenantId);
 }

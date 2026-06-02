@@ -34,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Implementation of {@link PlatformAdminService}.
@@ -125,14 +126,26 @@ public class PlatformAdminServiceImpl implements PlatformAdminService {
     @Override
     @Transactional(readOnly = true)
     public PlatformKpiResponse getDashboardKpis() {
-        long totalSchools = schoolRepository.count();
-        long activeSchools = schoolRepository.countByStatus(SchoolStatus.ACTIVE);
-        long suspendedSchools = schoolRepository.countByStatus(SchoolStatus.SUSPENDED);
-        long deactivatedSchools = schoolRepository.countByStatus(SchoolStatus.DEACTIVATED);
+        Map<SchoolStatus, Long> schoolCounts = schoolRepository.countGroupByStatus()
+                .stream().collect(Collectors.toMap(
+                        row -> (SchoolStatus) row[0],
+                        row -> (Long) row[1]
+                ));
 
-        long queuedImportJobs = importJobRepository.countByStatus(ImportJobStatus.QUEUED);
-        long processingImportJobs = importJobRepository.countByStatus(ImportJobStatus.PROCESSING);
-        long failedImportJobs = importJobRepository.countByStatus(ImportJobStatus.FAILED);
+        long totalSchools = schoolCounts.values().stream().mapToLong(Long::longValue).sum();
+        long activeSchools = schoolCounts.getOrDefault(SchoolStatus.ACTIVE, 0L);
+        long suspendedSchools = schoolCounts.getOrDefault(SchoolStatus.SUSPENDED, 0L);
+        long deactivatedSchools = schoolCounts.getOrDefault(SchoolStatus.DEACTIVATED, 0L);
+
+        Map<ImportJobStatus, Long> jobCounts = importJobRepository.countGroupByStatus()
+                .stream().collect(Collectors.toMap(
+                        row -> (ImportJobStatus) row[0],
+                        row -> (Long) row[1]
+                ));
+
+        long queuedImportJobs = jobCounts.getOrDefault(ImportJobStatus.QUEUED, 0L);
+        long processingImportJobs = jobCounts.getOrDefault(ImportJobStatus.PROCESSING, 0L);
+        long failedImportJobs = jobCounts.getOrDefault(ImportJobStatus.FAILED, 0L);
 
         return new PlatformKpiResponse(
                 totalSchools,

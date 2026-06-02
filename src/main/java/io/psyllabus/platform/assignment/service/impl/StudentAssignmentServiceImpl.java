@@ -2,6 +2,7 @@ package io.psyllabus.platform.assignment.service.impl;
 
 import io.psyllabus.platform.assignment.dto.request.AssignmentSubmitRequest;
 import io.psyllabus.platform.assignment.dto.request.AttachmentMetadataRequest;
+import io.psyllabus.platform.assignment.dto.response.AssignmentDetailResponse;
 import io.psyllabus.platform.assignment.dto.response.AttachmentMetadataResponse;
 import io.psyllabus.platform.assignment.dto.response.StudentAssignmentDetailResponse;
 import io.psyllabus.platform.assignment.dto.response.StudentAssignmentResponse;
@@ -18,7 +19,6 @@ import io.psyllabus.platform.assignment.repository.AssignmentRepository;
 import io.psyllabus.platform.assignment.repository.AssignmentSubmissionRepository;
 import io.psyllabus.platform.assignment.repository.SubmissionAttachmentRepository;
 import io.psyllabus.platform.assignment.service.StudentAssignmentService;
-import io.psyllabus.platform.academic.entities.SchoolClass;
 import io.psyllabus.platform.academic.entities.Subject;
 import io.psyllabus.platform.academic.repository.SchoolClassRepository;
 import io.psyllabus.platform.academic.repository.SubjectRepository;
@@ -55,6 +55,7 @@ import java.util.stream.Collectors;
 @Transactional
 public class StudentAssignmentServiceImpl implements StudentAssignmentService {
 
+    public static final String ASSIGNMENT_NOT_FOUND = "Assignment not found: ";
     private final AssignmentRepository assignmentRepository;
     private final AssignmentSubmissionRepository assignmentSubmissionRepository;
     private final AssignmentAttachmentRepository assignmentAttachmentRepository;
@@ -90,12 +91,19 @@ public class StudentAssignmentServiceImpl implements StudentAssignmentService {
                 tenantId
         ).stream().collect(Collectors.toMap(Staff::getId, Function.identity()));
 
+        List<UUID> assignmentIds = assignments.keySet().stream().toList();
+        Map<UUID, Long> attachmentCounts = assignmentAttachmentRepository.countByAssignmentIds(assignmentIds, tenantId)
+                .stream().collect(Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> (Long) row[1]
+                ));
+
         return PageResponse.from(page.map(submission -> toStudentAssignmentResponse(
                 submission,
                 assignments.get(submission.getAssignmentId()),
                 subjects,
                 staff,
-                tenantId
+                attachmentCounts.getOrDefault(submission.getAssignmentId(), 0L)
         )));
     }
 
@@ -107,7 +115,7 @@ public class StudentAssignmentServiceImpl implements StudentAssignmentService {
         AssignmentSubmission submission = assignmentSubmissionRepository.findByAssignmentIdAndStudentIdAndTenantId(assignmentId, student.getId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Assignment not found for current student"));
         Assignment assignment = assignmentRepository.findByIdAndTenantId(assignmentId, tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Assignment not found: " + assignmentId));
+                .orElseThrow(() -> new ResourceNotFoundException(ASSIGNMENT_NOT_FOUND + assignmentId));
         return toStudentAssignmentDetailResponse(submission, assignment, tenantId);
     }
 
@@ -118,7 +126,7 @@ public class StudentAssignmentServiceImpl implements StudentAssignmentService {
         AssignmentSubmission submission = assignmentSubmissionRepository.findByAssignmentIdAndStudentIdAndTenantId(assignmentId, student.getId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Assignment not found for current student"));
         Assignment assignment = assignmentRepository.findByIdAndTenantId(assignmentId, tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Assignment not found: " + assignmentId));
+                .orElseThrow(() -> new ResourceNotFoundException(ASSIGNMENT_NOT_FOUND + assignmentId));
 
         if (submission.getSubmissionStatus() != SubmissionStatus.PENDING) {
             throw new ValidationException("Assignment has already been submitted");
@@ -177,7 +185,7 @@ public class StudentAssignmentServiceImpl implements StudentAssignmentService {
             Assignment assignment,
             Map<UUID, Subject> subjects,
             Map<UUID, Staff> staff,
-            UUID tenantId
+            long attachmentCount
     ) {
         Subject subject = assignment != null ? subjects.get(assignment.getSubjectId()) : null;
         Staff teacher = assignment != null ? staff.get(assignment.getStaffId()) : null;
@@ -194,7 +202,7 @@ public class StudentAssignmentServiceImpl implements StudentAssignmentService {
                 submission.getSubmittedAt(),
                 submission.getSubmissionStatus(),
                 teacher != null ? teacher.getFirstName() + " " + teacher.getLastName() : null,
-                assignment != null ? assignmentAttachmentRepository.countByAssignmentIdAndTenantId(assignment.getId(), tenantId) : 0,
+                attachmentCount,
                 submission.getScore(),
                 assignment != null ? assignment.getMaxScore() : null,
                 submission.getGradeLabel(),
@@ -203,39 +211,41 @@ public class StudentAssignmentServiceImpl implements StudentAssignmentService {
     }
 
     private StudentAssignmentDetailResponse toStudentAssignmentDetailResponse(AssignmentSubmission submission, Assignment assignment, UUID tenantId) {
-        Subject subject = subjectRepository.findByIdAndTenantId(assignment.getSubjectId(), tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Subject not found: " + assignment.getSubjectId()));
-        SchoolClass schoolClass = schoolClassRepository.findByIdAndTenantId(assignment.getClassId(), tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Class not found: " + assignment.getClassId()));
-        Staff teacher = staffRepository.findByIdAndTenantId(assignment.getStaffId(), tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Staff not found: " + assignment.getStaffId()));
+        // Reuse AssignmentRepository.findDetailById to get names in one query
+        AssignmentDetailResponse detail = assignmentRepository.findDetailById(assignment.getId(), tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException(ASSIGNMENT_NOT_FOUND + assignment.getId()));
+
         Optional<GradingScheme> gradingScheme = gradingSchemeRepository.findByTenantIdAndIsDefaultTrue(tenantId);
+
+        List<AttachmentMetadataResponse> assignmentAttachments = assignmentAttachmentRepository.findAllByAssignmentIdAndTenantId(assignment.getId(), tenantId).stream()
+                .map(this::toAttachmentResponse)
+                .toList();
+
+        List<AttachmentMetadataResponse> submissionAttachments = submissionAttachmentRepository.findAllBySubmissionIdAndTenantId(submission.getId(), tenantId).stream()
+                .map(this::toAttachmentResponse)
+                .toList();
 
         return new StudentAssignmentDetailResponse(
                 submission.getId(),
                 assignment.getId(),
-                assignment.getTitle(),
-                subject.getName(),
-                schoolClass.getName(),
-                assignment.getAssignmentType(),
-                assignment.getDueDate(),
-                assignment.getPostedAt(),
-                assignment.getDueDate().isBefore(LocalDateTime.now()) && submission.getSubmissionStatus() == SubmissionStatus.PENDING,
-                assignment.getMaxScore(),
+                detail.title(),
+                detail.subjectName(),
+                detail.className(),
+                detail.assignmentType(),
+                detail.dueDate(),
+                detail.postedAt(),
+                detail.dueDate().isBefore(LocalDateTime.now()) && submission.getSubmissionStatus() == SubmissionStatus.PENDING,
+                detail.maxScore(),
                 gradingScheme.map(GradingScheme::getName).orElse(null),
-                assignment.getDescription(),
-                assignment.getInstructions(),
-                teacher.getFirstName() + " " + teacher.getLastName(),
-                assignmentAttachmentRepository.findAllByAssignmentIdAndTenantId(assignment.getId(), tenantId).stream()
-                        .map(this::toAttachmentResponse)
-                        .toList(),
+                detail.description(),
+                detail.instructions(),
+                detail.teacherName(),
+                assignmentAttachments,
                 submission.getSubmissionStatus(),
                 submission.getSubmittedAt(),
                 submission.getSubmissionType(),
                 submission.getTextContent(),
-                submissionAttachmentRepository.findAllBySubmissionIdAndTenantId(submission.getId(), tenantId).stream()
-                        .map(this::toAttachmentResponse)
-                        .toList(),
+                submissionAttachments,
                 submission.getScore(),
                 submission.getGradeLabel(),
                 submission.getFeedback(),

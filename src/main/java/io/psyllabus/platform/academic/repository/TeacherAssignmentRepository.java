@@ -57,6 +57,10 @@ public interface TeacherAssignmentRepository extends JpaRepository<TeacherAssign
     List<TeacherAssignmentResponse> findResponsesByStaffId(@Param("staffId") UUID staffId, @Param("tenantId") UUID tenantId);
 
     List<TeacherAssignment> findAllByAcademicTermIdAndTenantId(UUID academicTermId, UUID tenantId);
+
+    @Query("SELECT ta FROM TeacherAssignment ta WHERE ta.classId = :classId AND ta.tenantId = :tenantId AND ta.isClassTeacher = true AND ta.status = 'ACTIVE'")
+    Optional<TeacherAssignment> findClassTeacherByClassIdAndTenantId(@Param("classId") UUID classId, @Param("tenantId") UUID tenantId);
+
     Optional<TeacherAssignment> findByIdAndTenantId(UUID id, UUID tenantId);
     List<TeacherAssignment> findAllByClassIdAndAcademicTermIdAndIsClassTeacherTrueAndTenantId(UUID classId, UUID academicTermId, UUID tenantId);
     boolean existsByStaffIdAndClassIdAndSubjectIdAndAcademicTermIdAndTenantIdAndStatus(

@@ -65,6 +65,7 @@ public class AssignmentServiceImpl implements AssignmentService {
 
     private static final String ASSIGNMENT_ENTITY = "ASSIGNMENT";
     private static final String SUBMISSION_ENTITY = "ASSIGNMENT_SUBMISSION";
+    public static final String ASSIGNMENT_NOT_FOUND = "Assignment not found: ";
 
     private final AssignmentRepository assignmentRepository;
     private final AssignmentAttachmentRepository assignmentAttachmentRepository;
@@ -108,7 +109,7 @@ public class AssignmentServiceImpl implements AssignmentService {
 
         replaceAssignmentAttachments(assignment.getId(), tenantId, request.attachments());
         auditService.log(AuditAction.CREATE, ASSIGNMENT_ENTITY, assignment.getId(), "Created assignment draft " + assignment.getTitle());
-        return toAssignmentDetailResponse(assignment, currentStaff, schoolClass, subject, term, tenantId);
+        return toAssignmentDetailResponse(assignment.getId(), tenantId);
     }
 
     @Override
@@ -165,8 +166,8 @@ public class AssignmentServiceImpl implements AssignmentService {
     public AssignmentDetailResponse getAssignment(UUID assignmentId, UUID currentUserId) {
         UUID tenantId = TenantContext.getCurrentTenantId();
         Staff currentStaff = findStaffByUser(currentUserId, tenantId);
-        Assignment assignment = resolveOwnedAssignment(assignmentId, currentStaff, tenantId);
-        return toAssignmentDetailResponse(assignment, tenantId);
+        resolveOwnedAssignment(assignmentId, currentStaff, tenantId);
+        return toAssignmentDetailResponse(assignmentId, tenantId);
     }
 
     @Override
@@ -204,7 +205,7 @@ public class AssignmentServiceImpl implements AssignmentService {
         }
 
         auditService.log(AuditAction.UPDATE, ASSIGNMENT_ENTITY, assignment.getId(), "Updated assignment draft " + assignment.getTitle());
-        return toAssignmentDetailResponse(assignment, tenantId);
+        return toAssignmentDetailResponse(assignmentId, tenantId);
     }
 
     @Override
@@ -231,7 +232,7 @@ public class AssignmentServiceImpl implements AssignmentService {
         );
 
         auditService.log(AuditAction.UPDATE, ASSIGNMENT_ENTITY, assignment.getId(), "Published assignment " + assignment.getTitle());
-        return toAssignmentDetailResponse(assignment, tenantId);
+        return toAssignmentDetailResponse(assignmentId, tenantId);
     }
 
     @Override
@@ -248,7 +249,7 @@ public class AssignmentServiceImpl implements AssignmentService {
         assignment.setClosedAt(LocalDateTime.now());
         assignmentRepository.save(assignment);
         auditService.log(AuditAction.UPDATE, ASSIGNMENT_ENTITY, assignment.getId(), "Closed assignment " + assignment.getTitle());
-        return toAssignmentDetailResponse(assignment, tenantId);
+        return toAssignmentDetailResponse(assignmentId, tenantId);
     }
 
     @Override
@@ -372,7 +373,7 @@ public class AssignmentServiceImpl implements AssignmentService {
     public void createPendingSubmissions(UUID assignmentId) {
         UUID tenantId = TenantContext.getCurrentTenantId();
         Assignment assignment = assignmentRepository.findByIdAndTenantId(assignmentId, tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Assignment not found: " + assignmentId));
+                .orElseThrow(() -> new ResourceNotFoundException(ASSIGNMENT_NOT_FOUND + assignmentId));
 
         if (assignment.getStatus() != AssignmentStatus.ACTIVE) {
             throw new ValidationException("Only active assignments can fan out submissions");
@@ -413,7 +414,7 @@ public class AssignmentServiceImpl implements AssignmentService {
 
     private Assignment resolveOwnedAssignment(UUID assignmentId, Staff currentStaff, UUID tenantId) {
         Assignment assignment = assignmentRepository.findByIdAndTenantId(assignmentId, tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Assignment not found: " + assignmentId));
+                .orElseThrow(() -> new ResourceNotFoundException(ASSIGNMENT_NOT_FOUND + assignmentId));
         if (!assignment.getStaffId().equals(currentStaff.getId())) {
             throw new InsufficientPermissionException("You do not own this assignment");
         }
@@ -455,46 +456,19 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .toList());
     }
 
-    private AssignmentDetailResponse toAssignmentDetailResponse(Assignment assignment, UUID tenantId) {
-        Staff staff = staffRepository.findByIdAndTenantId(assignment.getStaffId(), tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Staff not found: " + assignment.getStaffId()));
-        SchoolClass schoolClass = findClass(assignment.getClassId(), tenantId);
-        Subject subject = findSubject(assignment.getSubjectId(), tenantId);
-        AcademicTerm term = academicTermRepository.findByIdAndTenantId(assignment.getAcademicTermId(), tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Academic term not found: " + assignment.getAcademicTermId()));
-        return toAssignmentDetailResponse(assignment, staff, schoolClass, subject, term, tenantId);
-    }
+    private AssignmentDetailResponse toAssignmentDetailResponse(UUID assignmentId, UUID tenantId) {
+        AssignmentDetailResponse base = assignmentRepository.findDetailById(assignmentId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException(ASSIGNMENT_NOT_FOUND + assignmentId));
 
-    private AssignmentDetailResponse toAssignmentDetailResponse(
-            Assignment assignment,
-            Staff staff,
-            SchoolClass schoolClass,
-            Subject subject,
-            AcademicTerm term,
-            UUID tenantId
-    ) {
+        List<AttachmentMetadataResponse> attachments = assignmentAttachmentRepository.findAllByAssignmentIdAndTenantId(assignmentId, tenantId).stream()
+                .map(this::toAttachmentResponse)
+                .toList();
+
         return new AssignmentDetailResponse(
-                assignment.getId(),
-                schoolClass.getId(),
-                schoolClass.getName(),
-                subject.getId(),
-                subject.getName(),
-                term.getId(),
-                staff.getId(),
-                staff.getFirstName() + " " + staff.getLastName(),
-                assignment.getTitle(),
-                assignment.getDescription(),
-                assignment.getInstructions(),
-                assignment.getAssignmentType(),
-                assignment.getMaxScore(),
-                assignment.getDueDate(),
-                assignment.getPostedAt(),
-                assignment.getClosedAt(),
-                assignment.getArchivedAt(),
-                assignment.getStatus(),
-                assignmentAttachmentRepository.findAllByAssignmentIdAndTenantId(assignment.getId(), tenantId).stream()
-                        .map(this::toAttachmentResponse)
-                        .toList()
+                base.id(), base.classId(), base.className(), base.subjectId(), base.subjectName(),
+                base.academicTermId(), base.staffId(), base.teacherName(), base.title(), base.description(),
+                base.instructions(), base.assignmentType(), base.maxScore(), base.dueDate(), base.postedAt(),
+                base.closedAt(), base.archivedAt(), base.status(), attachments
         );
     }
 
