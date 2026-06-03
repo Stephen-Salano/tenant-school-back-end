@@ -30,11 +30,8 @@ build/
 !**/src/test/**/build/
 
 ### VS Code ###
-.vscode/
 
 ### Environment / Secrets ###
-.env
-.env.*
 *.env
 
 ### Logs ###
@@ -51,3 +48,9 @@ Gemini.MD
 #API-alignments.md
 #expected-api-structure.md
 #MEMORY.md
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+.gitignore
+config.bat
+node_modules

@@ -29,6 +29,7 @@ import io.psyllabus.platform.subscription.entity.Subscription;
 import io.psyllabus.platform.subscription.enums.PlanType;
 import io.psyllabus.platform.subscription.enums.SubscriptionStatus;
 import io.psyllabus.platform.subscription.repository.SubscriptionRepository;
+import io.psyllabus.platform.tenant.secret.service.TenantChannelConfigService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -77,6 +78,7 @@ public class SchoolServiceImpl implements SchoolService{
     private final AuthService authService;
     private final ObjectMapper objectMapper;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+    private final TenantChannelConfigService tenantChannelConfigService;
 
     @Value("${tenant.domain.base:psyllabus.co.ke}")
     private String baseDomain;
@@ -147,6 +149,9 @@ public class SchoolServiceImpl implements SchoolService{
                 .build();
         mainBranch = branchRepository.save(mainBranch);
         log.info("Main branch created: id={} for school={}", mainBranch.getId(), schoolId);
+
+        // Station 3.5: Default channel config (email on, SMS off)
+        tenantChannelConfigService.createDefault(schoolId);
 
         // Station 4: Admin User — AuthService.register() reads TenantContext,
         // so we set it manually for this unauthenticated provisioning call.

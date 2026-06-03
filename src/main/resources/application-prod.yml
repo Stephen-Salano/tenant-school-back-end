@@ -54,7 +54,12 @@ management:
       exposure:
         include: health, prometheus
 
+resend:
+  api-key: ${RESEND_API_KEY}       # no fallback — fails fast if not set
+  from: ${RESEND_FROM:noreply@psyllabus.co.ke}
+  support-email: ${SUPPORT_EMAIL:support@psyllabus.co.ke}
+
 platform:
- api-key: ${PLATFORM_API_KEY}     # ← no fallback — fails fast if not set
- dev:
-   skip-subscription-check: false  # always false in prod
+  api-key: ${PLATFORM_API_KEY}     # no fallback — fails fast if not set
+  dev:
+    skip-subscription-check: false  # always false in prod

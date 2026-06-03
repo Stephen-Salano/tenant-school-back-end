@@ -1,5 +1,6 @@
 package io.psyllabus.platform.messaging.service.impl;
 
+import com.resend.Resend;
 import com.resend.services.emails.model.CreateEmailOptions;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -15,16 +16,12 @@ import org.springframework.stereotype.Service;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 
-/**
- * Implementation of EmailService using Resend and Thymeleaf.
- * Per MEMORY.md, this service handles operational and admin notifications.
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ResendEmailServiceImpl implements EmailService {
 
-    private final com.resend.Resend resendClient;
+    private final Resend resendClient;
     private final SpringTemplateEngine emailTemplateEngine;
     private final MeterRegistry meterRegistry;
 
@@ -41,7 +38,6 @@ public class ResendEmailServiceImpl implements EmailService {
     private Counter failedCounter;
     private Timer sendTimer;
 
-
     @PostConstruct
     void initMetrics() {
         sentCounter = meterRegistry.counter("notifications.email.sent.total");
@@ -51,14 +47,18 @@ public class ResendEmailServiceImpl implements EmailService {
 
     @Override
     public void send(EmailMessage message) {
-        log.info("Email send start [to={}, template={}, recipientType={}]", 
-            message.to(), message.templateType(), message.recipientType());
-        
-        sendTimer.record(() -> doSend(message));
+        send(message, resendClient);
     }
 
+    @Override
+    public void send(EmailMessage message, Resend client) {
+        log.info("Email send start [to={}, template={}, recipientType={}]", 
+            message.to(), message.templateType(), message.recipientType());
 
-    private void doSend(EmailMessage message) {
+        sendTimer.record(() -> doSend(message, client));
+    }
+
+    private void doSend(EmailMessage message, Resend client) {
         try {
             String html = renderTemplate(message);
             var options = CreateEmailOptions.builder()
@@ -68,7 +68,7 @@ public class ResendEmailServiceImpl implements EmailService {
                     .html(html)
                     .build();
 
-            var response = resendClient.emails().send(options);
+            var response = client.emails().send(options);
             sentCounter.increment();
             log.info("Email delivered [to={}, template={}, messageId={}]", 
                 message.to(), message.templateType(), response.getId());
@@ -116,6 +116,9 @@ public class ResendEmailServiceImpl implements EmailService {
             case IMPORT_COMPLETE_SUMMARY -> "Bulk import completed — Psyllabus";
             case IMPORT_FAILED -> "Bulk import failed — action required";
             case SYSTEM_NOTIFICATION -> "New notification from Psyllabus";
+            case WELCOME_ADMIN -> "Welcome to Psyllabus — Set Your Password";
+            case WELCOME_ADMIN_CONFIRMATION -> "Your Psyllabus password has been set";
+            case GUARDIAN_WELCOME -> "You've been added as a guardian on Psyllabus";
         };
     }
 }

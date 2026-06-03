@@ -1,5 +1,6 @@
 package io.psyllabus.platform.messaging.service;
 
+import com.resend.Resend;
 import io.psyllabus.platform.messaging.dto.EmailMessage;
 
 /**
@@ -11,11 +12,20 @@ import io.psyllabus.platform.messaging.dto.EmailMessage;
  */
 public interface EmailService {
     /**
-     * Render the template and deliver via Resend.
+     * Render the template and deliver via the platform Resend client.
      *
      * @param message the typed email payload; must not contain plaintext passwords
      */
     void send(EmailMessage message);
+
+    /**
+     * Render the template and deliver via a specific Resend client.
+     * Used by the listener after resolving the correct client (platform vs tenant).
+     *
+     * @param message the typed email payload
+     * @param client  the Resend client to use for delivery
+     */
+    void send(EmailMessage message, Resend client);
 
     /**
      * Convenience method to send an inquiry to the Psyllabus support team.

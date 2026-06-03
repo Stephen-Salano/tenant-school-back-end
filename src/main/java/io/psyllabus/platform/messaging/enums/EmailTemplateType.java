@@ -10,7 +10,10 @@ public enum EmailTemplateType {
     PASSWORD_RESET ("password-reset"),
     IMPORT_COMPLETE_SUMMARY ("import-complete-summary"), // sent to admin
     IMPORT_FAILED ("import-failed"), // sent to admin
-    SYSTEM_NOTIFICATION ("system-notification"); // Generic 1:1 internal
+    SYSTEM_NOTIFICATION ("system-notification"), // Generic 1:1 internal
+    WELCOME_ADMIN ("welcome-admin"), // sent to school admin on provisioning (platform key)
+    WELCOME_ADMIN_CONFIRMATION ("welcome-admin-confirmation"), // sent after admin resets password
+    GUARDIAN_WELCOME ("guardian-welcome"); // sent to guardian after import (school key)
 
     /** Matches the .html filename under templates/emails/. */
     public final String templateName;

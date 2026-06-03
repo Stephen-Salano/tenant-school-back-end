@@ -18,5 +18,8 @@ public enum AuditAction {
     TEMPLATE_DOWNLOAD, // Added: To track admin access to import tools
     
     // SM7: Payments
-    PAYMENT_REVERSAL
+    PAYMENT_REVERSAL,
+
+    // SM4.14: Tenant Secrets
+    TENANT_SECRET
 }
